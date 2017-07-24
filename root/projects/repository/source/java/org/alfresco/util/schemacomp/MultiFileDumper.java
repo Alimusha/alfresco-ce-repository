@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.util.schemacomp;
 
@@ -28,7 +35,7 @@ import org.alfresco.util.TempFileProvider;
 import org.springframework.context.ApplicationContext;
 
 /**
- * Given a set of database object prefixes (e.g. "alf_", "jbpm_") and
+ * Given a set of database object prefixes (e.g. "alf_", "act_") and
  * a file name template (e.g. "AlfrescoSchema-MySQL-{0}-") will produce a set of files,
  * one per database object prefix of the form:
  * <pre>
@@ -46,7 +53,7 @@ public class MultiFileDumper
     private final String fileNameTemplate;
     private final DbToXMLFactory dbToXMLFactory;
     private final static String fileNameSuffix = ".xml";
-    public final static String[] DEFAULT_PREFIXES = new String[] { "alf_", "jbpm_", "act_" };
+    public final static String[] DEFAULT_PREFIXES = new String[] { "alf_", "act_" };
     private String defaultSchemaName;
     
     

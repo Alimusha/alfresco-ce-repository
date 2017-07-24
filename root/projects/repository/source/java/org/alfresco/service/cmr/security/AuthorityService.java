@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.security;
 
@@ -306,7 +313,6 @@ public interface AuthorityService
      * @param immediate -
      *            if true, limit the depth to just immediate child, if false
      *            find authorities at any depth
-     * @return Set<String>
      */
     @Auditable(parameters = {"type", "name", "immediate"})
     public Set<String> getContainedAuthorities(AuthorityType type, String name, boolean immediate);
@@ -328,7 +334,6 @@ public interface AuthorityService
      *            are required.
      * @param immediate -
      *            limit to immediate parents or any ancestor.
-     * @return Set<String>
      */
     @Auditable(parameters = {"type", "name", "immediate"})
     public Set<String> getContainingAuthorities(AuthorityType type, String name, boolean immediate);
@@ -476,7 +481,6 @@ public interface AuthorityService
     /**
      * Add a zone to an authority.
      * @param authorityName String
-     * @param zones Set<String>
      */
     @Auditable(parameters = {"authorityName", "zones"})
     public void addAuthorityToZones(String authorityName, Set<String> zones);
@@ -484,7 +488,6 @@ public interface AuthorityService
     /**
      * Remove a zone from an authority
      * @param authorityName String
-     * @param zones Set<String>
      */
     @Auditable(parameters = {"authorityName", "zones"})
     public void removeAuthorityFromZones(String authorityName, Set<String> zones);
@@ -505,7 +508,6 @@ public interface AuthorityService
      * @param immediate if <code>true</code> then only search root groups if parentAuthority is null, or immediate children of parentAuthority if it is non-null.
      * @param displayNamePattern String
      * @param zoneName - may be null to indicate all zones
-     * @return Set<String>
      */
     @Auditable(parameters = {"type"})
     public Set<String> findAuthorities(AuthorityType type, String parentAuthority, boolean immediate, String displayNamePattern, String zoneName);

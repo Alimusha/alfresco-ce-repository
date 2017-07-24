@@ -1,28 +1,38 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
+
+import static org.alfresco.repo.content.transform.TransformerConfig.PREFIX;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -48,6 +58,9 @@ public class TransformerPropertyGetter
 
         // Log entries
         appendLoggerSetting(sb, changesOnly, transformerLog, transformerDebugLog, transformerProperties);
+
+        // Miscellaneous
+        appendMiscellaneousSettings(sb, changesOnly, transformerProperties);
 
         // Default transformer
         Set<String> alreadySpecified = new HashSet<String>();
@@ -104,6 +117,67 @@ public class TransformerPropertyGetter
                 sb.append(debugEntries);
                 sb.append("\n");
             }
+        }
+    }
+    
+    private void appendMiscellaneousSettings(StringBuilder sb, boolean changesOnly,
+        TransformerProperties transformerProperties)
+    {
+        Properties defaultProperties = transformerProperties.getDefaultProperties();
+        boolean first = true;
+        for (String propertyName: getMiscellaneousPropertyNames(defaultProperties))
+        {
+            String defaultValue = defaultProperties.getProperty(propertyName);
+            String value = transformerProperties.getProperty(propertyName);
+            boolean isDefaultValue = value == null || value.equals(defaultValue);
+            value = value == null ? defaultValue : value;
+            
+            if (!changesOnly || !isDefaultValue)
+            {
+                if (first)
+                {
+                    sb.append("\n");
+                    sb.append("# Miscellaneous settings\n");
+                    sb.append("# ======================\n");
+                    first = false;
+                }
+                appendProperty(sb, propertyName, value, defaultValue);
+                sb.append("\n");
+            }
+        }
+    }
+
+    // Gets names from transformers.properties that are not log or content.transformer values.
+    private Set<String> getMiscellaneousPropertyNames(Properties defaultProperties)
+    {
+        Set<String> propertyNames = new TreeSet<String>();
+        for (Object key: defaultProperties.keySet())
+        {
+            String propertyName = key.toString();
+            if (!propertyName.startsWith(PREFIX) &&
+                !propertyName.equals(TransformerConfig.LOG_ENTRIES) &&
+                !propertyName.equals(TransformerConfig.DEBUG_ENTRIES))
+            {
+                propertyNames.add(propertyName);
+            }
+        }
+        return propertyNames;
+    }
+
+    public static void appendProperty(StringBuilder sb, String propertyName, String value, String defaultValue)
+    {
+        boolean isDefaultValue = value.equals(defaultValue);
+        if (isDefaultValue)
+        {
+            sb.append("# ");
+        }
+        sb.append(propertyName);
+        sb.append('=');
+        sb.append(value);
+        if (!isDefaultValue)
+        {
+            sb.append("  # default=");
+            sb.append(defaultValue);
         }
     }
 

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.search;
 
@@ -90,7 +97,6 @@ public interface CategoryService
     /**
      * Get all the classification entries
      * 
-     * @return Collection<ChildAssociationRef>
      */
     @Auditable(parameters = {"storeRef"})
     public Collection<ChildAssociationRef> getClassifications(StoreRef storeRef);
@@ -100,7 +106,6 @@ public interface CategoryService
      * 
      * @param storeRef StoreRef
      * @param aspectName QName
-     * @return Collection<ChildAssociationRef>
      */
     @Auditable(parameters = {"storeRef", "aspectName"})
     public Collection<ChildAssociationRef> getRootCategories(StoreRef storeRef, QName aspectName);
@@ -112,7 +117,6 @@ public interface CategoryService
      * @param aspectName QName
      * @param pagingRequest PagingRequest
      * @param sortByName boolean
-     * @return PagingResults<ChildAssociationRef>
      */
     @Auditable(parameters = {"storeRef", "aspectName", "pagingRequest", "sortByName"})
     PagingResults<ChildAssociationRef> getRootCategories(StoreRef storeRef, QName aspectName, PagingRequest pagingRequest, boolean sortByName);
@@ -136,7 +140,6 @@ public interface CategoryService
      * @param storeRef StoreRef
      * @param aspectName QName
      * @param filter String
-     * @return Collection<ChildAssociationRef>
      */
     @Auditable(parameters = {"storeRef", "aspectName"})
     public Collection<ChildAssociationRef> getRootCategories(StoreRef storeRef, QName aspectName, String filter);
@@ -177,7 +180,6 @@ public interface CategoryService
     /**
      * Get all the types that represent categories
      * 
-     * @return Collection<QName>
      */
     @Auditable
     public Collection<QName> getClassificationAspects();

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.invitation;
@@ -46,6 +53,8 @@ import org.alfresco.repo.action.executer.MailActionExecuter;
 import org.alfresco.repo.admin.SysAdminParams;
 import org.alfresco.repo.i18n.MessageService;
 import org.alfresco.repo.invitation.activiti.SendNominatedInviteDelegate;
+import org.alfresco.repo.invitation.site.InviteModeratedSender;
+import org.alfresco.repo.invitation.site.InviteNominatedSender;
 import org.alfresco.repo.invitation.site.InviteSender;
 import org.alfresco.repo.jscript.ScriptNode;
 import org.alfresco.repo.model.Repository;
@@ -63,7 +72,6 @@ import org.alfresco.repo.transaction.TransactionalResourceHelper;
 import org.alfresco.repo.workflow.CancelWorkflowActionExecuter;
 import org.alfresco.repo.workflow.WorkflowModel;
 import org.alfresco.repo.workflow.activiti.ActivitiConstants;
-import org.alfresco.repo.workflow.jbpm.JBPMEngine;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.action.Action;
 import org.alfresco.service.cmr.action.ActionService;
@@ -119,7 +127,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
     private static final Log logger = LogFactory.getLog(InvitationServiceImpl.class);
     private static final String REJECT_TEMPLATE = "/alfresco/bootstrap/invite/moderated-reject-email.ftl";
     private static final String MSG_NOT_SITE_MANAGER = "invitation.cancel.not_site_manager";
-    private static final Collection<String> sendInvitePropertyNames = Arrays.asList(wfVarInviteeUserName,//
+    private static final List<String> SEND_INVITE_NOMINATED_PROP_NAMES = Arrays.asList(wfVarInviteeUserName,//
             wfVarResourceName,//
             wfVarInviterUserName,//
             wfVarInviteeUserName,//
@@ -130,7 +138,15 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
             wfVarServerPath,//
             wfVarAcceptUrl,//
             wfVarRejectUrl,
-            InviteSender.WF_INSTANCE_ID);
+            InviteNominatedSender.WF_INSTANCE_ID);
+    
+    private static final List<String> SEND_INVITE_MODERATED_PROP_NAMES = Arrays.asList(
+            WorkflowModelModeratedInvitation.wfVarInviteeUserName,
+            WorkflowModelModeratedInvitation.wfVarInviteeRole,
+            WorkflowModelModeratedInvitation.wfVarResourceName,
+            WorkflowModelModeratedInvitation.bpmGroupAssignee,
+            WorkflowModelModeratedInvitation.wfVarResourceType);
+    
     
     /**
      * Services
@@ -154,7 +170,8 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
     private Repository repositoryHelper;
     private ServiceRegistry serviceRegistry;
     private MessageService messageService;
-    private InviteSender inviteSender;
+    private InviteNominatedSender inviteNominatedSender;
+    private InviteModeratedSender inviteModeratedSender;
 
     // maximum number of tries to generate a invitee user name which
     // does not already belong to an existing person
@@ -236,7 +253,8 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         PropertyCheck.mandatory(this, "PolicyComponent", policyComponent);
         PropertyCheck.mandatory(this, "templateService", templateService);
         
-        this.inviteSender = new InviteSender(serviceRegistry, repositoryHelper, messageService);
+        this.inviteNominatedSender = new InviteNominatedSender(serviceRegistry, repositoryHelper, messageService);
+        this.inviteModeratedSender = new InviteModeratedSender(serviceRegistry, repositoryHelper, messageService);
         
         //
         this.policyComponent.bindClassBehaviour(QName.createQName(NamespaceService.ALFRESCO_URI, "beforeDeleteNode"),
@@ -253,13 +271,9 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
     public List<String> getInvitationServiceWorkflowNames()
     {
         List<String> ret = new ArrayList<String>(3);
-        ret.add(WorkflowModelNominatedInvitation.WORKFLOW_DEFINITION_NAME);
         ret.add(WorkflowModelNominatedInvitation.WORKFLOW_DEFINITION_NAME_ACTIVITI_ADD_DIRECT);
         ret.add(WorkflowModelNominatedInvitation.WORKFLOW_DEFINITION_NAME_ACTIVITI_INVITE);
-        ret.add(WorkflowModelModeratedInvitation.WORKFLOW_DEFINITION_NAME);
         ret.add(WorkflowModelModeratedInvitation.WORKFLOW_DEFINITION_NAME_ACTIVITI);
-        // old deprecated invitation workflow.
-        ret.add("jbpm$wf:invite");
         return ret;
     }
 
@@ -442,10 +456,10 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         }
         endInvitation(startTask,
                 WorkflowModelNominatedInvitation.WF_TRANSITION_ACCEPT, null,
-                WorkflowModelNominatedInvitation.WF_TASK_INVITE_PENDING, WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
+                WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
         
         //MNT-9101 Share: Cancelling an invitation for a disabled user, the user gets deleted in the process.
-        NodeRef person = personService.getPersonOrNull(invitation.getInviterUserName());
+        NodeRef person = personService.getPersonOrNull(invitation.getInviteeUserName());
         if (person != null && nodeService.hasAspect(person, ContentModel.ASPECT_ANULLABLE))
         {
             nodeService.removeAspect(person, ContentModel.ASPECT_ANULLABLE);
@@ -504,7 +518,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         endInvitation(startTask,
                 WorkflowModelModeratedInvitation.WF_TRANSITION_APPROVE,
                 wfReviewProps,
-                WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK, WorkflowModelModeratedInvitation.WF_REVIEW_TASK);
+                WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK);
         return invitation;
     }
 
@@ -541,7 +555,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         endInvitation(startTask,
                 WorkflowModelModeratedInvitation.WF_TRANSITION_REJECT,
                 properties,
-                WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK, WorkflowModelModeratedInvitation.WF_REVIEW_TASK);
+                WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK);
         return invitation;
     }
 
@@ -550,7 +564,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         NominatedInvitation invitation = getNominatedInvitation(startTask);
         endInvitation(startTask,
                 WorkflowModelNominatedInvitation.WF_TRANSITION_REJECT, null,
-                WorkflowModelNominatedInvitation.WF_TASK_INVITE_PENDING, WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
+                WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
         return invitation;
     }
 
@@ -614,7 +628,6 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         if (this.siteService.getSite(invitation.getResourceName()) != null)
         {
             endInvitation(startTask, WorkflowModelNominatedInvitation.WF_TRANSITION_CANCEL, null,
-                    WorkflowModelNominatedInvitation.WF_TASK_INVITE_PENDING,
                     WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
         }
         return invitation;
@@ -709,7 +722,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         List<WorkflowTask> tasks = workflowService.getTasksForWorkflowPath(invitationId);
         for(WorkflowTask task : tasks)
         {
-            if(taskTypeMatches(task, WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK, WorkflowModelModeratedInvitation.WF_REVIEW_TASK))
+            if(taskTypeMatches(task, WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK))
         	{
         		reviewTask = task;
         		break;
@@ -828,16 +841,22 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
     }
 
     /**
-     * This is the general search invitation method returning {@link Invitation}s
+     * {@inheritDoc}
      * 
-     * @param criteria InvitationSearchCriteria
-     * @return the list of start tasks for invitations
+     * @deprecated
      */
     public List<Invitation> searchInvitation(final InvitationSearchCriteria criteria)
     {
-        int limit = 200;
+        return searchInvitation(criteria, 200);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public List<Invitation> searchInvitation(InvitationSearchCriteria criteria, int limit)
+    {
         List<String> invitationIds = searchInvitationsForIds(criteria, limit);
-        return invitationIds.isEmpty() ? Collections.<Invitation>emptyList() : searchInvitation(criteria, invitationIds);
+        return invitationIds.isEmpty() ? Collections.<Invitation> emptyList() : searchInvitation(criteria, invitationIds);
     }
 
     private List<Invitation> searchInvitation(final InvitationSearchCriteria criteria, List<String> invitationIds)
@@ -872,7 +891,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         if (toSearch == InvitationSearchCriteria.InvitationType.ALL
                     || toSearch == InvitationSearchCriteria.InvitationType.NOMINATED)
         {
-            for (WorkflowTask task : searchNominatedInvitations(criteria))
+            for (WorkflowTask task : searchNominatedInvitations(criteria, limit))
             {
                 String invitationId = task.getPath().getInstance().getId();
                 invitationIds.add(invitationId);
@@ -886,7 +905,7 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
             (toSearch == InvitationSearchCriteria.InvitationType.ALL
                      || toSearch == InvitationSearchCriteria.InvitationType.MODERATED))
         {
-            for (WorkflowTask task: searchModeratedInvitations(criteria))
+            for (WorkflowTask task: searchModeratedInvitations(criteria, limit))
             {
                 String invitationId = task.getPath().getInstance().getId();
                 invitationIds.add(invitationId);
@@ -937,14 +956,23 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         }
         return true;
     }
-    
-    private List<WorkflowTask> searchModeratedInvitations(InvitationSearchCriteria criteria)
+
+    /**
+     * 
+     * @param criteria criteria to search by
+     * @param limit maximum number of IDs to return. If less than 1, there is no limit.
+     * @return list of WorkflowTask representing moderated invitations
+     */
+    private List<WorkflowTask> searchModeratedInvitations(InvitationSearchCriteria criteria, int limit)
     {
         long start = (logger.isDebugEnabled()) ? System.currentTimeMillis() : 0;
 
         WorkflowTaskQuery query = new WorkflowTaskQuery();
         query.setTaskState(WorkflowTaskState.IN_PROGRESS);
-        
+        if (limit > 0)
+        {
+            query.setLimit(limit);
+        }
         Map<QName, Object> properties = new HashMap<QName, Object>();
         String invitee = criteria.getInvitee();
         if (invitee != null)
@@ -964,22 +992,10 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         }
         query.setProcessCustomProps(properties);
 
-        query.setTaskName(WorkflowModelModeratedInvitation.WF_REVIEW_TASK);
+        query.setTaskName(WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK);
 
         // query for invite workflow tasks
         List<WorkflowTask> results = new ArrayList<WorkflowTask>();
-        if(workflowAdminService.isEngineEnabled(JBPMEngine.ENGINE_ID))
-        {
-            query.setTaskName(WorkflowModelModeratedInvitation.WF_REVIEW_TASK);
-            List<WorkflowTask> jbpmTasks = this.workflowService.queryTasks(query, true);
-
-            if(jbpmTasks !=null)
-            {
-                results.addAll(jbpmTasks);
-                
-                if (logger.isTraceEnabled()) { logger.trace("Found " + jbpmTasks.size() + " jBPM moderated invitation tasks."); }
-           }
-        }
         if(workflowAdminService.isEngineEnabled(ActivitiConstants.ENGINE_ID))
         {
             query.setTaskName(WorkflowModelModeratedInvitation.WF_ACTIVITI_REVIEW_TASK);
@@ -998,13 +1014,22 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         return results;
     }
 
-    private List<WorkflowTask> searchNominatedInvitations(InvitationSearchCriteria criteria)
+    /**
+     * 
+     * @param criteria
+     * @param limit maximum number of IDs to return. If less than 1, there is no limit.
+     * @return list of WorkflowTask representing nominated invitations
+     */
+    private List<WorkflowTask> searchNominatedInvitations(InvitationSearchCriteria criteria, int limit)
     {
         long start = (logger.isDebugEnabled()) ? System.currentTimeMillis() : 0;
 
         WorkflowTaskQuery query = new WorkflowTaskQuery();
         query.setTaskState(WorkflowTaskState.IN_PROGRESS);
-        
+        if (limit > 0)
+        {
+            query.setLimit(limit);
+        }
         String invitee = criteria.getInvitee();
         if(invitee != null)
         {
@@ -1034,17 +1059,6 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         query.setProcessCustomProps(queryProps);
 
         List<WorkflowTask> results = new ArrayList<WorkflowTask>();
-        if(workflowAdminService.isEngineEnabled(JBPMEngine.ENGINE_ID))
-        {
-            query.setTaskName(WorkflowModelNominatedInvitation.WF_TASK_INVITE_PENDING);
-            List<WorkflowTask> jbpmTasks = this.workflowService.queryTasks(query, true);
-            if(jbpmTasks !=null)
-            {
-                results.addAll(jbpmTasks);
-                
-                if (logger.isTraceEnabled()) { logger.trace("Found " + jbpmTasks.size() + " jBPM nominated invitation tasks."); }
-            }
-        }
         if(workflowAdminService.isEngineEnabled(ActivitiConstants.ENGINE_ID))
         {
             query.setTaskName(WorkflowModelNominatedInvitation.WF_TASK_ACTIVIT_INVITE_PENDING);
@@ -1618,10 +1632,6 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         {
             return nominatedInvitationWorkflowId;
         }
-        else if(workflowAdminService.isEngineEnabled(JBPMEngine.ENGINE_ID))
-        {
-            return WorkflowModelNominatedInvitation.WORKFLOW_DEFINITION_NAME;
-        }
         throw new IllegalStateException("None of the Workflow engines supported by the InvitationService are currently enabled!");
     }
     
@@ -1631,10 +1641,6 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         {
             return nominatedInvitationExternalWorkflowId;
         }
-        else if(workflowAdminService.isEngineEnabled(JBPMEngine.ENGINE_ID))
-        {
-            return WorkflowModelNominatedInvitation.WORKFLOW_DEFINITION_NAME;
-        }
         throw new IllegalStateException("None of the Workflow engines supported by the InvitationService are currently enabled!");
     }
     
@@ -1643,10 +1649,6 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
         if(workflowAdminService.isEngineEnabled(ActivitiConstants.ENGINE_ID))
         {
             return moderatedInvitationWorkflowId;
-        }
-        else if(workflowAdminService.isEngineEnabled(JBPMEngine.ENGINE_ID))
-        {
-            return WorkflowModelModeratedInvitation.WORKFLOW_DEFINITION_NAME;
         }
         throw new IllegalStateException("None of the Workflow engines supported by the InvitationService are currently enabled!");
     }
@@ -1980,20 +1982,39 @@ public class InvitationServiceImpl implements InvitationService, NodeServicePoli
     public void sendNominatedInvitation(String inviteId, String emailTemplateXpath, 
             String emailSubjectKey, Map<String, Object> executionVariables)
     {
+        sendInviteEmail(inviteNominatedSender, SEND_INVITE_NOMINATED_PROP_NAMES, inviteId, emailTemplateXpath, emailSubjectKey, executionVariables);
+    }
+
+    private void sendInviteEmail(InviteSender inviteSender, List<String> invitePropNames, String inviteId, String emailTemplateXpath, String emailSubjectKey, Map<String, Object> executionVariables)
+    {
         if (isSendEmails())
         {
-            Map<String, String> properties = makePropertiesFromContextVariables(executionVariables, sendInvitePropertyNames);
+            Map<String, String> properties = makePropertiesFromContextVariables(executionVariables, invitePropNames);
 
-            String packageName = WorkflowModel.ASSOC_PACKAGE.toPrefixString(namespaceService).replace(":", "_");
-            ScriptNode packageNode = (ScriptNode) executionVariables.get(packageName);
-            String packageRef = packageNode.getNodeRef().toString();
-            properties.put(InviteSender.WF_PACKAGE, packageRef);
+            String packageRef = getPackageRef(executionVariables);
+            properties.put(InviteNominatedSender.WF_PACKAGE, packageRef);
             
-            properties.put(InviteSender.WF_INSTANCE_ID, inviteId);
+            properties.put(InviteNominatedSender.WF_INSTANCE_ID, inviteId);
             
             inviteSender.sendMail(emailTemplateXpath, emailSubjectKey, properties);
         }
-	}
+    }
+    
+
+    @Override
+    public void sendModeratedInvitation(String inviteId, String emailTemplateXpath, String emailSubjectKey, Map<String, Object> executionVariables)
+    {
+        sendInviteEmail(inviteModeratedSender, SEND_INVITE_MODERATED_PROP_NAMES, inviteId, emailTemplateXpath, emailSubjectKey, executionVariables);
+        
+    }
+
+    private String getPackageRef(Map<String, Object> executionVariables)
+    {
+        String packageName = WorkflowModel.ASSOC_PACKAGE.toPrefixString(namespaceService).replace(":", "_");
+        ScriptNode packageNode = (ScriptNode) executionVariables.get(packageName);
+        String packageRef = packageNode.getNodeRef().toString();
+        return packageRef;
+    }
     
     @Override
     public void cancelInvitation(String siteName, String invitee, String inviteId, String currentInviteId)

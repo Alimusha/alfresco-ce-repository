@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository WAR Community
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.web.bean.admin;
 
@@ -100,6 +107,7 @@ public class AdminNodeBrowseBean implements Serializable
     transient private DataModel properties = null;
     transient private DataModel children = null;
     transient private DataModel assocs = null;
+    transient private DataModel sourceAssocs = null;
     transient private DataModel permissions = null;
     transient private DataModel permissionMasks = null;
 
@@ -259,6 +267,7 @@ public class AdminNodeBrowseBean implements Serializable
         properties = null;
         children = null;
         assocs = null;
+        sourceAssocs = null;
         inheritPermissions = null;
         permissions = null;
         permissionMasks = null;
@@ -448,6 +457,28 @@ public class AdminNodeBrowseBean implements Serializable
     }
 
     /**
+     * Gets the current source associations
+     *
+     * @return associations
+     */
+    public DataModel getSourceAssocs()
+    {
+        if (sourceAssocs == null)
+        {
+            try
+            {
+                List<AssociationRef> assocRefs = getNodeService().getSourceAssocs(getNodeRef(), RegexQNamePattern.MATCH_ALL);
+                sourceAssocs = new ListDataModel(assocRefs);
+            }
+            catch (UnsupportedOperationException err)
+            {
+                // some stores do not support associations
+            }
+        }
+        return sourceAssocs;
+    }
+
+    /**
      * Gets the current query language
      * 
      * @return query language
@@ -578,6 +609,19 @@ public class AdminNodeBrowseBean implements Serializable
         AssociationRef assocRef = (AssociationRef) getAssocs().getRowData();
         NodeRef targetRef = assocRef.getTargetRef();
         setNodeRef(targetRef);
+        return "success";
+    }
+
+    /**
+     * Action to select association From node
+     *
+     * @return next action
+     */
+    public String selectFromNode()
+    {
+        AssociationRef assocRef = (AssociationRef) getSourceAssocs().getRowData();
+        NodeRef sourceRef = assocRef.getSourceRef();
+        setNodeRef(sourceRef);
         return "success";
     }
 

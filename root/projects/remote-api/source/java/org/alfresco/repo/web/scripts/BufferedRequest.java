@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.repo.web.scripts;
 
 import java.io.BufferedReader;
@@ -6,8 +31,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStream;
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
+import org.apache.chemistry.opencmis.commons.server.TempStoreOutputStream;
+import org.apache.chemistry.opencmis.server.shared.TempStoreOutputStreamFactory;
 import org.springframework.extensions.surf.util.Content;
 import org.springframework.extensions.webscripts.Description.FormatStyle;
 import org.springframework.extensions.webscripts.Match;
@@ -18,13 +43,13 @@ import org.springframework.util.FileCopyUtils;
 
 public class BufferedRequest implements WrappingWebScriptRequest
 {
-	private ThresholdOutputStreamFactory streamFactory;
+	private TempStoreOutputStreamFactory streamFactory;
     private WebScriptRequest req;
     private File requestBody;
     private InputStream contentStream;
     private BufferedReader contentReader;
     
-    public BufferedRequest(WebScriptRequest req, ThresholdOutputStreamFactory streamFactory)
+    public BufferedRequest(WebScriptRequest req, TempStoreOutputStreamFactory streamFactory)
     {
         this.req = req;
         this.streamFactory = streamFactory;
@@ -32,7 +57,7 @@ public class BufferedRequest implements WrappingWebScriptRequest
 
     private InputStream bufferInputStream() throws IOException
     {
-        ThresholdOutputStream bufferStream = streamFactory.newOutputStream();
+        TempStoreOutputStream bufferStream = streamFactory.newOutputStream();
 
         try
         {
@@ -40,7 +65,7 @@ public class BufferedRequest implements WrappingWebScriptRequest
         }
         catch (IOException e)
         {
-            bufferStream.destroy(); // remove temp file
+            bufferStream.destroy(e); // remove temp file
             throw e;
         }
 

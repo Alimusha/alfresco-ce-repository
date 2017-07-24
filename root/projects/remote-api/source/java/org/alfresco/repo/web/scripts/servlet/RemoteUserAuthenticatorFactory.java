@@ -1,25 +1,33 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.servlet;
 
 import javax.servlet.http.HttpSession;
 
+import org.alfresco.error.ExceptionStackUtil;
 import org.alfresco.repo.SessionUser;
 import org.alfresco.repo.management.subsystems.ActivateableBean;
 import org.alfresco.repo.security.authentication.AuthenticationComponent;
@@ -35,6 +43,8 @@ import org.springframework.extensions.webscripts.Authenticator;
 import org.springframework.extensions.webscripts.Description.RequiredAuthentication;
 import org.springframework.extensions.webscripts.servlet.WebScriptServletRequest;
 import org.springframework.extensions.webscripts.servlet.WebScriptServletResponse;
+
+import net.sf.acegisecurity.DisabledException;
 
 /**
  * Authenticator to provide Remote User based Header authentication dropping back to Basic Auth otherwise. 
@@ -92,9 +102,25 @@ public class RemoteUserAuthenticatorFactory extends BasicHttpAuthenticatorFactor
             final String userId = getRemoteUser();
             if (userId != null)
             {
-                authenticationComponent.setCurrentUser(userId);
-                listener.userAuthenticated(new TicketCredentials(authenticationService.getCurrentTicket()));
-                authenticated = true;
+                try
+                {
+                    authenticationComponent.setCurrentUser(userId);
+                    listener.userAuthenticated(new TicketCredentials(authenticationService.getCurrentTicket()));
+                    authenticated = true;
+                }
+                catch (AuthenticationException authErr)
+                {
+                    // don't propagate if the user is disabled
+                    Throwable disabledCause = ExceptionStackUtil.getCause(authErr, DisabledException.class);
+                    if(disabledCause != null)
+                    {
+                    	listener.authenticationFailed(new WebCredentials() {});
+                    }
+                    else
+                    {
+                        throw authErr;
+                    }
+                }
             }
             else
             {

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.audit;
 
@@ -349,8 +356,9 @@ public class AuditMethodInterceptor implements MethodInterceptor
         }
         else
         {
-            if(value instanceof List)
+            if (value instanceof List)
             {
+                @SuppressWarnings("rawtypes")
                 List valueList = (List) value;
                 List<Serializable> recordableList = new ArrayList<Serializable>();
                 for (Object valueListItem : valueList)
@@ -497,27 +505,27 @@ public class AuditMethodInterceptor implements MethodInterceptor
 
         if (thrown != null)
         {
-        	// ALF-3055: an exception has occurred - make sure the audit occurs in a new thread
-        	//     rather than a nested transaction to avoid contention for the same audit table
+            // ALF-3055: an exception has occurred - make sure the audit occurs in a new thread
+            //     rather than a nested transaction to avoid contention for the same audit table
             // ALF-12638: ensure that the new thread context matches the current thread context
             final Authentication authContext = AuthenticationUtil.getFullAuthentication();
             threadPoolExecutor.execute(new Runnable()
             {
-				public void run()
-				{
-			        Map<String, Serializable> auditedData;
+                public void run()
+                {
+                    Map<String, Serializable> auditedData;
 
-		            StringBuilder sb = new StringBuilder(1024);
-		            StackTraceUtil.buildStackTrace(
-		                    thrown.getMessage(), thrown.getStackTrace(), sb, Integer.MAX_VALUE);
-		            auditData.put(AUDIT_SNIPPET_ERROR, SchemaBootstrap.trimStringForTextFields(sb.toString()));
+                    StringBuilder sb = new StringBuilder(1024);
+                    StackTraceUtil.buildStackTrace(
+                            thrown.getMessage(), thrown.getStackTrace(), sb, Integer.MAX_VALUE);
+                    auditData.put(AUDIT_SNIPPET_ERROR, SchemaBootstrap.trimStringForTextFields(sb.toString()));
 
-		            // Ensure we have a transaction
-		            RetryingTransactionCallback<Map<String, Serializable>> auditCallback =
-		                    new RetryingTransactionCallback<Map<String, Serializable>>()
-		            {
-		                public Map<String, Serializable> execute() throws Throwable
-		                {
+                    // Ensure we have a transaction
+                    RetryingTransactionCallback<Map<String, Serializable>> auditCallback =
+                            new RetryingTransactionCallback<Map<String, Serializable>>()
+                    {
+                        public Map<String, Serializable> execute() throws Throwable
+                        {
                             // Record thrown exceptions regardless of userFilter in case of failed authentication
                             // see MNT-11760
                             if (thrown instanceof AuthenticationException)
@@ -529,27 +537,27 @@ public class AuditMethodInterceptor implements MethodInterceptor
                                   return auditComponent.recordAuditValues(rootPath, auditData);
                             }
 
-		                }
-		            };
-		            try
-		            {
+                        }
+                    };
+                    try
+                    {
                         AuthenticationUtil.setFullAuthentication(authContext);
-		                auditedData = transactionService.getRetryingTransactionHelper().doInTransaction(auditCallback, false, true);
-		            }
-		            finally
-		            {
-		                AuthenticationUtil.clearCurrentSecurityContext();
-		            }
-		            
-			        // Done
-			        if (logger.isDebugEnabled() && auditedData.size() > 0)
-			        {
-			            logger.debug(
-			                    "Audited after invocation: \n" +
-			                    (thrown == null ? "" : "   Exception: " + thrown.getMessage() + "\n") +
-			                    "   Values: " + auditedData);
-			        }
-				}
+                        auditedData = transactionService.getRetryingTransactionHelper().doInTransaction(auditCallback, false, true);
+                    }
+                    finally
+                    {
+                        AuthenticationUtil.clearCurrentSecurityContext();
+                    }
+                    
+                    // Done
+                    if (logger.isDebugEnabled() && auditedData.size() > 0)
+                    {
+                        logger.debug(
+                                "Audited after invocation: \n" +
+                                (thrown == null ? "" : "   Exception: " + thrown.getMessage() + "\n") +
+                                "   Values: " + auditedData);
+                    }
+                }
             });
         }
         else
@@ -560,14 +568,14 @@ public class AuditMethodInterceptor implements MethodInterceptor
             // The current transaction will be fine
             auditedData = auditComponent.recordAuditValues(rootPath, auditData);
 
-	        // Done
-	        if (logger.isDebugEnabled() && auditedData.size() > 0)
-	        {
-	            logger.debug(
-	                    "Audited after invocation: \n" +
-	                    (thrown == null ? "" : "   Exception: " + thrown.getMessage() + "\n") +
-	                    "   Values: " + auditedData);
-	        }
+            // Done
+            if (logger.isDebugEnabled() && auditedData.size() > 0)
+            {
+                logger.debug(
+                        "Audited after invocation: \n" +
+                        (thrown == null ? "" : "   Exception: " + thrown.getMessage() + "\n") +
+                        "   Values: " + auditedData);
+            }
         }
     }
 }

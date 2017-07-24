@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.rest.api.tests;
 
@@ -76,9 +83,9 @@ import org.alfresco.rest.api.impl.node.ratings.RatingScheme;
 import org.alfresco.rest.api.tests.client.data.Activity;
 import org.alfresco.rest.api.tests.client.data.Comment;
 import org.alfresco.rest.api.tests.client.data.Company;
-import org.alfresco.rest.api.tests.client.data.Document;
+import org.alfresco.rest.api.tests.client.data.FavouriteDocument;
+import org.alfresco.rest.api.tests.client.data.FavouriteFolder;
 import org.alfresco.rest.api.tests.client.data.FavouriteSite;
-import org.alfresco.rest.api.tests.client.data.Folder;
 import org.alfresco.rest.api.tests.client.data.MemberOfSite;
 import org.alfresco.rest.api.tests.client.data.NetworkImpl;
 import org.alfresco.rest.api.tests.client.data.NodeRating;
@@ -202,7 +209,7 @@ public class RepoService
 	protected Activities activities;
 
 	protected PublicApiTestContext publicApiContext;
-
+	
 	protected Random random = new Random(System.currentTimeMillis());
 	
 	protected static int numNetworks = 0;
@@ -358,14 +365,27 @@ public class RepoService
 		nodeService.deleteNode(nodeRef);
 	}
 	
+	//
+	// TODO replace with V1 REST API to Lock/Unlock - except calls to includeChildren (which may not be exposed, initially
+	//
 	public void lockNode(NodeRef nodeRef)
 	{
-		lockService.lock(nodeRef, LockType.NODE_LOCK);
+		lockNode(nodeRef, LockType.NODE_LOCK, 0, false);
+	}
+
+	public void lockNode(NodeRef nodeRef, LockType lockType, int timeToExpire, boolean includeChildren)
+	{
+		lockService.lock(nodeRef, lockType, timeToExpire, includeChildren);
 	}
 	
 	public void unlockNode(NodeRef nodeRef)
 	{
-		lockService.unlock(nodeRef);
+		unlockNode(nodeRef, false);
+	}
+
+	public void unlockNode(NodeRef nodeRef, boolean includeChildren)
+	{
+		lockService.unlock(nodeRef, true, false);
 	}
 
 	public NodeRef addUserDescription(final String personId, final TestNetwork network, final String personDescription)
@@ -393,41 +413,78 @@ public class RepoService
 
 	public TestPerson createUser(final PersonInfo personInfo, final String username, final TestNetwork network)
 	{
+		return getOrCreateUser(personInfo, username, network, true);
+	}
+
+    public TestPerson getOrCreateUser(final PersonInfo personInfo, final String username, final TestNetwork network)
+    {
+        return getOrCreateUser(personInfo, username, network, false);
+    }
+	
+	public final static String DEFAULT_ADMIN = "admin";
+	public final static String DEFAULT_ADMIN_PWD = "admin";
+	
+	// TODO improve admin-related API tests (including ST vs MT)
+	private boolean isDefaultAdmin(String username, TestNetwork network)
+	{
+		if ((network == null) || (TenantService.DEFAULT_DOMAIN.equals(network.getId())))
+		{
+			return (DEFAULT_ADMIN.equalsIgnoreCase(username));
+		}
+		else
+		{
+			return ((DEFAULT_ADMIN+"@"+network.getId()).equalsIgnoreCase(username));
+		}
+	}
+
+	// TODO review delete person
+	public TestPerson getOrCreateUser(final PersonInfo personInfo, final String username, final TestNetwork network, final boolean deletePerson)
+	{
 		return AuthenticationUtil.runAsSystem(new RunAsWork<TestPerson>()
 		{
 			@Override
 			public TestPerson doWork() throws Exception
 			{
+
 				final TestPerson testPerson = new TestPerson(personInfo.getFirstName(), personInfo.getLastName(), username, personInfo.getPassword(),
 						personInfo.getCompany(), network, personInfo.getSkype(), personInfo.getLocation(), personInfo.getTel(),
 						personInfo.getMob(), personInfo.getInstantmsg(), personInfo.getGoogle());
-				final Map<QName, Serializable> props = testPerson.getProperties();
 
-				if(personService.personExists(testPerson.getId()))
-				{
-					AuthenticationUtil.runAsSystem(new RunAsWork<Void>()
-					{
-						@Override
-						public Void doWork() throws Exception
-						{
-							personService.deletePerson(testPerson.getId());
-							return null;
-						}
-					});
-				}
+				final Map<QName, Serializable> props = testPerson.toProperties();
 
-				NodeRef createdPerson = personService.createPerson(props);
+                // short-circuit for default/tenant "admin"
+                if (! isDefaultAdmin(username, network))
+                {
+                    NodeRef personNodeRef = personService.getPersonOrNull(username);
 
-		        // create authentication to represent user
-		        authenticationService.createAuthentication(username, personInfo.getPassword().toCharArray());
+                    if ((personNodeRef != null) && deletePerson)
+                    {
+                        AuthenticationUtil.runAsSystem(new RunAsWork<Void>()
+                        {
+                            @Override
+                            public Void doWork() throws Exception
+                            {
+                                personService.deletePerson(testPerson.getId());
+                                return null;
+                            }
+                        });
+                    }
 
-				if (EnterpriseTestFixture.WITH_AVATAR.equals(personInfo.getInstantmsg()))
-				{
-					InvitationWebScriptTest.makeAvatar(nodeService,createdPerson);
-					log("Made avatar for " + testPerson.getId() + (network != null ? " in network " + network : ""));
-				}
+                    if (personNodeRef == null)
+                    {
+                        personNodeRef = personService.createPerson(props);
 
-				log("Created person " + testPerson.getId() + (network != null ? " in network " + network : ""));
+                        // create authentication to represent user
+                        authenticationService.createAuthentication(username, personInfo.getPassword().toCharArray());
+
+                        if (EnterpriseTestFixture.WITH_AVATAR.equals(personInfo.getInstantmsg()))
+                        {
+                            InvitationWebScriptTest.makeAvatar(nodeService, personNodeRef);
+                            log("Made avatar for " + testPerson.getId() + (network != null ? " in network " + network : ""));
+                        }
+                    }
+                }
+				log("Username " + testPerson.getId() + (network != null ? " in network " + network : ""));
 
 				publicApiContext.addUser(testPerson.getId());
 				addPerson(testPerson);
@@ -437,33 +494,38 @@ public class RepoService
 		});
 	}
 
-	public TestSite createSite(TestNetwork network, final SiteInformation site)
-    {
-		SiteInfo siteInfo = null;
-
-		if(siteService.hasSite(site.getShortName()))
+	protected void deleteUser(final String username, final TestNetwork network)
+	{
+		AuthenticationUtil.runAsSystem(new RunAsWork<TestPerson>()
 		{
-			AuthenticationUtil.runAsSystem(new RunAsWork<Void>()
+			@Override
+			public TestPerson doWork() throws Exception
 			{
-				@Override
-				public Void doWork() throws Exception
+				if (personService.personExists(username))
 				{
-					siteService.deleteSite(site.getShortName());
-					return null;
+					authenticationService.deleteAuthentication(username);
+					personService.deletePerson(username);
 				}
-			});
-		}
+				return null;
+			}
+		});
+	}
 
-    	siteInfo = siteService.createSite(TEST_SITE_PRESET, site.getShortName(), site.getTitle(), site.getDescription(), site.getSiteVisibility());
-    	siteService.createContainer(site.getShortName(), "documentLibrary", ContentModel.TYPE_FOLDER, null);
-
-    	final TestSite testSite = new TestSite(network, siteInfo);
+	/**
+	 * @deprecated
+     */
+	public TestSite createSite(TestNetwork network, final SiteInformation siteInfoIn)
+    {
+		SiteInfo siteInfoOut = siteService.createSite(siteInfoIn.getSitePreset() != null ? siteInfoIn.getSitePreset() : TEST_SITE_PRESET, siteInfoIn.getShortName(), siteInfoIn.getTitle(), siteInfoIn.getDescription(), siteInfoIn.getSiteVisibility());
+    	siteService.createContainer(siteInfoIn.getShortName(), "documentLibrary", ContentModel.TYPE_FOLDER, null);
+		
+    	final TestSite testSite = new TestSite(network, siteInfoOut);
 
 		log("Created site " + testSite + (network != null ? " in network " + network : ""));
 
 		return testSite;
     }
-
+	
 	public Invitation rejectSiteInvitation(String personId, String siteId)
 	{
 		Invitation ret = null;
@@ -917,20 +979,20 @@ public class RepoService
 		return wrapProperties;
     }
     
-    public Document getDocument(String networkId, final NodeRef nodeRef)
+    public FavouriteDocument getDocument(String networkId, final NodeRef nodeRef)
     {
-    	return TenantUtil.runAsSystemTenant(new TenantRunAsWork<Document>()
+    	return TenantUtil.runAsSystemTenant(new TenantRunAsWork<FavouriteDocument>()
 		{
 			@Override
-			public Document doWork() throws Exception
+			public FavouriteDocument doWork() throws Exception
 			{
-				Document document = null;
+				FavouriteDocument document = null;
 
 		    	QName type = nodeService.getType(nodeRef);
 		    	if(dictionaryService.isSubClass(type, ContentModel.TYPE_CONTENT))
 		    	{
 		    		Properties properties = getProperties(nodeRef);
-		    		document = Document.getDocument(nodeRef.getId(), nodeRef.getId(), properties);
+		    		document = FavouriteDocument.getDocument(nodeRef.getId(), nodeRef.getId(), properties);
 		    	}
 		    	else
 		    	{
@@ -942,20 +1004,20 @@ public class RepoService
 		}, networkId);
     }
     
-    public Folder getFolder(String networkId, final NodeRef nodeRef)
+    public FavouriteFolder getFolder(String networkId, final NodeRef nodeRef)
     {
-    	return TenantUtil.runAsSystemTenant(new TenantRunAsWork<Folder>()
+    	return TenantUtil.runAsSystemTenant(new TenantRunAsWork<FavouriteFolder>()
 		{
 			@Override
-			public Folder doWork() throws Exception
+			public FavouriteFolder doWork() throws Exception
 			{
-				Folder folder = null;
+				FavouriteFolder folder = null;
 
 		    	QName type = nodeService.getType(nodeRef);
 		    	if(dictionaryService.isSubClass(type, ContentModel.TYPE_FOLDER))
 		    	{
 		    		Properties properties = getProperties(nodeRef);
-		    		folder = Folder.getFolder(nodeRef.getId(), nodeRef.getId(), properties);
+		    		folder = FavouriteFolder.getFolder(nodeRef.getId(), nodeRef.getId(), properties);
 		    	}
 		    	else
 		    	{
@@ -1301,21 +1363,36 @@ public class RepoService
 
 		public void create()
 		{
-			if(!getId().equals(TenantService.DEFAULT_DOMAIN))
+			if(!getId().equals(TenantService.DEFAULT_DOMAIN) && !tenantAdminService.existsTenant(getId()))
 			{
-				tenantAdminService.createTenant(getId(), "admin".toCharArray());
+				tenantAdminService.createTenant(getId(), DEFAULT_ADMIN_PWD.toCharArray());
+				numNetworks++;
+				log("Created network " + getId());
 			}
-	    	numNetworks++;
-			log("Created network " + getId());
 		}
 
-		public TestSite createSite(SiteVisibility siteVisibility)
+		public TestSite createSite(String siteRootName, SiteVisibility siteVisibility)
 		{
-			String shortName = "TESTSITE" + GUID.generate();
+			String shortName = "TESTSITE" + (siteRootName != null ? siteRootName : "") + GUID.generate();
 			SiteInformation siteInfo = new SiteInformation(shortName, shortName, shortName, siteVisibility);
 			return createSite(siteInfo);
 	    }
 
+        public TestSite createSite(String id, String title, String description, String sitePreset, SiteVisibility visibility)
+        {
+            SiteInformation siteInfo = new SiteInformation(id, title, description, sitePreset, visibility);
+            // Used deprecated createSite method until will be allowed creating a site with sitePreset
+            return createSite(siteInfo);
+        }
+
+        public TestSite createSite(SiteVisibility siteVisibility)
+        {
+            return createSite(null, siteVisibility);
+        }
+
+		/**
+		 * @deprecated replace with AbstractBaseApiTest.createSite (or PublicApiClient.sites.createSite)
+		 */
 		public TestSite createSite(final SiteInformation site)
 	    {
 	    	TestSite testSite = RepoService.this.createSite(this, site);
@@ -1326,8 +1403,11 @@ public class RepoService
 		
 		public TestPerson createUser()
 		{
-			String username = "user" + System.currentTimeMillis();
-			PersonInfo personInfo = new PersonInfo("FirstName", "LastName", username, "password", null, "skype", "location",
+			long timeMillis = System.currentTimeMillis();
+			String firstname = "first" + timeMillis;
+			String lastname = "last" + timeMillis;
+			String username = "user" + timeMillis;
+			PersonInfo personInfo = new PersonInfo(firstname, lastname, username, "password", null, "skype", "location",
 					"telephone", "mob", "instant", "google");
 			TestPerson person = createUser(personInfo);
 			return person;
@@ -1807,7 +1887,7 @@ public class RepoService
 			return defaultAccount == null ? null : defaultAccount.getId();
 		}
 
-		public boolean isEnabled()
+		public Boolean isEnabled()
 		{
 			return enabled;
 		}
@@ -1880,6 +1960,12 @@ public class RepoService
 			this.description = description;
 			this.siteVisibility = siteVisibility;
 		}
+
+        public SiteInformation(String shortName, String title, String description, String sitePreset, SiteVisibility siteVisibility)
+        {
+            this(shortName, title, description, siteVisibility);
+            this.sitePreset = sitePreset;
+        }
 
 		public String getShortName()
 		{

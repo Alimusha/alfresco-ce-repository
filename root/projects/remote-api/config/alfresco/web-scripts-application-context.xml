@@ -308,7 +308,7 @@
    </bean>
    
    <!--  Remote Store service - ADM -->
-   <bean id="webscript.org.alfresco.repository.store.remoteadm.get" class="org.alfresco.repo.web.scripts.bean.ADMRemoteStore" parent="webscript">
+   <bean id="baseADMRemoteStore" abstract="true" class="org.alfresco.repo.web.scripts.bean.ADMRemoteStore" parent="webscript" >
       <property name="nodeService" ref="NodeService" />
       <property name="unprotectedNodeService" ref="nodeService" />
       <property name="mimetypeService" ref="MimetypeService" />
@@ -317,34 +317,22 @@
       <property name="siteService" ref="SiteService" />
       <property name="hiddenAspect" ref="hiddenAspect" />
       <property name="behaviourFilter" ref="policyBehaviourFilter" />
+      <property name="permissionService" ref="permissionService" />
+      <property name="ownableService" ref="OwnableService" />
    </bean>
-   <bean id="surfConfigCleaner" parent="webscript.org.alfresco.repository.store.remoteadm.get" class="org.alfresco.repo.surf.policy.SurfConfigCleaner"
-      init-method="init">
+   
+   <bean id="webscript.org.alfresco.repository.store.remoteadm.get"  parent="baseADMRemoteStore" />
+   
+   <bean id="surfConfigCleaner" parent="baseADMRemoteStore" class="org.alfresco.repo.surf.policy.SurfConfigCleaner" init-method="init">
       <property name="fileFolderService" ref="fileFolderService" />
       <property name="nodeService" ref="nodeService" />
       <property name="policyComponent" ref="policyComponent" />
       <property name="siteService" ref="siteService" />
    </bean>
-   <bean id="webscript.org.alfresco.repository.store.remoteadm.post" class="org.alfresco.repo.web.scripts.bean.ADMRemoteStore" parent="webscript">
-      <property name="nodeService" ref="NodeService" />
-      <property name="unprotectedNodeService" ref="nodeService" />
-      <property name="mimetypeService" ref="MimetypeService" />
-      <property name="fileFolderService" ref="FileFolderService"/>
-      <property name="contentService" ref="ContentService"/>
-      <property name="siteService" ref="SiteService" />
-      <property name="hiddenAspect" ref="hiddenAspect" />
-      <property name="behaviourFilter" ref="policyBehaviourFilter" />
-   </bean>
-   <bean id="webscript.org.alfresco.repository.store.remoteadm.delete" class="org.alfresco.repo.web.scripts.bean.ADMRemoteStore" parent="webscript">
-      <property name="nodeService" ref="NodeService" />
-      <property name="unprotectedNodeService" ref="nodeService" />
-      <property name="mimetypeService" ref="MimetypeService" />
-      <property name="fileFolderService" ref="FileFolderService"/>
-      <property name="contentService" ref="ContentService"/>
-      <property name="siteService" ref="SiteService" />
-      <property name="hiddenAspect" ref="hiddenAspect" />
-      <property name="behaviourFilter" ref="policyBehaviourFilter" />
-   </bean>
+   
+   <bean id="webscript.org.alfresco.repository.store.remoteadm.post" parent="baseADMRemoteStore" />
+   
+   <bean id="webscript.org.alfresco.repository.store.remoteadm.delete"  parent="baseADMRemoteStore" />
    
    <!-- Web-tier SSO authentication touch point -->
    <bean id="webscript.org.alfresco.repository.touch.get" class="org.alfresco.repo.web.scripts.bean.Touch" parent="webscript" />
@@ -498,17 +486,6 @@
    <!--                         -->
    
    <!--                                                                                                       -->
-   <!-- Invite Web Script - Invoked by a Site Manager (Inviter) to either invite another person (Invitee) to  -->
-   <!-- join a Site as a Site Collaborator, or to cancel a pending invitation that has already been sent out  -->
-   <!--                                                                                                       -->
-   <bean id="webscript.org.alfresco.repository.invite.invite.get"
-         class="org.alfresco.repo.web.scripts.invite.Invite"
-         parent="webscript">
-      <property name="invitationService" ref="InvitationService"/>
-      <property name="siteService" ref="SiteService"/>
-   </bean>
-   
-   <!--                                                                                                       -->
    <!-- Invite Accept/Reject Web Script - accepts or rejects a pending invite                                 -->
    <!--                                                                                                       -->
    
@@ -546,6 +523,17 @@
       <property name="siteService" ref="SiteService"/>
       <property name="invitationService" ref="InvitationService"/>
       <property name="tenantService" ref="tenantService"/>
+   </bean>
+
+   <!--                                                                                                       -->
+   <!--  Controller for the org.alfresco.repository.site.invitation.invitation.delete webscript               -->
+   <!--  Used to cancel invitations                                                                           -->
+   <!--                                                                                                       -->
+   <bean id="webscript.org.alfresco.repository.site.invitation.invitation.delete"
+         class="org.alfresco.repo.web.scripts.invitation.InvitationDelete"
+         parent="webscript">
+      <property name="invitationService" ref="InvitationService"/>
+      <property name="siteService" ref="SiteService"/>
    </bean>
 
    <!--                         -->
@@ -1702,8 +1690,6 @@
     <!-- authenticated -->
     <bean id="webscript.org.alfresco.repository.quickshare.unshare.delete" class="org.alfresco.repo.web.scripts.quickshare.UnshareContentDelete" parent="org.alfresco.repository.quickshare.abstract">
         <property name="nodeService" ref="NodeService"/>
-        <property name="siteService" ref="SiteService" />
-        <property name="authenticationService" ref="AuthenticationService" />
     </bean>
     
     <!-- authenticated -->
@@ -1860,6 +1846,8 @@
         <property name="nodeService" ref="NodeService" />
         <property name="siteService" ref="SiteService" />
         <property name="documentLinkService" ref="DocumentLinkService" />
+        <property name="activityService" ref="activityService"/>
+        <property name="serviceRegistry" ref="ServiceRegistry"/>
    </bean>
 
    <bean id="webscript.org.alfresco.repository.doclink.doclinks.delete"
@@ -1868,6 +1856,7 @@
         <property name="nodeService" ref="NodeService" />
         <property name="siteService" ref="SiteService" />
         <property name="documentLinkService" ref="DocumentLinkService" />
+        <property name="activityService" ref="activityService"/>
    </bean>
 
    <!-- CMM - Custom model import API -->

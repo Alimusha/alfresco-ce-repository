@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.action.scheduled;
 
@@ -36,7 +43,6 @@ import org.alfresco.repo.security.authentication.AuthenticationUtil.RunAsWork;
 import org.alfresco.repo.transaction.AlfrescoTransactionSupport;
 import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
-import org.alfresco.repo.transaction.TransactionListenerAdapter;
 import org.alfresco.service.cmr.action.Action;
 import org.alfresco.service.cmr.action.ActionService;
 import org.alfresco.service.cmr.action.scheduled.SchedulableAction.IntervalPeriod;
@@ -50,6 +56,7 @@ import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.GUID;
+import org.alfresco.util.transaction.TransactionListenerAdapter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.Job;
@@ -125,7 +132,7 @@ public class ScheduledPersistedActionServiceImpl implements ScheduledPersistedAc
     {
         this.runtimeActionService = runtimeActionService;
     }
-    
+
 
     protected void locatePersistanceFolder()
     {
@@ -186,7 +193,7 @@ public class ScheduledPersistedActionServiceImpl implements ScheduledPersistedAc
     public void saveSchedule(ScheduledPersistedAction schedule)
     {
         ScheduledPersistedActionImpl scheduleImpl = (ScheduledPersistedActionImpl)schedule;
-        
+
         // Remove if already there
         removeFromScheduler(scheduleImpl);
         
@@ -195,7 +202,7 @@ public class ScheduledPersistedActionServiceImpl implements ScheduledPersistedAc
             // if not already persisted, create the persistent schedule
             createPersistentSchedule(scheduleImpl);
         }
-        
+
         // update the persistent schedule with schedule properties
         updatePersistentSchedule(scheduleImpl);
 
@@ -290,33 +297,36 @@ public class ScheduledPersistedActionServiceImpl implements ScheduledPersistedAc
         schedule.setPersistedAtNodeRef(null);
     }
     
-    /**
-     * Returns the schedule for the specified action, or null if it isn't
-     * currently scheduled.
-     */
+    @Override
     public ScheduledPersistedAction getSchedule(Action persistedAction)
     {
         NodeRef nodeRef = persistedAction.getNodeRef();
-        if (nodeRef == null)
+        return getSchedule(nodeRef);
+    }
+
+    @Override
+    public ScheduledPersistedAction getSchedule(NodeRef persistedActionNodeRef)
+    {
+        if (persistedActionNodeRef == null)
         {
             // action is not persistent
             return null;
         }
 
         // locate associated schedule for action
-        List<AssociationRef> assocs = nodeService.getSourceAssocs(nodeRef, ActionModel.ASSOC_SCHEDULED_ACTION);
+        List<AssociationRef> assocs = nodeService.getSourceAssocs(persistedActionNodeRef, ActionModel.ASSOC_SCHEDULED_ACTION);
         AssociationRef scheduledAssoc = null;
         for (AssociationRef assoc : assocs)
         {
             scheduledAssoc = assoc;
         }
-        
+
         if (scheduledAssoc == null)
         {
             // there is no associated schedule
             return null;
         }
-        
+
         // load the scheduled action
         return loadPersistentSchedule(scheduledAssoc.getSourceRef());
     }

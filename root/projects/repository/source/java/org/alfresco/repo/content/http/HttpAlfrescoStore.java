@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.http;
 
@@ -30,6 +37,8 @@ import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.security.AuthenticationService;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.ApplicationContextHelper;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationContext;
 
 /**
@@ -40,9 +49,14 @@ import org.springframework.context.ApplicationContext;
  * 
  * @since 2.1
  * @author Derek Hulley
+ * 
+ * @deprecated Removed in 5.2
  */
+@Deprecated
 public class HttpAlfrescoStore extends AbstractContentStore
 {
+    private static final Log logger = LogFactory.getLog(HttpAlfrescoStore.class);
+    
     private TransactionService transactionService;
     private AuthenticationService authenticationService;
     private String baseHttpUrl;
@@ -52,6 +66,7 @@ public class HttpAlfrescoStore extends AbstractContentStore
      */
     public HttpAlfrescoStore()
     {
+        logger.warn("HttpAlfrescoStore has been deprecated since Alfresco 5.2.");
     }
 
     /**

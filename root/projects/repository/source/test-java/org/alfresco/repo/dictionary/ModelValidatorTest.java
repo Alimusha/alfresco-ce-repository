@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.dictionary;
 
@@ -30,6 +37,7 @@ import org.alfresco.repo.domain.qname.QNameDAO;
 import org.alfresco.repo.node.archive.NodeArchiveService;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
+import org.alfresco.service.cmr.dictionary.DictionaryException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.model.FileInfo;
 import org.alfresco.service.cmr.repository.ContentService;
@@ -43,6 +51,7 @@ import org.alfresco.service.namespace.QName;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.GUID;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.context.ApplicationContext;
@@ -93,6 +102,12 @@ public class ModelValidatorTest
 
         this.modelName = "modelvalidatortest" + System.currentTimeMillis();
         addModel();
+    }
+
+    @AfterClass
+    public static void cleanUp()
+    {
+        AuthenticationUtil.clearCurrentSecurityContext();
     }
 
     private QName addModel()
@@ -441,5 +456,55 @@ public class ModelValidatorTest
             }
         };
         transactionService.getRetryingTransactionHelper().doInTransaction(deleteModelAgainCallback, false, true);
+    }
+
+    /**
+     * Tests that an unused imported namespace can be deleted.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testDeleteNamespace() throws Exception
+    {
+        // authenticate
+        AuthenticationUtil.pushAuthentication();
+        AuthenticationUtil.setFullyAuthenticatedUser(AuthenticationUtil.getAdminUserName());
+
+        // Remove the only property (created in setup method)
+        this.type.removeProperty(this.property.getName());
+        // We don't have any property that references the imported dictionary namespace, so remove it.
+        this.model.removeImport(NamespaceService.DICTIONARY_MODEL_1_0_URI);
+
+        // Check that it compiles
+        CompiledModel compiledModel = model.compile(dictionaryDAO, namespaceDAO, true);
+        modelValidator.validateModel(compiledModel);
+
+        // Remove the imported content model namespace
+        this.model.removeImport(NamespaceService.CONTENT_MODEL_1_0_URI);
+        try
+        {
+            model.compile(dictionaryDAO, namespaceDAO, true);
+            fail("Should have failed as the model's type references the content model (cm:folder).");
+        }
+        catch (DictionaryException dx)
+        {
+            //expected
+        }
+
+        // Add the content model namespace back
+        model.createImport(NamespaceService.CONTENT_MODEL_1_0_URI, NamespaceService.CONTENT_MODEL_PREFIX);
+        model.compile(dictionaryDAO, namespaceDAO, true);
+
+        // Remove the defined namespace
+        this.model.removeNamespace(testNamespace);
+        try
+        {
+            model.compile(dictionaryDAO, namespaceDAO, true);
+            fail("Should have failed as the type's name references the namespace.");
+        }
+        catch (DictionaryException dx)
+        {
+            //expected
+        }
     }
 }

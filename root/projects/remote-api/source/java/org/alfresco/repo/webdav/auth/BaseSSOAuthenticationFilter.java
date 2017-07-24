@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.webdav.auth;
 
@@ -77,6 +84,29 @@ public abstract class BaseSSOAuthenticationFilter extends BaseAuthenticationFilt
     private boolean m_isFallbackEnabled = true;
             
     protected static final String MIME_HTML_TEXT = "text/html";
+
+    protected String loginPageLink;
+
+    /**
+     * @return login page link, which is send back to the client if the login fails in the filter.
+     *         Override to change the default behaviour.
+     */
+    public String getLoginPageLink()
+    {
+        if (loginPageLink == null || loginPageLink.isEmpty())
+        {
+            return "/faces" + getLoginPage();
+        }
+        else
+        {
+            return loginPageLink;
+        }
+    }
+
+    public void setLoginPageLink(String loginPageLink)
+    {
+        this.loginPageLink = loginPageLink;
+    }
 
     /**
      * @param serverConfiguration the serverConfiguration to set
@@ -568,9 +598,10 @@ public abstract class BaseSSOAuthenticationFilter extends BaseAuthenticationFilt
 
             final PrintWriter out = resp.getWriter();
             out.println("<html><head>");
-            out.println("<meta http-equiv=\"Refresh\" content=\"0; url=" + 
-                    req.getContextPath() + "/faces" + getLoginPage() +
-                    "\">");
+            // Remove the auto refresh to avoid refresh loop, MNT-16931
+//            out.println("<meta http-equiv=\"Refresh\" content=\"0; url=" +
+//                    req.getContextPath() + getLoginPageLink() +
+//                    "\">");
             out.println("</head><body><p>Please <a href=\"" +
                     req.getContextPath() + "/faces" + getLoginPage() +
                     "\">log in</a>.</p>");

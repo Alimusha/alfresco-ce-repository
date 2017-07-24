@@ -1,37 +1,39 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.bulkimport.impl;
 
-import java.io.File;
 import java.io.Serializable;
+import java.nio.file.Path;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.bulkimport.BulkFilesystemImporter;
+import org.alfresco.repo.bulkimport.BulkImportParameters;
 import org.alfresco.repo.bulkimport.DirectoryAnalyser;
 import org.alfresco.repo.bulkimport.ImportableItem;
 import org.alfresco.repo.bulkimport.MetadataLoader;
@@ -98,7 +100,7 @@ public abstract class AbstractNodeImporter implements NodeImporter
         this.behaviourFilter = behaviourFilter;
     }
 
-    protected abstract NodeRef importImportableItemImpl(ImportableItem importableItem, boolean replaceExisting);
+    protected abstract NodeRef importImportableItemImpl(ImportableItem importableItem, BulkImportParameters.ExistingFileMode existingFileMode);
     protected abstract void importContentAndMetadata(NodeRef nodeRef, ImportableItem.ContentAndMetadata contentAndMetadata, MetadataLoader.Metadata metadata);
 
     /*
@@ -159,11 +161,11 @@ public abstract class AbstractNodeImporter implements NodeImporter
             importableItem != null &&
             importableItem.getHeadRevision() != null)
         {
-            File metadataFile = importableItem.getHeadRevision().getMetadataFile();
+            Path metadataFile = importableItem.getHeadRevision().getMetadataFile();
             
             if (metadataFile != null)
             {
-                final String metadataFileName = metadataFile.getName();
+                final String metadataFileName = metadataFile.getFileName().toString();
                 
                 result = metadataFileName.substring(0, metadataFileName.length() -
                                                        (MetadataLoader.METADATA_SUFFIX.length() + metadataLoader.getMetadataFileExtension().length()));
@@ -174,17 +176,25 @@ public abstract class AbstractNodeImporter implements NodeImporter
         if (result         == null &&
            importableItem != null)
         {
-           result = importableItem.getHeadRevision().getContentFile().getName();
+           result = importableItem.getHeadRevision().getContentFile().getFileName().toString();
         }
 
         return(result);
     }
 
-    protected final int importImportableItemFile(NodeRef nodeRef, ImportableItem importableItem, MetadataLoader.Metadata metadata, NodeState nodeState)
+    protected final int importImportableItemFile(NodeRef nodeRef, ImportableItem importableItem, MetadataLoader.Metadata metadata, NodeState nodeState, BulkImportParameters.ExistingFileMode existingFileMode)
     {
         int result = 0;
 
-        if (importableItem.hasVersionEntries())
+        if (nodeState == NodeState.REPLACED && existingFileMode == BulkImportParameters.ExistingFileMode.ADD_VERSION)
+        {
+            // It is being replaced, and ADD_VERSION is the selected method of dealing with overwrites.
+            Map<QName, Serializable> versionProperties = new HashMap<>();
+            versionProperties.put(ContentModel.PROP_VERSION_TYPE, VersionType.MAJOR);
+            versionService.ensureVersioningEnabled(nodeRef, versionProperties);
+            result = importContentVersions(nodeRef, importableItem, nodeState);
+        }
+        else if (importableItem.hasVersionEntries())
         {
             result = importContentVersions(nodeRef, importableItem, nodeState);
         }
@@ -241,9 +251,18 @@ public abstract class AbstractNodeImporter implements NodeImporter
         return(result);
     }
 
-    protected final Triple<NodeRef, Boolean, NodeState> createOrFindNode(NodeRef target, ImportableItem importableItem,
-            boolean replaceExisting, MetadataLoader.Metadata metadata)
+    // TODO: this is a confusing method that does too many things. It doesn't just "create or find"
+    // but also decides whether an existing node (i.e. the 'find' in 'create or find') WILL BE
+    // skipped or replaced further on in the calling code.
+    // TODO: refactor?
+    protected final Triple<NodeRef, Boolean, NodeState> createOrFindNode(
+            NodeRef target, ImportableItem importableItem,
+            BulkImportParameters.ExistingFileMode existingFileMode, MetadataLoader.Metadata metadata)
     {
+        // ADD_VERSION isn't strictly a replacement option, but we need to deal with it as such, at least as an
+        // interim measure while the new ExistingFileMode options are introduced (MNT-17703)
+        boolean replaceExisting = (existingFileMode == BulkImportParameters.ExistingFileMode.REPLACE ||
+                existingFileMode == BulkImportParameters.ExistingFileMode.ADD_VERSION);
         Triple<NodeRef, Boolean, NodeState> result      = null;
         boolean                             isDirectory = false;
         NodeState                           nodeState   = replaceExisting ? NodeState.REPLACED : NodeState.SKIPPED;
@@ -340,12 +359,12 @@ public abstract class AbstractNodeImporter implements NodeImporter
         return(result);
     }
     
-    protected String getFileName(File file)
+    protected String getFileName(Path file)
     {
         return FileUtils.getFileName(file);
     }
 
-    protected final void importImportableItemMetadata(NodeRef nodeRef, File parentFile, MetadataLoader.Metadata metadata)
+    protected final void importImportableItemMetadata(NodeRef nodeRef, Path parentFile, MetadataLoader.Metadata metadata)
     {
         // Attach aspects
         if (metadata.getAspects() != null)
@@ -404,9 +423,9 @@ public abstract class AbstractNodeImporter implements NodeImporter
         // Load "standard" metadata from the filesystem
         if (contentAndMetadata != null && contentAndMetadata.contentFileExists())
         {
-            final String filename = contentAndMetadata.getContentFile().getName().trim().replaceFirst(DirectoryAnalyser.VERSION_SUFFIX_REGEX, "");  // Strip off the version suffix (if any)
-            final Date   modified = new Date(contentAndMetadata.getContentFile().lastModified());
-            final Date   created  = modified;    //TODO: determine proper file creation time (awaiting JDK 1.7 NIO2 library)
+            final String filename = contentAndMetadata.getContentFile().getFileName().toString().trim().replaceFirst(DirectoryAnalyser.VERSION_SUFFIX_REGEX, "");  // Strip off the version suffix (if any)
+            final Date   modified = contentAndMetadata.getContentFileModifiedDate();
+            final Date   created  = contentAndMetadata.getContentFileCreatedDate();
 
             result.setType(ImportableItem.FileType.FILE.equals(contentAndMetadata.getContentFileType()) ? ContentModel.TYPE_CONTENT : ContentModel.TYPE_FOLDER);
             result.addProperty(ContentModel.PROP_NAME,     filename);
@@ -423,14 +442,14 @@ public abstract class AbstractNodeImporter implements NodeImporter
         return(result);
     }
 
-    public NodeRef importImportableItem(ImportableItem importableItem, boolean replaceExisting)
+    public NodeRef importImportableItem(ImportableItem importableItem, BulkImportParameters.ExistingFileMode existingFileMode)
     {
         if(logger.isDebugEnabled())
         {
             logger.debug("Importing " + String.valueOf(importableItem));
         }
 
-        NodeRef nodeRef = importImportableItemImpl(importableItem, replaceExisting);
+        NodeRef nodeRef = importImportableItemImpl(importableItem, existingFileMode);
 
         // allow parent to be garbage collected
         //importableItem.setParent(null);

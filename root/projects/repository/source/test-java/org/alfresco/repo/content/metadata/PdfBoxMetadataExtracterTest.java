@@ -1,29 +1,40 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.metadata;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.content.MimetypeMap;
+import org.alfresco.repo.content.transform.AbstractContentTransformerTest;
 import org.alfresco.service.cmr.repository.datatype.DefaultTypeConverter;
 import org.alfresco.service.namespace.QName;
 import org.apache.pdfbox.util.DateConverter;
@@ -36,6 +47,9 @@ import org.apache.pdfbox.util.DateConverter;
 public class PdfBoxMetadataExtracterTest extends AbstractMetadataExtracterTest
 {
     private PdfBoxMetadataExtracter extracter;
+    
+    private static final int MAX_CONCURENT_EXTRACTIONS = 5;
+	private static final double MAX_DOC_SIZE_MB = 0.03;
 
     @Override
     public void setUp() throws Exception
@@ -43,6 +57,14 @@ public class PdfBoxMetadataExtracterTest extends AbstractMetadataExtracterTest
         super.setUp();
         extracter = new PdfBoxMetadataExtracter();
         extracter.setDictionaryService(dictionaryService);
+        
+        MetadataExtracterLimits pdfLimit = new MetadataExtracterLimits();
+        pdfLimit.setMaxConcurrentExtractionsCount(MAX_CONCURENT_EXTRACTIONS);
+        pdfLimit.setMaxDocumentSizeMB(MAX_DOC_SIZE_MB);
+        Map<String,MetadataExtracterLimits> limits = new HashMap<>();
+        limits.put(MimetypeMap.MIMETYPE_PDF,pdfLimit);
+        
+        extracter.setMimetypeLimits(limits);
         extracter.register();
     }
 
@@ -100,5 +122,17 @@ public class PdfBoxMetadataExtracterTest extends AbstractMetadataExtracterTest
        assertEquals(52, c.get(Calendar.MINUTE));
        assertEquals(58, c.get(Calendar.SECOND));
        //assertEquals(0, c.get(Calendar.MILLISECOND));
+    }
+
+    public void testMaxDocumentSizeLimit() throws Exception
+    {
+        File sourceFile = AbstractContentTransformerTest.loadNamedQuickTestFile("quick-size-limit.pdf");
+        
+        if (sourceFile == null)
+        {
+            throw new FileNotFoundException("No quick-size-limit.pdf file found for test");
+        }
+        Map<QName, Serializable> properties = extractFromFile(sourceFile, MimetypeMap.MIMETYPE_PDF);
+        assertTrue(properties.isEmpty());
     }
 }

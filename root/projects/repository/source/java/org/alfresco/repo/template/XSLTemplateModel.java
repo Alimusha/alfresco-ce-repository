@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.template;
 
@@ -106,7 +113,6 @@ public class XSLTemplateModel implements Map<QName, Object>
     }
 
     /**
-     * @return Set<QName>
      * @see java.util.Map#keySet()
      */
     public Set<QName> keySet()
@@ -126,7 +132,6 @@ public class XSLTemplateModel implements Map<QName, Object>
     }
 
     /**
-     * @param m Map<? extends QName, ? extends Object>
      * @see java.util.Map#putAll(java.util.Map)
      */
     public void putAll(Map<? extends QName, ? extends Object> m)
@@ -154,7 +159,6 @@ public class XSLTemplateModel implements Map<QName, Object>
     }
 
     /**
-     * @return Collection<Object>
      * @see java.util.Map#values()
      */
     public Collection<Object> values()

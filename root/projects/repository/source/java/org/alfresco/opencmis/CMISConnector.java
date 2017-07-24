@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.opencmis;
 
@@ -53,7 +60,7 @@ import org.alfresco.events.types.ContentEventImpl;
 import org.alfresco.events.types.ContentReadRangeEvent;
 import org.alfresco.events.types.Event;
 import org.alfresco.model.ContentModel;
-import org.alfresco.opencmis.ActivityPosterImpl.ActivityInfo;
+import org.alfresco.service.cmr.activities.ActivityInfo;
 import org.alfresco.opencmis.dictionary.CMISActionEvaluator;
 import org.alfresco.opencmis.dictionary.CMISAllowedActionEnum;
 import org.alfresco.opencmis.dictionary.CMISDictionaryService;
@@ -75,6 +82,7 @@ import org.alfresco.repo.Client;
 import org.alfresco.repo.Client.ClientType;
 import org.alfresco.repo.action.executer.ContentMetadataExtracter;
 import org.alfresco.repo.cache.SimpleCache;
+import org.alfresco.repo.coci.CheckOutCheckInServiceImpl;
 import org.alfresco.repo.events.EventPreparator;
 import org.alfresco.repo.events.EventPublisher;
 import org.alfresco.repo.model.filefolder.GetChildrenCannedQuery;
@@ -109,7 +117,6 @@ import org.alfresco.service.cmr.dictionary.InvalidAspectException;
 import org.alfresco.service.cmr.lock.LockService;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
-import org.alfresco.service.cmr.model.FileInfo;
 import org.alfresco.service.cmr.model.FileNotFoundException;
 import org.alfresco.service.cmr.rendition.RenditionService;
 import org.alfresco.service.cmr.repository.AssociationRef;
@@ -277,6 +284,7 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
     private static final BigInteger TYPES_DEFAULT_DEPTH = BigInteger.valueOf(-1);
     private static final BigInteger OBJECTS_DEFAULT_MAX_ITEMS = BigInteger.valueOf(200);
     private static final BigInteger OBJECTS_DEFAULT_DEPTH = BigInteger.valueOf(10);
+    private static final int CONTENT_CHANGES_DEFAULT_MAX_ITEMS = 10000;
 
     private static final String QUERY_NAME_OBJECT_ID = "cmis:objectId";
     private static final String QUERY_NAME_OBJECT_TYPE_ID = "cmis:objectTypeId";
@@ -345,6 +353,7 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
     private BigInteger typesDefaultDepth = TYPES_DEFAULT_DEPTH;
     private BigInteger objectsDefaultMaxItems = OBJECTS_DEFAULT_MAX_ITEMS;
     private BigInteger objectsDefaultDepth = OBJECTS_DEFAULT_DEPTH;
+    private int contentChangesDefaultMaxItems = CONTENT_CHANGES_DEFAULT_MAX_ITEMS;
 
     private List<PermissionDefinition> repositoryPermissions;
     private Map<String, PermissionMapping> permissionMappings;
@@ -454,6 +463,22 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
     }
 
     /**
+     * Set the default number of content changes to return if nothing is specified
+     */
+    public void setContentChangesDefaultMaxItems(int contentChangesDefaultMaxItems)
+    {
+        if (contentChangesDefaultMaxItems < 1)
+        {
+            throw new IllegalArgumentException("The default maximum number of content changes to retrieve must be greater than zero.");
+        }
+        else if (contentChangesDefaultMaxItems == Integer.MAX_VALUE)
+        {
+            throw new IllegalArgumentException("The server cannot return " + Integer.MAX_VALUE + " content changes in a request!");
+        }
+        this.contentChangesDefaultMaxItems = contentChangesDefaultMaxItems;
+    }
+
+    /**
      * Set rendition kind mapping.
      */
     public void setRenditionKindMapping(Map<String, List<String>> renditionKinds)
@@ -480,6 +505,14 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
 	{
 		this.serviceRegistry = serviceRegistry;
 	}
+
+    /**
+     * Return the service registry
+     */
+    public final ServiceRegistry getServiceRegistry()
+    {
+    	return this.serviceRegistry;
+    }
 
 	/**
      * Sets the descriptor service.
@@ -935,7 +968,6 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
      * Asynchronously generates thumbnails for the given node.
      *  
      * @param nodeRef NodeRef
-     * @param thumbnailNames Set<String>
      */
     public void createThumbnails(NodeRef nodeRef, Set<String> thumbnailNames)
     {
@@ -3153,7 +3185,8 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
 
         Set<QName> ignore = new HashSet<QName>();
         ignore.add(ContentModel.ASPECT_REFERENCEABLE);
-        ignore.add(ContentModel.ASPECT_LOCALIZED);
+        ignore.add(ContentModel.ASPECT_LOCALIZED); 
+        ignore.add(ContentModel.ASPECT_WORKING_COPY);
 
         // aspects to add == the list of secondary types - existing aspects - ignored aspects
         Set<QName> toAdd = new HashSet<QName>(secondaryTypeAspects);
@@ -3560,34 +3593,49 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
         }
         else
         {
-        	QName propertyQName = propDef.getPropertyAccessor().getMappedProperty();
-        	if (propertyQName == null)
-        	{
-        		throw new CmisConstraintException("Unable to set property " + propertyId + "!");
-        	}
-        
-        	if (propertyId.equals(PropertyIds.NAME))
-        	{
-        		if (!(value instanceof String))
-        		{
-        			throw new CmisInvalidArgumentException("Object name must be a string!");
-        		}
-
-        		try
-        		{
-        			fileFolderService.rename(nodeRef, value.toString());
-        		}
-        		catch (FileExistsException e)
-        		{
-        			throw new CmisContentAlreadyExistsException("An object with this name already exists!", e);
-        		}
-        		catch (FileNotFoundException e)
-        		{
-        			throw new CmisInvalidArgumentException("Object with id " + nodeRef.getId() + " not found!");
-        		}
-        	}
-        	else
+            QName propertyQName = propDef.getPropertyAccessor().getMappedProperty();
+            if (propertyQName == null)
             {
+                throw new CmisConstraintException("Unable to set property " + propertyId + "!");
+            }
+
+            if (propertyId.equals(PropertyIds.NAME))
+            {
+                if (!(value instanceof String))
+                {
+                    throw new CmisInvalidArgumentException("Object name must be a string!");
+                }
+
+                try
+                {
+                    String newName = value.toString();
+                    // If the node is checked out and the name property is set on the working copy, make sure the new name has the working copy format
+                    if (checkOutCheckInService.isWorkingCopy(nodeRef))
+                    {
+                        String wcLabel = (String)this.nodeService.getProperty(nodeRef, ContentModel.PROP_WORKING_COPY_LABEL);
+                        if (wcLabel == null)
+                        {
+                            wcLabel = CheckOutCheckInServiceImpl.getWorkingCopyLabel();
+                        }
+                        if (!newName.contains(wcLabel))
+                        {
+                            newName = CheckOutCheckInServiceImpl.createWorkingCopyName(newName, wcLabel);
+                        }
+                    }
+                    
+                    fileFolderService.rename(nodeRef, newName);
+                }
+                catch (FileExistsException e)
+                {
+                    throw new CmisContentAlreadyExistsException("An object with this name already exists!", e);
+                }
+                catch (FileNotFoundException e)
+                {
+                    throw new CmisInvalidArgumentException("Object with id " + nodeRef.getId() + " not found!");
+                }
+            }
+            else
+        	{
                 // overflow check
                 if (propDef.getPropertyDefinition().getPropertyType() == PropertyType.INTEGER && value instanceof BigInteger)
                 {
@@ -3662,25 +3710,31 @@ public class CMISConnector implements ApplicationContextAware, ApplicationListen
         params.setForward(true);
         params.setFromId(from);
 
-        int maxResults = (maxItems == null ? 0 : maxItems.intValue());
-        maxResults = (maxResults < 1 ? 0 : maxResults + 1);
+        // So we have a BigInteger.  We need to ensure that we cut it down to an integer smaller than Integer.MAX_VALUE
+        
+        int maxResults = (maxItems == null ? contentChangesDefaultMaxItems : maxItems.intValue());
+        maxResults = maxResults < 1 ? contentChangesDefaultMaxItems : maxResults;           // Just a double check of the unbundled contents
+        maxResults = maxResults > contentChangesDefaultMaxItems ? contentChangesDefaultMaxItems : maxResults;   // cut it down
+        int queryFor = maxResults + 1;                          // Query for 1 more so that we know if there are more results
 
-        auditService.auditQuery(changeLogCollectingCallback, params, maxResults);
+        auditService.auditQuery(changeLogCollectingCallback, params, queryFor);
 
         String newChangeLogToken = null;
-        if (maxResults > 0)
+        // Check if we got more than the client requested
+        if (result.getObjects().size() >= maxResults)
         {
-            if (result.getObjects().size() >= maxResults)
-            {
-            	StringBuilder clt = new StringBuilder();
-                newChangeLogToken = (from == null ? clt.append(maxItems.intValue() + 1).toString() : clt.append(from.longValue() + maxItems.intValue()).toString());
-                result.getObjects().remove(result.getObjects().size() - 1).getId();
-                result.setHasMoreItems(true);
-            }
-            else
-            {
-                result.setHasMoreItems(false);
-            }
+            // Build the change log token from the last item
+            StringBuilder clt = new StringBuilder();
+            newChangeLogToken = (from == null ? clt.append(maxItems.intValue() + 1).toString() : clt.append(from.longValue() + maxItems.intValue()).toString());    // TODO: Make this readable
+            // Remove extra item that was not actually requested
+            result.getObjects().remove(result.getObjects().size() - 1).getId();
+            // Note to client that there are more items
+            result.setHasMoreItems(true);
+        }
+        else
+        {
+            // We got the same or fewer than the number requested, so there are no more items
+            result.setHasMoreItems(false);
         }
 
         if (changeLogToken != null)

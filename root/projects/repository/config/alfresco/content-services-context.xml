@@ -60,6 +60,9 @@
         </property>
     </bean>
        
+   <bean id="defaultFileContentUrlProvider" class="org.alfresco.repo.content.filestore.TimeBasedFileContentUrlProvider">
+       <property name="bucketsPerMinute" value="${dir.contentstore.bucketsPerMinute}"/>
+   </bean>
    <!-- This content limit provider is used above (and can also be overriden, eg. by modules). -->
    <bean id="defaultContentLimitProvider" class="org.alfresco.repo.content.ContentLimitProvider$SimpleFixedLimitProvider">
        <property name="sizeLimitString" value="${system.content.maximumFileSizeLimit}"/>
@@ -241,6 +244,13 @@
       </property>
    </bean>
    
+   <!-- Metadata Extraction Configuration -->
+   <bean id="metadataExtracterConfig" class="org.alfresco.repo.content.metadata.MetadataExtracterConfigImpl" >
+      <property name="properties">
+         <ref bean="global-properties" />
+      </property>
+   </bean>
+   
    <!-- Metadata Extraction Registry -->
    <bean id="metadataExtracterRegistry" class="org.alfresco.repo.content.metadata.MetadataExtracterRegistry" />
    
@@ -260,6 +270,9 @@
       </property>
       <property name="properties">
          <ref bean="global-properties" />
+      </property>
+      <property name="metadataExtracterConfig">
+         <ref bean="metadataExtracterConfig" />
       </property>
    </bean>
    
@@ -320,6 +333,20 @@
    </bean>
    <bean id="extracter.PDFBox"        class="org.alfresco.repo.content.metadata.PdfBoxMetadataExtracter"        parent="baseMetadataExtracter">
       <property name="documentSelector" ref="pdfBoxEmbededDocumentSelector" />
+      <property name="mimetypeLimits">
+         <map>
+            <entry key="application/pdf">
+               <bean class="org.alfresco.repo.content.metadata.MetadataExtracterLimits">
+                  <property name="timeoutMs" value="${content.metadataExtracter.default.timeoutMs}"/>
+                  <property name="maxDocumentSizeMB" value="${content.metadataExtracter.pdf.maxDocumentSizeMB}"/>
+                  <property name="maxConcurrentExtractionsCount" value="${content.metadataExtracter.pdf.maxConcurrentExtractionsCount}"/>
+               </bean>
+            </entry>
+         </map>
+      </property>
+      <property name="overwritePolicy">
+         <value>${content.metadataExtracter.pdf.overwritePolicy}</value>
+      </property>
    </bean>
    <bean id="extracter.Poi"           class="org.alfresco.repo.content.metadata.PoiMetadataExtracter"           parent="baseMetadataExtracter">
       <property name="poiFootnotesLimit" value="${content.transformer.Poi.poiFootnotesLimit}" />
@@ -465,7 +492,11 @@
       <property name="registerTransformer">
          <value>true</value>
       </property>
-       <property name="retryTransformOnDifferentMimeType" value="${content.transformer.retryOn.different.mimetype}"/>
+      <property name="strictMimeTypeCheck" value="${transformer.strict.mimetype.check}"/>
+      <property name="retryTransformOnDifferentMimeType" value="${content.transformer.retryOn.different.mimetype}"/>
+      <property name="metadataExtracterConfig">
+         <ref bean="metadataExtracterConfig" />
+      </property>
    </bean>
    
    <!-- Abstract bean definition defining base definition for all transformer that are not registered.
@@ -625,7 +656,29 @@
          <ref bean="transformer.worker.ImageMagick" />
       </property>
    </bean>
+   
+   <!-- Import the Alfresco-PDF-Renderer transformer from the third party subsystem -->
+   <bean id="transformer.worker.alfresco-pdf-renderer" class="org.alfresco.repo.management.subsystems.SubsystemProxyFactory">
+      <property name="sourceApplicationContextFactory">
+         <ref bean="thirdparty" />
+      </property>
+      <property name="sourceBeanName">
+         <value>transformer.worker.subsys.alfresco-pdf-renderer</value>
+      </property>
+      <property name="interfaces">
+         <list>
+            <value>org.alfresco.repo.content.transform.ContentTransformerWorker</value>
+         </list>
+      </property>
+   </bean>
 
+   <bean id="transformer.alfresco-pdf-renderer" class="org.alfresco.repo.content.transform.ProxyContentTransformer" parent="baseContentTransformer">
+      <property name="worker">
+         <ref bean="transformer.worker.alfresco-pdf-renderer" />
+      </property>
+   </bean>
+   
+   
    <!-- This transformer allows for the indexing and therefore searching of zip files. -->   
    <bean id="transformer.Archive"
          class="org.alfresco.repo.content.transform.ArchiveContentTransformer"

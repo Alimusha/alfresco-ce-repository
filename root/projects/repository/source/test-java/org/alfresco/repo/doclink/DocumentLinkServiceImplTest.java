@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.doclink;
 
@@ -25,8 +32,6 @@ import java.util.Map;
 import javax.transaction.Status;
 import javax.transaction.UserTransaction;
 
-import junit.framework.TestCase;
-
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.model.ApplicationModel;
 import org.alfresco.model.ContentModel;
@@ -34,6 +39,7 @@ import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.security.authentication.AuthenticationUtil.RunAsWork;
 import org.alfresco.repo.security.permissions.AccessDeniedException;
 import org.alfresco.service.ServiceRegistry;
+import org.alfresco.service.cmr.coci.CheckOutCheckInService;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.repository.DeleteLinksStatusReport;
 import org.alfresco.service.cmr.repository.DocumentLinkService;
@@ -48,6 +54,9 @@ import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.GUID;
 import org.springframework.context.ApplicationContext;
+import org.springframework.extensions.surf.util.I18NUtil;
+
+import junit.framework.TestCase;
 
 /**
  * Test cases for {@link DocumentLinkServiceImpl}.
@@ -71,8 +80,10 @@ public class DocumentLinkServiceImplTest extends TestCase
     private SiteService siteService;
     private FileFolderService fileFolderService;
     private NodeService nodeService;
+    private CheckOutCheckInService cociService;
 
     // nodes the test user has read/write permission to
+    private NodeRef site1;
     private NodeRef site1File1;
     private NodeRef site1File2; // do not create links of this file
     private NodeRef site1Folder1;
@@ -100,6 +111,7 @@ public class DocumentLinkServiceImplTest extends TestCase
         siteService = serviceRegistry.getSiteService();
         fileFolderService = serviceRegistry.getFileFolderService();
         nodeService = serviceRegistry.getNodeService();
+        cociService = serviceRegistry.getCheckOutCheckInService();
 
         // Start the transaction
         txn = transactionService.getUserTransaction();
@@ -117,7 +129,7 @@ public class DocumentLinkServiceImplTest extends TestCase
          * Create the working test root 1 to which the user has read/write
          * permission
          */
-        NodeRef site1 = siteService.createSite("site1", GUID.generate(), "myTitle", "myDescription", SiteVisibility.PUBLIC).getNodeRef();
+        site1 = siteService.createSite("site1", GUID.generate(), "myTitle", "myDescription", SiteVisibility.PUBLIC).getNodeRef();
         permissionService.setPermission(site1, TEST_USER, PermissionService.ALL_PERMISSIONS, true);
         site1Folder1 = fileFolderService.create(site1, site1Folder1Name, ContentModel.TYPE_FOLDER).getNodeRef();
         site1File1 = fileFolderService.create(site1Folder1, site1File1Name, ContentModel.TYPE_CONTENT).getNodeRef();
@@ -166,7 +178,8 @@ public class DocumentLinkServiceImplTest extends TestCase
         assertNotNull(linkNodeRef);
 
         // test if the link node is listed as a child of site1Folder2
-        NodeRef linkNodeRef2 = fileFolderService.searchSimple(site1Folder2, site1File1Name);
+        String site1File1LinkName =  I18NUtil.getMessage("doclink_service.link_to_label", (site1File1Name + ".url"));
+        NodeRef linkNodeRef2 = fileFolderService.searchSimple(site1Folder2, site1File1LinkName);
         assertNotNull(linkNodeRef2);
         assertEquals(linkNodeRef, linkNodeRef2);
 
@@ -191,7 +204,8 @@ public class DocumentLinkServiceImplTest extends TestCase
         assertNotNull(linkNodeRef);
 
         // test if the link node is listed as a child of site1Folder2
-        NodeRef linkNodeRef2 = fileFolderService.searchSimple(site1Folder2, site1Folder1Name);
+        String site1Folder1LinkName =  I18NUtil.getMessage("doclink_service.link_to_label", (site1Folder1Name + ".url"));
+        NodeRef linkNodeRef2 = fileFolderService.searchSimple(site1Folder2, site1Folder1LinkName);
         assertNotNull(linkNodeRef2);
         assertEquals(linkNodeRef, linkNodeRef2);
 
@@ -315,15 +329,70 @@ public class DocumentLinkServiceImplTest extends TestCase
         }, TEST_USER);
 
         // check if the service found 2 links of the document
-        assertEquals(report.getTotalLinksFoundCount(), 2);
+        assertEquals(2, report.getTotalLinksFoundCount());
 
         // check if the service successfully deleted one
-        assertEquals(report.getDeletedLinksCount(), 1);
+        assertEquals(1, report.getDeletedLinksCount());
+
+        assertEquals(true, nodeService.hasAspect(site1File2, ApplicationModel.ASPECT_LINKED));
 
         // check if the second one failed with access denied
         Throwable ex = report.getErrorDetails().get(linkOfFile1Site2);
         assertNotNull(ex);
         assertEquals(ex.getClass(), AccessDeniedException.class);
+    }
+
+    /**
+     * Tests the creation of a Site link, an locked node or a checked out node
+     * 
+     * @throws Exception
+     */
+    public void testCreateLinksNotAllowed() throws Exception
+    {
+        NodeRef invalidLinkNodeRef;
+
+        // Create link for Site
+        try
+        {
+            invalidLinkNodeRef = documentLinkService.createDocumentLink(site1, site2Folder1);
+            fail("unsupported source node type : " + nodeService.getType(site1));
+        }
+        catch (IllegalArgumentException e)
+        {
+            // Expected
+        }
+
+        NodeRef firstLinkNodeRef = documentLinkService.createDocumentLink(site1File1, site1Folder1);
+        assertEquals(true, nodeService.hasAspect(site1File1, ApplicationModel.ASPECT_LINKED));
+
+        // Create link for working copy
+        NodeRef workingCopyNodeRef = cociService.checkout(site1File1);
+        try
+        {
+            invalidLinkNodeRef = documentLinkService.createDocumentLink(workingCopyNodeRef, site1Folder1);
+            fail("Cannot perform operation since the node (id:" + workingCopyNodeRef.getId() + ") is locked.");
+        }
+        catch (IllegalArgumentException e)
+        {
+            // Expected
+        }
+
+        // Create link for locked node (original)
+        try
+        {
+            invalidLinkNodeRef = documentLinkService.createDocumentLink(site1File1, site1Folder1);
+            fail("Cannot perform operation since the node (id:" + site1File1.getId() + ") is locked.");
+        }
+        catch (IllegalArgumentException e)
+        {
+            // Expected
+        }
+
+        // Even the node is locked, user can delete previous created links
+        nodeService.deleteNode(firstLinkNodeRef);
+        assertEquals(false, nodeService.hasAspect(site1File1, ApplicationModel.ASPECT_LINKED));
+
+        cociService.cancelCheckout(workingCopyNodeRef);
     }
 
 }

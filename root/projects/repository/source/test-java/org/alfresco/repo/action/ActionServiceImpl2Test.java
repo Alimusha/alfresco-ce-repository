@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.action;
@@ -137,6 +144,36 @@ public class ActionServiceImpl2Test
         });
     }
 
+    // MNT-15365
+    @Test
+    public void testIncrementCounterOnDeletedNode() throws Exception
+    {
+        final NodeRef deletedNode = transactionHelper.doInTransaction(new RetryingTransactionCallback<NodeRef>()
+        {
+            public NodeRef execute() throws Throwable
+            {
+                // get the Document Library NodeRef
+                final NodeRef docLibNodeRef = testSiteAndMemberInfo.doclib;
+
+                NodeRef result = nodeService.createNode(docLibNodeRef, ContentModel.ASSOC_CONTAINS, ContentModel.ASSOC_CONTAINS,
+                        ContentModel.TYPE_CONTENT).getChildRef();
+                nodeService.deleteNode(result);
+                return result;
+            }
+        });
+
+        // before the fix that would thrown an error
+        transactionHelper.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                Action incrementAction = actionService.createAction(CounterIncrementActionExecuter.NAME);
+
+                actionService.executeAction(incrementAction, deletedNode);
+                return null;
+            }
+        });
+    }
 
     @Test
     public void testIncrementCounter() throws Exception
@@ -157,7 +194,7 @@ public class ActionServiceImpl2Test
         });
         // check that the default counter value is set to 1
         int beforeIncrement = (Integer) nodeService.getProperty(testNode, ContentModel.PROP_COUNTER);
-        assertEquals(1, beforeIncrement);
+        assertEquals("Counter value incorrect", 1, beforeIncrement);
 
         // Set authentication to SiteConsumer.
         AuthenticationUtil.setFullyAuthenticatedUser(testSiteAndMemberInfo.siteConsumer);

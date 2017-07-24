@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.solr;
 
@@ -268,20 +275,26 @@ public class NodesMetaDataGet extends DeclarativeWebScript
             
             // convert Paths to Strings
             List<String> paths = new ArrayList<String>();
+            List<String> ancestorPaths = new ArrayList<String>();
             HashSet<String> ancestors = new HashSet<String>();
             if(nodeMetaData.getPaths() != null)
             {
                 for(Pair<Path, QName> pair : nodeMetaData.getPaths())
                 {
+                	StringBuilder ancestorPath = new StringBuilder();
                     JSONObject o = new JSONObject();
                     o.put("path", solrSerializer.serializeValue(String.class, pair.getFirst()));
                     o.put("qname", solrSerializer.serializeValue(String.class, pair.getSecond()));
-                    paths.add(o.toString(3));
+                   
                     
                     for (NodeRef ancestor : getAncestors(pair.getFirst()))
                     {
                         ancestors.add(ancestor.toString());
+                        ancestorPath.insert(0, ancestor.getId()).insert(0, "/");
                     }
+                   
+                    o.put("apath",  ancestorPath);
+                    paths.add(o.toString(3));
                 }
             }
             this.ancestors = ancestors;

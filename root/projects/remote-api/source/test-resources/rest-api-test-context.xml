@@ -19,10 +19,12 @@
             <list>
                 <value>models/custom-model.xml</value>
                 <value>models/bpmDelegateeModel.xml</value>
+                <value>models/people-api.xml</value>
             </list>
         </property>
     </bean>
-<!-- 
+
+    <!--
     <bean id="Search" class="org.alfresco.repo.management.subsystems.SwitchableApplicationContextFactory" parent="abstractPropertyBackedBean">
         <property name="autoStart">
             <value>false</value>
@@ -31,7 +33,7 @@
             <value>Search</value>
         </property>
         <property name="sourceBeanName">
-            <value>lucene</value>
+            <value>buildonly</value>
         </property>
         <property name="instancePath">
             <list>
@@ -39,5 +41,6 @@
             </list>
         </property>
     </bean>
-     -->
+    -->
+    
 </beans>

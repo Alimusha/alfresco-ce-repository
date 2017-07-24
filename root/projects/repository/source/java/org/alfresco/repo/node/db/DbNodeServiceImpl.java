@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.node.db;
 
@@ -163,7 +170,7 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
 
     /**
      * Set whether <b>cm:auditable</b> timestamps should be propagated to parent nodes
-     * where the parent-child relationship has been marked using <b>propagateTimestamps<b/>.
+     * where the parent-child relationship has been marked using <b>propagateTimestamps</b>.
      * 
      * @param enableTimestampPropagation        <tt>true</tt> to propagate timestamps to the parent
      *                                          node where appropriate
@@ -817,6 +824,8 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
 
         // Add aspect and defaults
         Pair<Long, NodeRef> nodePair = getNodePairNotNull(nodeRef);
+        // SetProperties common tasks
+        setPropertiesCommonWork(nodePair, aspectProperties);
         boolean modified = addAspectsAndProperties(
                     nodePair,
                     aspectTypeQName,
@@ -838,9 +847,9 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
     @Extend(traitAPI=NodeServiceTrait.class,extensionAPI=NodeServiceExtension.class)
     public int countChildAssocs(NodeRef nodeRef, boolean isPrimary) throws InvalidNodeRefException
     {    
-    	final Pair<Long, NodeRef> nodePair = getNodePairNotNull(nodeRef);
-    	final Long nodeId = nodePair.getFirst();
-    	return nodeDAO.countChildAssocsByParent(nodeId, isPrimary);
+        final Pair<Long, NodeRef> nodePair = getNodePairNotNull(nodeRef);
+        final Long nodeId = nodePair.getFirst();
+        return nodeDAO.countChildAssocsByParent(nodeId, isPrimary);
     }
     
     @Override
@@ -909,7 +918,7 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
                         {
                             logger.trace(
                                     "Aspect-triggered association removal: " +
-                            		"Ignoring child associations where one of the nodes is pending delete: " + childAssocPair);
+                                    "Ignoring child associations where one of the nodes is pending delete: " + childAssocPair);
                         }
                         return true;
                     }
@@ -1969,10 +1978,10 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
     @Extend(traitAPI=NodeServiceTrait.class,extensionAPI=NodeServiceExtension.class)
     public NodeRef getChildByName(NodeRef nodeRef, QName assocTypeQName, String childName)
     {
-    	ParameterCheck.mandatory("childName", childName);
-    	ParameterCheck.mandatory("nodeRef", nodeRef);
-    	ParameterCheck.mandatory("assocTypeQName", assocTypeQName);
-    	
+        ParameterCheck.mandatory("childName", childName);
+        ParameterCheck.mandatory("nodeRef", nodeRef);
+        ParameterCheck.mandatory("assocTypeQName", assocTypeQName);
+        
         // Get the node
         Pair<Long, NodeRef> nodePair = getNodePairNotNull(nodeRef);
         Long nodeId = nodePair.getFirst();
@@ -2768,6 +2777,8 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
         StoreRef oldStoreRef = oldNodeToMoveRef.getStoreRef();
         StoreRef newStoreRef = parentNodeRef.getStoreRef();
         
+        List<ChildAssociationRef> nodesToRestoreAssociationsFor = new ArrayList<ChildAssociationRef>();
+        
         // Get the primary parent association
         Pair<Long, ChildAssociationRef> oldParentAssocPair = nodeDAO.getPrimaryParentAssoc(nodeToMoveId);
         if (oldParentAssocPair == null)
@@ -2872,8 +2883,21 @@ public class DbNodeServiceImpl extends AbstractNodeServiceImpl implements Extens
                 // Fire node policies.  This ensures that each node in the hierarchy gets a notification fired.
                 invokeOnDeleteNode(oldChildAssoc, childNodeTypeQName, childNodeAspectQNames, true);
                 invokeOnCreateNode(newChildAssoc);
+
+                // collect working copy nodes that need to be updated; we need all nodes 
+                // to be already moved when create association between nodes
+                if (hasAspect(newChildAssoc.getChildRef(), ContentModel.ASPECT_ARCHIVE_LOCKABLE))
+                {
+                    nodesToRestoreAssociationsFor.add(newChildAssoc);
+                }
             }
             
+            // invoke onRestoreNode for working copy nodes in order to restore original lock
+            for (ChildAssociationRef childAssoc : nodesToRestoreAssociationsFor)
+            {
+                invokeOnRestoreNode(childAssoc);
+            }
+
             return newParentAssocRef;
         }
         else

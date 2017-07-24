@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.site;
@@ -22,8 +29,8 @@ package org.alfresco.repo.site;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -35,21 +42,35 @@ import java.util.Set;
 import org.alfresco.model.ContentModel;
 import org.alfresco.query.PagingRequest;
 import org.alfresco.query.PagingResults;
+import org.alfresco.repo.node.NodeServicePolicies;
 import org.alfresco.repo.node.archive.NodeArchiveService;
 import org.alfresco.repo.node.archive.RestoreNodeReport;
 import org.alfresco.repo.node.archive.RestoreNodeReport.RestoreStatus;
+import org.alfresco.repo.policy.JavaBehaviour;
+import org.alfresco.repo.policy.PolicyComponent;
+import org.alfresco.repo.security.authentication.AuthenticationComponent;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.security.authentication.AuthenticationUtil.RunAsWork;
+import org.alfresco.repo.security.permissions.AccessDeniedException;
 import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
+import org.alfresco.service.cmr.coci.CheckOutCheckInService;
+import org.alfresco.service.cmr.lock.LockService;
+import org.alfresco.service.cmr.lock.LockStatus;
+import org.alfresco.service.cmr.lock.LockType;
+import org.alfresco.service.cmr.model.FileFolderService;
+import org.alfresco.service.cmr.model.FileInfo;
 import org.alfresco.service.cmr.repository.ChildAssociationRef;
+import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.security.AccessPermission;
 import org.alfresco.service.cmr.security.AuthorityService;
 import org.alfresco.service.cmr.security.AuthorityType;
+import org.alfresco.service.cmr.security.MutableAuthenticationService;
 import org.alfresco.service.cmr.security.PermissionService;
+import org.alfresco.service.cmr.security.PersonService;
 import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.cmr.site.SiteVisibility;
@@ -57,6 +78,7 @@ import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.test_category.OwnJVMTestsCategory;
 import org.alfresco.util.Pair;
+import org.alfresco.util.PropertyMap;
 import org.alfresco.util.test.junitrules.AlfrescoPerson;
 import org.alfresco.util.test.junitrules.ApplicationContextInit;
 import org.alfresco.util.test.junitrules.RunAsFullyAuthenticatedRule;
@@ -116,8 +138,14 @@ public class SiteServiceImplMoreTest
     private static NodeService                 NODE_SERVICE;
     private static NodeArchiveService          NODE_ARCHIVE_SERVICE;
     private static SiteService                 SITE_SERVICE;
+    private static CheckOutCheckInService      COCI_SERVICE;
     private static RetryingTransactionHelper   TRANSACTION_HELPER;
     private static PermissionService           PERMISSION_SERVICE;
+    private static MutableAuthenticationService AUTHENTICATION_SERVICE;
+    private static PersonService               PERSON_SERVICE;
+    private static FileFolderService           FILE_FOLDER_SERVICE;
+    private static AuthenticationComponent     AUTHENTICATION_COMPONENT;
+    private static LockService                 LOCK_SERVICE;
     
     private static String TEST_SITE_NAME, TEST_SUB_SITE_NAME;
     private static TestSiteAndMemberInfo TEST_SITE_WITH_MEMBERS;
@@ -129,9 +157,14 @@ public class SiteServiceImplMoreTest
         NODE_SERVICE              = APP_CONTEXT_INIT.getApplicationContext().getBean("NodeService", NodeService.class);
         NODE_ARCHIVE_SERVICE      = APP_CONTEXT_INIT.getApplicationContext().getBean("nodeArchiveService", NodeArchiveService.class);
         SITE_SERVICE              = APP_CONTEXT_INIT.getApplicationContext().getBean("siteService", SiteService.class);
+        COCI_SERVICE              = APP_CONTEXT_INIT.getApplicationContext().getBean("checkOutCheckInService", CheckOutCheckInService.class);
         TRANSACTION_HELPER        = APP_CONTEXT_INIT.getApplicationContext().getBean("retryingTransactionHelper", RetryingTransactionHelper.class);
         PERMISSION_SERVICE        = APP_CONTEXT_INIT.getApplicationContext().getBean("permissionServiceImpl", PermissionService.class);
-        
+        AUTHENTICATION_SERVICE    = APP_CONTEXT_INIT.getApplicationContext().getBean("authenticationService", MutableAuthenticationService.class);
+        PERSON_SERVICE            = APP_CONTEXT_INIT.getApplicationContext().getBean("PersonService", PersonService.class);
+        FILE_FOLDER_SERVICE       = APP_CONTEXT_INIT.getApplicationContext().getBean("FileFolderService",FileFolderService.class);
+        AUTHENTICATION_COMPONENT  = APP_CONTEXT_INIT.getApplicationContext().getBean("authenticationComponent",AuthenticationComponent.class);
+        LOCK_SERVICE              = APP_CONTEXT_INIT.getApplicationContext().getBean("lockService",LockService.class);
         
         // We'll create this test content as admin.
         final String admin = AuthenticationUtil.getAdminUserName();
@@ -334,7 +367,296 @@ public class SiteServiceImplMoreTest
             }
         });
     }
-    
+
+    private void createUser(String userName, String nameSuffix)
+    {
+        if (AUTHENTICATION_SERVICE.authenticationExists(userName))
+        {
+            return;
+        }
+        AUTHENTICATION_SERVICE.createAuthentication(userName, "PWD".toCharArray());
+
+        PropertyMap ppOne = new PropertyMap(4);
+        ppOne.put(ContentModel.PROP_USERNAME, userName);
+        ppOne.put(ContentModel.PROP_FIRSTNAME, "firstName" + nameSuffix);
+        ppOne.put(ContentModel.PROP_LASTNAME, "lastName" + nameSuffix);
+        ppOne.put(ContentModel.PROP_EMAIL, "email" + nameSuffix + "@email.com");
+        ppOne.put(ContentModel.PROP_JOBTITLE, "jobTitle");
+
+        PERSON_SERVICE.createPerson(ppOne);
+    }
+
+    /**
+     * Added as part of MNT-14671 : Site with document locked for Edit Offline cannot be deleted.
+     * This test checks that the owner of a site can delete the site even if there are locked files,
+     * that belong to the owner or to other members of that site;
+     * 
+     * This test also checks that after restore the locks are restored correctly for all the locked
+     * files;
+     * 
+     * MNT-15855:
+     * Checks the case when there is a working copy (simulate lock for offline edit)
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void deleteSiteDeleteAuthoritiesAndRestoreEnsuringLocksAreRestored() throws Exception
+    {
+        final String userOwner = "UserOwner";
+        final String userCollaborator = "UserColaborator";
+        final String userPrefix = "dart";// delete and restore test
+
+        // create the users
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                createUser(userOwner, userPrefix);
+                createUser(userCollaborator, userPrefix);
+                return null;
+            }
+        });
+
+        final String siteShortName = "testsite-" + System.currentTimeMillis();
+        log.debug("Creating test site called: " + siteShortName);
+
+        // Create site
+        final TestSiteAndMemberInfo testSiteAndMemberInfo = perMethodTestSites.createTestSiteWithUserPerRole(
+                siteShortName, 
+                "sitePreset",
+                SiteVisibility.PUBLIC, 
+                userOwner);
+
+        // create some documents into the test site as the owner of the site
+        AUTHENTICATION_COMPONENT.setCurrentUser(userOwner);
+
+        /*
+         * [site] {siteShortName}
+         *    |
+         *    --- [siteContainer] {componentId}
+         *          |
+         *          --- [cm:content] fileFolderPrefix + "file.txt"
+         *          |
+         *          |-- [folder] fileFolderPrefix + "folder"
+         *                  |
+         *                  |-- [cm:content] fileFolderPrefix + "fileInFolder.txt"
+         *                  |
+         *                  |-- [folder] fileFolderPrefix + "subfolder"
+         *                         |
+         *                         |-- [cm:content] fileFolderPrefix + "fileInSubfolder.txt"
+         *          --- [cm:content] fileFolderPrefix + "fileEditOfline.txt"
+         */
+        String fileFolderPrefix = "TESTLOCK_";
+        String componentId = "doclib";
+
+        NodeRef siteContainer = SITE_SERVICE.createContainer(siteShortName, componentId, ContentModel.TYPE_FOLDER, null);
+        final FileInfo fileInfo = FILE_FOLDER_SERVICE.create(
+                siteContainer,
+                fileFolderPrefix + "file.txt",
+                ContentModel.TYPE_CONTENT);
+        ContentWriter writer = FILE_FOLDER_SERVICE.getWriter(fileInfo.getNodeRef());
+        writer.putContent("Just some old content that doesn't mean anything");
+
+        FileInfo folder1Info = FILE_FOLDER_SERVICE.create(
+                siteContainer,
+                fileFolderPrefix + "folder",
+                ContentModel.TYPE_FOLDER);
+
+        FileInfo fileInfo2 = FILE_FOLDER_SERVICE.create(
+                folder1Info.getNodeRef(),
+                fileFolderPrefix + "fileInFolder.txt",
+                ContentModel.TYPE_CONTENT);
+        ContentWriter writer2 = FILE_FOLDER_SERVICE.getWriter(fileInfo2.getNodeRef());
+        writer2.putContent("Just some old content that doesn't mean anything");
+
+        FileInfo folder2Info = FILE_FOLDER_SERVICE.create(
+                folder1Info.getNodeRef(),
+                fileFolderPrefix + "subfolder",
+                ContentModel.TYPE_FOLDER);
+
+        FileInfo fileInfo3 = FILE_FOLDER_SERVICE.create(
+                folder2Info.getNodeRef(),
+                fileFolderPrefix + "fileInSubfolder.txt",
+                ContentModel.TYPE_CONTENT);
+        ContentWriter writer3 = FILE_FOLDER_SERVICE.getWriter(fileInfo3.getNodeRef());
+        writer3.putContent("Just some old content that doesn't mean anything");
+
+        // Make sure there are no locks on the fileInfo yet
+        assertEquals(LockStatus.NO_LOCK, LOCK_SERVICE.getLockStatus(fileInfo.getNodeRef()));
+
+        // Lock a file as userOwner
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                LOCK_SERVICE.lock(fileInfo.getNodeRef(), LockType.WRITE_LOCK);
+                return null;
+            }
+        });
+
+        // Make sure we have a lock now
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileInfo.getNodeRef()));
+
+        checkThatNonMembersCanNotCreateFiles(userCollaborator, fileFolderPrefix, folder2Info);
+
+        // Make sure we are running as userOwner
+        AUTHENTICATION_COMPONENT.setCurrentUser(userOwner);
+
+        // Make userCollaborator a member of the site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Object>()
+        {
+            public Object execute() throws Throwable
+            {
+                SITE_SERVICE.setMembership(siteShortName, userCollaborator, SiteModel.SITE_COLLABORATOR);
+                return null;
+            }
+        });
+
+        // Now, as userCollaborator create a file and lock it
+        AUTHENTICATION_COMPONENT.setCurrentUser(userCollaborator);
+
+        final FileInfo fileInfoForCollaboratorUser = FILE_FOLDER_SERVICE.create(
+                folder2Info.getNodeRef(), 
+                fileFolderPrefix + "userCollaborator.txt",
+                ContentModel.TYPE_CONTENT);
+        ContentWriter writer4 = FILE_FOLDER_SERVICE.getWriter(fileInfoForCollaboratorUser.getNodeRef());
+        writer4.putContent("Just some old content that doesn't mean anything");
+
+        // Check that the node is not currently locked
+        assertEquals(LockStatus.NO_LOCK, LOCK_SERVICE.getLockStatus(fileInfoForCollaboratorUser.getNodeRef()));
+
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // lock the file as userCollaborator
+                LOCK_SERVICE.lock(fileInfoForCollaboratorUser.getNodeRef(), LockType.WRITE_LOCK);
+                return null;
+            }
+        });
+
+        // Test valid lock
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileInfoForCollaboratorUser.getNodeRef()));
+
+        // Create a file to test Edit offline
+        final FileInfo fileEditOffline = FILE_FOLDER_SERVICE.create(
+                       siteContainer, 
+                       fileFolderPrefix + "fileEditOfline.txt",
+                       ContentModel.TYPE_CONTENT);
+        ContentWriter writerEO = FILE_FOLDER_SERVICE.getWriter(fileEditOffline.getNodeRef());
+        writerEO.putContent("Just some old content that doesn't mean anything");
+
+        //Make sure there are no locks on the fileEditOffline yet
+        assertEquals(LockStatus.NO_LOCK, LOCK_SERVICE.getLockStatus(fileEditOffline.getNodeRef()));
+
+        // Check out the document - simulate Edit offline
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                NodeRef workingCopy = COCI_SERVICE.checkout(fileEditOffline.getNodeRef());
+                assertNotNull(workingCopy);
+                return null;
+            }
+        });
+
+        // Make sure we have a lock now on fileEditOffline
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileEditOffline.getNodeRef()));
+
+        // Switch back to userOwner so we can call delete the site
+        AUTHENTICATION_COMPONENT.setCurrentUser(userOwner);
+
+        // Delete the site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                log.debug("About to delete site.");
+                AUTHENTICATION_COMPONENT.getCurrentUserName();
+                SITE_SERVICE.deleteSite(siteShortName);
+                log.debug("Site deleted.");
+
+                return null;
+            }
+        });
+
+        // Restore the site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                assertThatArchivedNodeExists(testSiteAndMemberInfo.siteInfo.getNodeRef(), "Site node not found in archive.");
+
+                log.debug("About to restore site node from archive");
+
+                final NodeRef archivedSiteNode = NODE_ARCHIVE_SERVICE.getArchivedNode(testSiteAndMemberInfo.siteInfo.getNodeRef());
+                RestoreNodeReport report = NODE_ARCHIVE_SERVICE.restoreArchivedNode(archivedSiteNode);
+                // ...which should work
+                assertEquals("Failed to restore site from archive", RestoreStatus.SUCCESS, report.getStatus());
+
+                log.debug("Successfully restored site from arhive.");
+
+                return null;
+            }
+        });
+
+        // Check that the files have been restored and all the locks are present
+        AUTHENTICATION_COMPONENT.setCurrentUser(userCollaborator);
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileInfoForCollaboratorUser.getNodeRef()));
+        // Check that the file for edit offline has been restored and has the expected lock owner
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileEditOffline.getNodeRef()));
+
+        AUTHENTICATION_COMPONENT.setCurrentUser(userOwner);
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileInfo.getNodeRef()));
+        // Check that the file for edit offline has been restored and is locked
+        assertEquals(LockStatus.LOCKED, LOCK_SERVICE.getLockStatus(fileEditOffline.getNodeRef()));
+
+        // Remove site completely
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // if we apply the sys:temporary aspect to the site, the NodeService will not
+                // archive it i.e. this bit of clean up will be a bit faster.
+                NODE_SERVICE.addAspect(testSiteAndMemberInfo.siteInfo.getNodeRef(), ContentModel.ASPECT_TEMPORARY, null);
+                
+                log.debug("About to delete site completely.");
+                SITE_SERVICE.deleteSite(siteShortName);
+                log.debug("About to purge site from trashcan.");
+
+                // get archive node reference
+                String storePath = "archive://SpacesStore";
+                StoreRef storeRef = new StoreRef(storePath);
+                NodeRef archivedNodeRef = new NodeRef(storeRef, testSiteAndMemberInfo.siteInfo.getNodeRef().getId());
+                NODE_ARCHIVE_SERVICE.purgeArchivedNode(archivedNodeRef);
+
+                return null;
+            }
+        });
+    }
+
+    private void checkThatNonMembersCanNotCreateFiles(final String userCollaborator, String fileFolderPrefix, FileInfo folder2Info)
+    {
+        // now, as another user, that is not yet a member, try to create a file in this site
+        // this use case is not really relevant to test method, but it is a good test for permissions
+        AUTHENTICATION_COMPONENT.setCurrentUser(userCollaborator);
+        try
+        {
+            FileInfo fileInfoForTestNewFileAsAnotherUser = FILE_FOLDER_SERVICE.create(
+                    folder2Info.getNodeRef(), 
+                    fileFolderPrefix + "user2.txt",
+                    ContentModel.TYPE_CONTENT);
+            ContentWriter writer3_user2 = FILE_FOLDER_SERVICE.getWriter(fileInfoForTestNewFileAsAnotherUser.getNodeRef());
+            writer3_user2.putContent("Just some old content that doesn't mean anything");
+
+            fail("We should not reach this point. the user that tries to run this code, add the file, is not yet a member of the site");
+        }
+        catch (AccessDeniedException e)
+        {
+            // Expected
+        }
+    }
+
     /**
      * This test ensures that when sites are deleted (moved to the trashcan) and then restored, that the 4 role-based groups are
      * restored correctly and that any users who were members of those groups are made members once more.
@@ -560,6 +882,315 @@ public class SiteServiceImplMoreTest
         assertNotNull(res);
         assertEquals(0, res.length);
     }
+
+    /**
+     * MNT-16043: Site Owner and Site Manager can delete working copy, Site Collaborator cannot
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testSiteRolesPermissionsToDeleteWorkingCopy() throws Exception
+    {
+        final String userSiteOwner = "UserSiteOwner";
+        final String userSiteManager = "UserSiteManager";
+        final String userSiteCollaborator = "UserSiteCollaborator";
+        final String userPrefix = "delete-working-copy-file";
+
+        // create the users
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                createUser(userSiteOwner, userPrefix);
+                createUser(userSiteManager, userPrefix);
+                createUser(userSiteCollaborator, userPrefix);
+                return null;
+            }
+        });
+        final String siteShortName = userPrefix + "Site" + System.currentTimeMillis();
+        final String dummyContent = "Just some old content that doesn't mean anything";
+
+        // Create site
+        final TestSiteAndMemberInfo testSiteAndMemberInfo = perMethodTestSites.createTestSiteWithUserPerRole(siteShortName, "sitePreset",
+                SiteVisibility.PUBLIC, userSiteOwner);
+
+        // create 1 file into the site as the owner of the site
+        AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+
+        NodeRef siteContainer = SITE_SERVICE.createContainer(siteShortName, "doclib", ContentModel.TYPE_FOLDER, null);
+        final FileInfo fileInfo1 = FILE_FOLDER_SERVICE.create(siteContainer, "fileInfo1.txt", ContentModel.TYPE_CONTENT);
+        ContentWriter writer1 = FILE_FOLDER_SERVICE.getWriter(fileInfo1.getNodeRef());
+        writer1.putContent(dummyContent);
+
+        final FileInfo fileInfo2 = FILE_FOLDER_SERVICE.create(siteContainer, "fileInfo2.txt", ContentModel.TYPE_CONTENT);
+        ContentWriter writer2 = FILE_FOLDER_SERVICE.getWriter(fileInfo2.getNodeRef());
+        writer2.putContent(dummyContent);
+
+        final FileInfo fileInfo3 = FILE_FOLDER_SERVICE.create(siteContainer, "fileInfo3.txt", ContentModel.TYPE_CONTENT);
+        ContentWriter writer3 = FILE_FOLDER_SERVICE.getWriter(fileInfo2.getNodeRef());
+        writer3.putContent(dummyContent);
+        
+        // Site COLLABORATOR - cannot delete working copy or original file
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // checkout file again as userOwner
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+                NodeRef workingCopy = COCI_SERVICE.checkout(fileInfo3.getNodeRef());
+                assertNotNull(workingCopy);
+
+                // make userSiteCollaborator a member of the site
+                SITE_SERVICE.setMembership(siteShortName, userSiteCollaborator, SiteModel.SITE_COLLABORATOR);
+
+                // make sure we are running as userSiteCollaborator
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteCollaborator);
+                
+                // try to delete working copy file
+                try
+                {
+                    NODE_SERVICE.deleteNode(workingCopy);
+                    fail("You do not have the appropriate permissions to perform this operation");
+                }
+                catch (AccessDeniedException ex)
+                {
+                    // do nothing - is expected
+                }
+
+                // try to delete original checked-out
+                try
+                {
+                    NODE_SERVICE.deleteNode(fileInfo3.getNodeRef());
+                    fail("You do not have the appropriate permissions to perform this operation");
+                }
+                catch (AccessDeniedException ex)
+                {
+                    // do nothing - is expected
+                }
+
+                return null;
+            }
+        });
+        
+        // Site Owner - can delete working copy (or original)
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // checkout a file as userOwner
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+                NodeRef workingCopy = COCI_SERVICE.checkout(fileInfo2.getNodeRef());
+                assertNotNull(workingCopy);
+                
+                NODE_SERVICE.deleteNode(workingCopy);
+
+                // checkout file again as userOwner
+                workingCopy = COCI_SERVICE.checkout(fileInfo2.getNodeRef());
+                assertNotNull(workingCopy);
+
+                NODE_SERVICE.deleteNode(fileInfo2.getNodeRef());
+                
+                return null;
+            }
+        });
+
+        // Site Manager - can delete working copy (or original)
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // checkout a file as userOwner
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+                NodeRef workingCopy = COCI_SERVICE.checkout(fileInfo1.getNodeRef());
+                assertNotNull(workingCopy);
+
+                // make userSiteManager a member of the site
+                SITE_SERVICE.setMembership(siteShortName, userSiteManager, SiteModel.SITE_MANAGER);
+
+                // make sure we are running as userSiteManager
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteManager);
+                
+                NODE_SERVICE.deleteNode(workingCopy);
+
+                // checkout file again as userOwner
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+                workingCopy = COCI_SERVICE.checkout(fileInfo1.getNodeRef());
+                assertNotNull(workingCopy);
+
+                // make sure we are running as userSiteManager
+                AUTHENTICATION_COMPONENT.setCurrentUser(userSiteManager);
+
+                NODE_SERVICE.deleteNode(fileInfo1.getNodeRef());
+
+                return null;
+            }
+        });
+
+        AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+        
+        // Delete the site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                AUTHENTICATION_COMPONENT.getCurrentUserName();
+                SITE_SERVICE.deleteSite(siteShortName);
+
+                return null;
+            }
+        });
+    }
+
+    // TODO currently not being run - requires fix for REPO-1688 (see also MNT-17093)
+    public void deleteSiteRestoreSiteWithLocks() throws Exception
+    {
+        final String userSiteOwner = "UserSiteOwner";
+        final String userSiteManager = "UserSiteManager";
+        final String userSiteCollaborator = "UserSiteCollaborator";        
+        final String userPrefix = "restore-with-lock";
+
+        // create the users
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                createUser(userSiteOwner, userPrefix);
+                createUser(userSiteManager, userPrefix);
+                createUser(userSiteCollaborator, userPrefix);
+                return null;
+            }
+        });
+
+        final String siteShortName = "testsite-" + System.currentTimeMillis();
+        final SiteServiceImpl siteServiceImpl = (SiteServiceImpl)SITE_SERVICE;
+        log.debug("Creating test site called: " + siteShortName);
+
+        // Create site
+        final TestSiteAndMemberInfo testSiteAndMemberInfo =
+                perMethodTestSites.createTestSiteWithUserPerRole(siteShortName, "sitePreset", SiteVisibility.PUBLIC, userSiteOwner);
+
+        // Add Site COLLABORATOR - create file
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // make userSiteCollaborator a member of the site
+                SITE_SERVICE.setMembership(siteShortName, userSiteCollaborator, SiteModel.SITE_COLLABORATOR);
+
+                return null;
+            }
+        });
+
+        // create document as userSiteCollaborator
+        AUTHENTICATION_COMPONENT.setCurrentUser(userSiteCollaborator);
+
+        String fileFolderPrefix = "TESTLOCK_";
+        String componentId = "doclib";
+
+        NodeRef siteContainer = SITE_SERVICE.createContainer(siteShortName, componentId, ContentModel.TYPE_FOLDER, null);
+        final FileInfo fileInfo = FILE_FOLDER_SERVICE.create(
+                siteContainer,
+                fileFolderPrefix + "file.txt",
+                ContentModel.TYPE_CONTENT);
+        ContentWriter writer = FILE_FOLDER_SERVICE.getWriter(fileInfo.getNodeRef());
+        writer.putContent("Just some old content that doesn't mean anything");
+
+        // Make sure there are no locks on the fileInfo yet
+        assertEquals(LockStatus.NO_LOCK, LOCK_SERVICE.getLockStatus(fileInfo.getNodeRef()));
+
+        // Lock a file as userSiteCollaborator
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                LOCK_SERVICE.lock(fileInfo.getNodeRef(), LockType.READ_ONLY_LOCK);
+                return null;
+            }
+        });
+
+        // Make sure we have a lock now
+        assertEquals(LockStatus.LOCK_OWNER, LOCK_SERVICE.getLockStatus(fileInfo.getNodeRef()));
+
+        AUTHENTICATION_COMPONENT.setCurrentUser(userSiteOwner);
+
+        // Delete site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Map<String, String>>()
+        {
+            public Map<String, String> execute() throws Throwable
+            {
+                log.debug("About to delete site.");
+                SITE_SERVICE.deleteSite(siteShortName);
+                log.debug("Site deleted.");
+
+                return null;
+            }
+        });
+
+        // Add custom behaviour that triggers onCreateNode to cause update ... and hence triggers REPO-1688
+
+        PolicyComponent policyComponent = (PolicyComponent) APP_CONTEXT_INIT.getApplicationContext().getBean("policyComponent");
+        policyComponent.bindClassBehaviour(
+                NodeServicePolicies.OnCreateNodePolicy.QNAME,
+                ContentModel.TYPE_CONTENT,
+                new JavaBehaviour(this, "onCreateNodeSetTitle"));
+
+        // restore the site
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                assertThatArchivedNodeExists(testSiteAndMemberInfo.siteInfo.getNodeRef(), "Site node not found in archive.");
+
+                log.debug("About to restore site node from archive");
+
+                final NodeRef archivedSiteNode = NODE_ARCHIVE_SERVICE.getArchivedNode(testSiteAndMemberInfo.siteInfo.getNodeRef());
+                RestoreNodeReport report = NODE_ARCHIVE_SERVICE.restoreArchivedNode(archivedSiteNode);
+                // ...which should work
+                assertEquals("Failed to restore site from archive", RestoreStatus.SUCCESS, report.getStatus());
+
+                log.debug("Successfully restored site from arhive.");
+
+                return null;
+            }
+        });
+
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Map<String, String>>()
+        {
+            public Map<String, String> execute() throws Throwable
+            {
+                // The site itself should have been restored, of course...
+                assertTrue("The site noderef was not restored as expected", NODE_SERVICE.exists(testSiteAndMemberInfo.siteInfo.getNodeRef()));
+
+                return null;
+            }
+        });
+
+        // remove site completely
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                log.debug("About to delete site completely.");
+                SITE_SERVICE.deleteSite(siteShortName);
+                log.debug("About to purge site from trashcan.");
+
+                // get archive node reference
+                String storePath = "archive://SpacesStore";
+                StoreRef storeRef = new StoreRef(storePath);
+                NodeRef archivedNodeRef = new NodeRef(storeRef, testSiteAndMemberInfo.siteInfo.getNodeRef().getId());
+                NODE_ARCHIVE_SERVICE.purgeArchivedNode(archivedNodeRef);
+
+                return null;
+            }
+        });
+    }
+
+    public void onCreateNodeSetTitle(ChildAssociationRef childAssocRef)
+    {
+        NodeRef newRef = childAssocRef.getChildRef();
+        NODE_SERVICE.setProperty(newRef, ContentModel.PROP_TITLE, "Testing REPO-1688");
+    }
+
     private void assertThatArchivedNodeExists(NodeRef originalNodeRef, String failureMsg)
     {
         final NodeRef archivedNodeRef = NODE_ARCHIVE_SERVICE.getArchivedNode(originalNodeRef);

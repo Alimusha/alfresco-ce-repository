@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Sharepoint Protocol
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.module.vti.web.fp;
@@ -365,7 +372,7 @@ public class VtiFpRequest extends HttpServletRequestWrapper
      * 
      * @param paramName name of parameter
      * @param defaultValue default value for parameter if not present
-     * @return List<String> parameter from request or defaultValue if not present
+     * @return parameter from request or defaultValue if not present
      */
     public List<String> getParameter(String paramName, List<String> defaultValue)
     {
@@ -473,7 +480,7 @@ public class VtiFpRequest extends HttpServletRequestWrapper
      * Get dictionary
      * 
      * @param paramName name of parameter
-     * @return Map<String, String> parameter from request
+     * @return parameter from request
      */
     public Map<String, String> getDictionary(String paramName)
     {
@@ -517,7 +524,7 @@ public class VtiFpRequest extends HttpServletRequestWrapper
      * Get meta-dictionary
      * 
      * @param paramName name of parameter
-     * @return Map<String, Object> parameter from request
+     * @return parameter from request
      */
     public Map<String, Object> getMetaDictionary(String paramName)
     {

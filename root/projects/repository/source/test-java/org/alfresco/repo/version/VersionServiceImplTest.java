@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.version;
 
@@ -81,7 +88,13 @@ import org.springframework.context.ApplicationContext;
 public class VersionServiceImplTest extends BaseVersionStoreTest
 {
     private static Log logger = LogFactory.getLog(VersionServiceImplTest.class);
-    
+
+    private static final String UPDATED_NAME_1 = "a.txt";
+    private static final String UPDATED_NAME_2 = "b.txt";
+    private static final String UPDATED_NAME_3 = "c.txt";
+    private static final String UPDATED_TITLE_1 = "a";
+    private static final String UPDATED_TITLE_2 = "b";
+    private static final String UPDATED_TITLE_3 = "c";
     private static final String UPDATED_VALUE_1 = "updatedValue1";
     private static final String UPDATED_VALUE_2 = "updatedValue2";
     private static final String UPDATED_VALUE_3 = "updatedValue3";
@@ -323,10 +336,39 @@ public class VersionServiceImplTest extends BaseVersionStoreTest
         createVersion(node);
     }
     
-    // TODO test versioning numberious times with branchs implies by different workspaces
-    
     /**
-     * Test versioning the children of a verionable node
+     * Test retrieving the current version for a node with multiple versions
+     */
+    public void testGetCurrentVersion()
+    {
+        NodeRef versionableNode = createNewVersionableNode();
+        createVersion(versionableNode);
+        createVersion(versionableNode);
+        createVersion(versionableNode);
+        
+        VersionHistory vh = this.versionService.getVersionHistory(versionableNode);
+        Version version = vh.getRootVersion(); 
+        
+        // Get current version from live node
+        NodeRef node = version.getVersionedNodeRef();
+        Version currentVersion = versionService.getCurrentVersion(node); 
+        assertNotNull("Failed to retrieve the current version from the head", currentVersion);
+        
+        try
+        {
+            // Get current version from the version node (frozen state version node) - not allowed (MNT-15447)
+            node = version.getFrozenStateNodeRef();
+            currentVersion = versionService.getCurrentVersion(node);
+            fail("Getting the current version is only allowed on live nodes, not on version nodes.");
+        }
+        catch (IllegalArgumentException ex)
+        {
+            // expected
+        }
+    }
+
+    /**
+     * Test versioning the children of a versionable node
      */
     public void testVersioningChildren()
     {
@@ -1224,6 +1266,84 @@ public class VersionServiceImplTest extends BaseVersionStoreTest
     	assertNotNull(versionLabel3);
     	assertEquals(version2.getVersionLabel(), versionLabel3);
     	
+    }
+
+    /**
+     * Test testDeleteLastVersion
+     * MNT-13097. Revert content if the last version was chosen.
+     */
+    public void testDeleteLastVersion()
+    {
+        // Use 1.0, 2.0 etc for the main part
+        versionProperties.put(VersionModel.PROP_VERSION_TYPE, VersionType.MAJOR);
+
+        // Create a versionable node with a name, title and content
+        NodeRef versionableNode = createNewVersionableNode();
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_NAME, UPDATED_NAME_1);
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_TITLE, UPDATED_TITLE_1);
+        ContentWriter contentWriter = this.contentService.getWriter(versionableNode, ContentModel.PROP_CONTENT, true);
+        assertNotNull(contentWriter);
+        contentWriter.putContent(UPDATED_CONTENT_1);
+
+        // Create first version
+        Version version1 = createVersion(versionableNode);
+
+        // Update name, title and content
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_NAME, UPDATED_NAME_2);
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_TITLE, UPDATED_TITLE_2);
+        contentWriter = this.contentService.getWriter(versionableNode, ContentModel.PROP_CONTENT, true);
+        contentWriter.putContent(UPDATED_CONTENT_2);
+
+        // Create second version
+        Version version2 = createVersion(versionableNode);
+
+        // Update name, title and content
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_NAME, UPDATED_NAME_3);
+        this.nodeService.setProperty(versionableNode, ContentModel.PROP_TITLE, UPDATED_TITLE_3);
+        contentWriter = this.contentService.getWriter(versionableNode, ContentModel.PROP_CONTENT, true);
+        contentWriter.putContent(UPDATED_CONTENT_3);
+
+        // Check that the name and title is right
+        String name3 = (String) this.nodeService.getProperty(versionableNode, ContentModel.PROP_NAME);
+        assertEquals(UPDATED_NAME_3, name3);
+        String title3 = (String) this.nodeService.getProperty(versionableNode, ContentModel.PROP_TITLE);
+        assertEquals(UPDATED_TITLE_3, title3);
+
+        // Create third version
+        Version version3 = createVersion(versionableNode);
+
+        // Check that the version label is right
+        Version currentVersion = this.versionService.getCurrentVersion(versionableNode);
+        assertEquals(version3.getVersionLabel(), currentVersion.getVersionLabel());
+
+        // Check that the content is right
+        ContentReader contentReader1 = this.contentService.getReader(versionableNode, ContentModel.PROP_CONTENT);
+        assertEquals(UPDATED_CONTENT_3, contentReader1.getContentString());
+
+        // Delete version 3.0
+        this.versionService.deleteVersion(versionableNode, version3);
+
+        // Check that the name and title is reverted to 2.0
+        String name2 = (String) this.nodeService.getProperty(versionableNode, ContentModel.PROP_NAME);
+        assertEquals(UPDATED_NAME_2, name2);
+        String title2 = (String) this.nodeService.getProperty(versionableNode, ContentModel.PROP_TITLE);
+        assertEquals(UPDATED_TITLE_2, title2);
+
+        // Check that the version label is reverted to 2.0
+        currentVersion = this.versionService.getCurrentVersion(versionableNode);
+        assertEquals(version2.getVersionLabel(), currentVersion.getVersionLabel());
+
+        // Check that the content has been reverted to 2.0
+        contentReader1 = this.contentService.getReader(versionableNode, ContentModel.PROP_CONTENT);
+        assertEquals(UPDATED_CONTENT_2, contentReader1.getContentString());
+
+        // Version 1.0 and 2.0 should left
+        VersionHistory vHistory = this.versionService.getVersionHistory(versionableNode);
+        assertEquals(2, vHistory.getAllVersions().size());
+
+        // Version 2.0 should be the head version
+        Version headVersion = vHistory.getHeadVersion();
+        assertEquals("2.0", headVersion.getVersionLabel());
     }
     
     /**

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.lock;
 
@@ -136,13 +143,13 @@ public interface LockService
    /**
     * Places a lock on a node and optionally on all its children.  
     * <p>
-    * The lock prevents any other user or process from comitting updates 
+    * The lock prevents any other user or process from committing updates 
     * to the node until the lock is released.  
     * <p>
     * The lock will be owned by the current user.
     * <p>  
     * If any one of the child locks can not be taken then an exception will 
-    * be raised and all locks canceled.
+    * be raised and all locks cancelled.
     * <p>
     * If the time to expire is 0 then the lock will never expire.  Otherwise the
     * timeToExpire indicates the number of seconds before the lock expires.  When
@@ -164,6 +171,35 @@ public interface LockService
    @Auditable(parameters = {"nodeRef", "lockType", "timeToExpire", "lockChildren"})
    public void lock(NodeRef nodeRef, LockType lockType, int timeToExpire, boolean lockChildren)
        throws UnableToAquireLockException;
+   
+   /**
+    * Places a lock on a node and optionally on all its children.  
+    * <p>
+    * The lock prevents any other user or process from committing updates 
+    * to the node until the lock is released.  
+    * <p>
+    * The lock will be owned by the current user.
+    * <p>
+    * If the time to expire is 0 then the lock will never expire.  Otherwise the
+    * timeToExpire indicates the number of seconds before the lock expires.  When
+    * a lock expires the lock is considered to have been released.
+    * <p>
+    * If the node is already locked and the user is the lock owner then the lock will
+    * be renewed with the passed timeToExpire.
+    * 
+    * @param  nodeRef         a reference to a node 
+    * @param  lockType        the lock type
+    * @param  timeToExpire    the number of seconds before the locks expires.
+    * @param  lifetime        allows persistent or ephemeral locks to be specified.
+    * @param  lockChildren    if true indicates that all the children (and 
+    *                           grandchildren, etc) of the node will also be locked, 
+    *                           false otherwise
+    * @throws UnableToAquireLockException
+    *                       thrown if the lock could not be obtained
+    */
+   @Auditable(parameters = {"nodeRef", "lockType", "timeToExpire", "lifetime", "lockChildren"})
+   public void lock(NodeRef nodeRef, LockType lockType, int timeToExpire, Lifetime lifetime, boolean lockChildren)
+               throws UnableToAquireLockException;
    
    /**
     * Places a lock on all the nodes referenced in the passed list.  
@@ -309,6 +345,24 @@ public interface LockService
     */
    @Auditable(parameters = {"nodeRef"})
    public LockType getLockType(NodeRef nodeRef);
+
+   /**
+    * Indicates if the node is locked for the current user.
+    *
+    * @param nodeRef
+    * @return
+    */
+   @Auditable(parameters = {"nodeRef"})
+   public boolean isLocked(NodeRef nodeRef);
+
+   /**
+    * Indicates if the node is locked AND it's *not* a WRITE_LOCK for the current user.
+    * 
+    * @param nodeRef
+    * @return
+     */
+   @Auditable(parameters = {"nodeRef"})
+   public boolean isLockedAndReadOnly(NodeRef nodeRef);
    
    /**
     * Checks to see if the current user has access to the specified node.

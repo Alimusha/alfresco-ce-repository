@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.rest.api.model;
 
@@ -38,14 +45,16 @@ import org.alfresco.service.namespace.QName;
 public class Comment
 {
     public static final QName PROP_COMMENT_CONTENT = QName.createQName("RestApi", "commentContent");
+    public static final QName PROP_COMMENT_CREATED_BY = QName.createQName("RestApi", "createdBy");
+    public static final QName PROP_COMMENT_MODIFIED_BY = QName.createQName("RestApi", "modifiedBy");
 
 	private String id;
     private String title;
     private String content;
     private Date createdAt;
-    private String createdBy;
+    private Person createdBy;
     private Date modifiedAt;
-    private String modifiedBy;
+    private Person modifiedBy;
     private Boolean edited;
 
     // permissions
@@ -110,15 +119,13 @@ public class Comment
     {
 		return createdAt;
 	}
-
-    @EmbeddedEntityResource(propertyName = "createdBy", entityResource = PeopleEntityResource.class)
-	public String getCreatedBy()
+	
+	public Person getCreatedBy()
 	{
 		return createdBy;
 	}
-
-    @EmbeddedEntityResource(propertyName = "modifiedBy", entityResource = PeopleEntityResource.class)
-    public String getModifiedBy()
+	
+    public Person getModifiedBy()
     {
 		return modifiedBy;
 	}
@@ -148,13 +155,16 @@ public class Comment
 			long diff = modifiedAt.getTime() - createdAt.getTime();
 			this.edited = Boolean.valueOf(diff >= 100); // logic is consistent with existing (Javascript) comments implementation
 		}
-
-		this.createdBy = (String)nodeProps.get(ContentModel.PROP_CREATOR);
-		this.modifiedBy = (String)nodeProps.get(ContentModel.PROP_MODIFIER);
-
+		
 		this.content = (String)nodeProps.get(PROP_COMMENT_CONTENT);
 		nodeProps.remove(PROP_COMMENT_CONTENT);
-    }
+		
+		this.createdBy = (Person) nodeProps.get(PROP_COMMENT_CREATED_BY);
+		nodeProps.remove(PROP_COMMENT_CREATED_BY);
+
+		this.modifiedBy = (Person) nodeProps.get(PROP_COMMENT_MODIFIED_BY);
+		nodeProps.remove(PROP_COMMENT_MODIFIED_BY);
+	}
 
 	@Override
 	public String toString()

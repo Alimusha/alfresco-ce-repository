@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -225,6 +232,11 @@ public class TransformerPropertySetter
                 else if (lowerLine.startsWith(TransformerConfig.LOG_ENTRIES))
                 {
                     checkInteger(hasValue, line, TransformerConfig.LOG_ENTRIES.length());
+                    properties.add(line);
+                }
+                else if (lowerLine.startsWith(TransformerConfig.STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES))
+                {
+                    checkMimetypeList(hasValue, line, TransformerConfig.STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES.length(), true);
                     properties.add(line);
                 }
                 else
@@ -534,6 +546,35 @@ public class TransformerPropertySetter
                 if (nodeRefString.length() != 0 && !NodeRef.isNodeRef(nodeRefString))
                 {
                     throw unexpectedProperty("Expected NodeRef value "+nodeRefString, line);
+                }
+            }
+        }
+    }
+    
+    private void checkMimetypeList(boolean hasValue, String line, int i, boolean evenNumberOfEntries)
+    {
+        String value = checkValue(hasValue, line, i);
+        value = value == null ? "" : value.trim();
+        if (value.length() > 0)
+        {
+            String[] mimetypes = value.split(";");
+            
+            if (evenNumberOfEntries && mimetypes.length % 2 != 0)
+            {
+                throw unexpectedProperty("There should be an even number of mimetypes.", line);
+            }
+            else
+            {
+                // Check the dericed mimetype on the Node are valid. Tika may have mimetypes we know nothing about. 
+                List<String> knownMimetypes = mimetypeService.getMimetypes();
+                for (int j=0; j<mimetypes.length; j+=2) 
+                {
+                    String dervivedMimetype = mimetypes[j];
+                    dervivedMimetype = dervivedMimetype.trim();
+                    if (!knownMimetypes.contains(dervivedMimetype))
+                    {
+                        throw unexpectedProperty("Unregistered mimetype: "+dervivedMimetype, line);
+                    }
                 }
             }
         }

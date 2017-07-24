@@ -36,6 +36,8 @@
         <property name="nodeDAO">
             <ref bean="nodeDAO" />
         </property>
+        <property name="dictionaryService" ref="dictionaryService"/>
+        <property name="namespaceDAO" ref="dictionaryDAO" />
         <property name="alternativeDictionary" value="${solr.cmis.alternativeDictionary}" />
         <property name="permissionService">
             <ref bean="permissionService" />
@@ -283,6 +285,9 @@
         </property>
         <property name="indexerAndSearcher">
             <ref bean="search.indexerAndSearcherFactory" />
+        </property>
+        <property name="queryFetchSize">
+            <value>${category.queryFetchSize}</value>
         </property>
     </bean>
     

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.web.scripts;
@@ -29,6 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import org.alfresco.repo.nodelocator.CompanyHomeNodeLocator;
+import org.alfresco.repo.nodelocator.NodeLocatorService;
+import org.alfresco.repo.nodelocator.SharedHomeNodeLocator;
+import org.alfresco.repo.nodelocator.SitesHomeNodeLocator;
+import org.alfresco.repo.nodelocator.UserHomeNodeLocator;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.util.ISO8601DateFormat;
 import org.json.JSONObject;
@@ -143,5 +155,30 @@ public class WebScriptUtil
         return new NodeRef(protocol, storeId, nodeId);
     }
 
+
+    public static NodeRef resolveNodeReference(String reference, NodeLocatorService nodeLocatorService)
+    {
+        NodeRef nodeRef = null;
+        switch (reference)
+        {
+        case "alfresco://company/home":
+            nodeRef = nodeLocatorService.getNode(CompanyHomeNodeLocator.NAME, null, null);
+            break;
+        case "alfresco://user/home":
+            nodeRef = nodeLocatorService.getNode(UserHomeNodeLocator.NAME, null, null);
+            break;
+        case "alfresco://company/shared":
+            nodeRef = nodeLocatorService.getNode(SharedHomeNodeLocator.NAME, null, null);
+            break;
+        case "alfresco://sites/home":
+            nodeRef = nodeLocatorService.getNode(SitesHomeNodeLocator.NAME, null, null);
+            break;
+        default:
+            nodeRef = new NodeRef(reference);
+            break;
+        }
+
+        return nodeRef;
+    }
 
 }

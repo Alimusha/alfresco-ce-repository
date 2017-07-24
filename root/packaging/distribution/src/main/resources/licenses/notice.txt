@@ -11,8 +11,8 @@ Below is the list of licenses and modules used under corresponding licenses,
 === Apache 2.0 License ====
 acegi   http://sourceforge.net/projects/acegisecurity/
 ActiveMQ    http://activemq.apache.org/
-Activiti    http://activiti.org/
-Activiti webapp explorer    http://activiti.org/
+Activiti:    If shipped or included with the commercial version of Alfresco software, the Activiti component is licensed under the terms of the associated Alfresco Master Services Agreement; If shipped or included with the open-source Community version of Alfresco software, then it will be governed by the Apache open source license specified at http://activiti.org/
+Activiti Webapp Explorer: If shipped or included with the commercial version of Alfresco software, the Activiti component is licensed under the terms of the associated Alfresco Master Services Agreement; If shipped or included with the open-source Community version of Alfresco software, then it will be governed by the Apache open source license specified at http://activiti.org/
 Alfresco OpenCMIS Extension http://code.google.com/a/apache-extras.org/p/alfresco-opencmis-extension/
 Apache Mime http://james.apache.org/mime4j/index.html
 Apache Avalon   http://excalibur.apache.org/
@@ -194,14 +194,6 @@ TrueLicense     http://truelicense.java.net/
 truezip http://truezip.java.net/
 
 
-=== GPL V2 ===
-GhostScript http://www.ghostscript.com/
-ncurses http://www.gnu.org/software/ncurses/
-libiconv    http://www.gnu.org/software/libiconv/
-libstdc++   http://gcc.gnu.org/libstdc++/
-LibreOffice Portable    http://portableapps.com/apps/office/libreoffice_portable
-
-
 === ICU License ===
 icu4j   http://icu-project.org/ 
 
@@ -225,7 +217,6 @@ libwmf  http://wvware.sourceforge.net/libwmf.html
 
 === LGPL 2.1 ===
 Hibernate   http://www.hibernate.org/
-JBPM    http://jbpm.org/
 jid3lib http://javamusictag.sourceforge.net/
 JMagick http://sourceforge.net/projects/jmagick/
 JODConverter    http://jodconverter.sourceforge.net/
@@ -306,13 +297,13 @@ xercesImpl  http://xerces.apache.org/xerces2-j
 
 === BSD-like License ===
 FreeMarker  http://freemarker.sourceforge.net/ 
+Pdfium https://pdfium.googlesource.com/pdfium/
 
 === Eclipse Public License 1.0 ===
 TrueLicense     http://truelicense.java.net/
 
 === LGPL 2.1 ===
 Hibernate   http://www.hibernate.org/
-JBPM    http://jbpm.org/
 JODConverter    http://jodconverter.sourceforge.net/
 PDF Renderer    http://java.net/projects/pdf-renderer
 TinyMCE http://www.tinymce.com/
@@ -322,3 +313,6 @@ Jut.jar http://www.openoffice.org/licenses/lgpl_license.html
 
 === Mozilla Public License 2.0 ===
 rhino-js    http://www.mozilla.org/rhino/
+
+
+

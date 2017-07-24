@@ -6,11 +6,11 @@
   <parent>
     <groupId>org.alfresco</groupId>
     <artifactId>alfresco-super-pom</artifactId>
-    <version>6</version>
+    <version>8</version>
   </parent>
   <artifactId>alfresco-parent</artifactId>
   <packaging>pom</packaging>
-  <version>5.1.g</version>
+  <version>5.2.g</version>
   <name>Alfresco</name>
 
   <licenses>
@@ -61,12 +61,11 @@
       <snapshotRepository>
           <id>alfresco-internal-snapshots</id>
           <url>${maven.distributionManagement.snapshot.url}</url>
-      </snapshotRepository>      
+      </snapshotRepository>
   </distributionManagement>
 
   <modules>
     <module>projects/3rd-party</module>
-    <module>projects/data-model</module>
     <module>projects/dev-tomcat</module>
     <module>projects/legacy-lucene</module>
     <module>projects/mbeans</module>
@@ -85,6 +84,12 @@
   </modules>
 
   <properties>
+    <build-number>0</build-number>
+    <build-key>BUILD-KEY</build-key>
+    <build-name>Build-Name</build-name>
+    <scm-path>local/development/workspace</scm-path>
+    <scm-revision>100000</scm-revision>
+
     <!-- Developer's runtime environment configuration -->
     <runtime.parent.folder>${basedir}/../..</runtime.parent.folder>
     <runtime.data.folder>${runtime.parent.folder}/runtime</runtime.data.folder>
@@ -109,9 +114,10 @@
 
     <!-- Maven specific build properties -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
     <!-- Arguments for test execution in surefire -->
     <!-- (Disable assertions in Chemistry OpenCMIS, until their TCK is fixed) -->
-    <argLine>-Xmx2G -XX:MaxPermSize=256m -Duser.language=en -Dcom.sun.management.jmxremote -da:org.apache.lucene.analysis.TokenStream -da:org.apache.chemistry.opencmis...</argLine>
+    <argLine>-Xmx2G -Duser.language=en -Dcom.sun.management.jmxremote -da:org.apache.lucene.analysis.TokenStream -da:org.apache.chemistry.opencmis...</argLine>
 
     <!-- Community build specific properties -->
     <maven.scm.connection>scm:svn:http://svn.alfresco.com/repos/alfresco-open-mirror/alfresco/HEAD</maven.scm.connection>
@@ -121,6 +127,7 @@
     <maven.distributionManagement.snapshot.url>https://artifacts.alfresco.com/nexus/content/repositories/snapshots</maven.distributionManagement.snapshot.url>
     <maven.license.name>GNU Lesser General Public License v3.0 or later</maven.license.name>
     <maven.license.url>http://www.gnu.org/licenses/lgpl-3.0-standalone.html</maven.license.url>
+    <licenseName>community</licenseName>
 
     <!-- Default location of the root of the checkout. To be overriden if project is deeper than 2 levels -->
     <highest.basedir>${basedir}/../..</highest.basedir>
@@ -129,41 +136,50 @@
     <dependency.lucene.version>2.4.1</dependency.lucene.version>
     <dependency.truezip.version>7.7.9</dependency.truezip.version>
     <dependency.jibx.version>1.2.6</dependency.jibx.version>
-    <dependency.tika.version>1.6-20140428-alfresco-patched</dependency.tika.version>
+    <dependency.tika.version>1.6-20160727-alfresco-patched</dependency.tika.version>
     <dependency.vorbisJava.version>0.4</dependency.vorbisJava.version>
-    <dependency.opencmis.version>0.11.0</dependency.opencmis.version>
+    <dependency.opencmis.version>1.0.0</dependency.opencmis.version>
     <dependency.antlr.version>3.5.2</dependency.antlr.version>
-    <dependency.spring.version>3.2.14.RELEASE</dependency.spring.version>
-    <dependency.tomcat.version>7.0.59</dependency.tomcat.version>
-    <dependency.activiti.version>5.19.0.1</dependency.activiti.version>
-    <dependency.activiti-engine.version>5.19.0.1</dependency.activiti-engine.version>
-    <dependency.jackson2.version>2.3.2</dependency.jackson2.version>
+    <dependency.spring.version>3.2.17.RELEASE</dependency.spring.version>
+    <dependency.tomcat.version>7.0.78</dependency.tomcat.version>
+    <dependency.activiti.version>5.19.0.3</dependency.activiti.version>
+    <dependency.activiti-engine.version>5.19.0.3</dependency.activiti-engine.version>
+    <dependency.jackson2.version>2.8.3</dependency.jackson2.version>
     <dependency.poi.version>3.10.1-20151016-alfresco-patched</dependency.poi.version>
     <dependency.yui.version>2.9.0-alfresco-20141223</dependency.yui.version>
-    <dependency.alfresco-authorised-users.version>5.2.0.1</dependency.alfresco-authorised-users.version>
-    <dependency.webscripts.version>6.5</dependency.webscripts.version>
-    <dependency.alfresco-core.version>6.1</dependency.alfresco-core.version>
-    <dependency.alfresco-jlan.version>6.0</dependency.alfresco-jlan.version>
+    <dependency.alfresco-authorised-users.version>5.2.0.4</dependency.alfresco-authorised-users.version>
+    <dependency.webscripts.version>6.13</dependency.webscripts.version>
+    <dependency.alfresco-core.version>6.13</dependency.alfresco-core.version>
+    <dependency.alfresco-data-model.version>6.16</dependency.alfresco-data-model.version>
+    <dependency.alfresco-xmlfactory.version>1.2.2</dependency.alfresco-xmlfactory.version>
+    <dependency.alfresco-jlan.version>6.3</dependency.alfresco-jlan.version>
     <dependency.alfresco-sdk.version>2.0.0</dependency.alfresco-sdk.version>
-    <dependency.httpcomponents.version>4.5.1</dependency.httpcomponents.version>
-    
+    <dependency.httpcomponents.version>4.5.2</dependency.httpcomponents.version>
+    <dependency.mysql.version>5.1.39</dependency.mysql.version>
+    <dependency.postgresql.version>9.4.1212</dependency.postgresql.version>
+    <dependency.mariadb.version>2.0.1</dependency.mariadb.version>
+    <dependency.api-explorer.version>5.2.1-SNAPSHOT</dependency.api-explorer.version>
+    <dependency.alfresco-trashcan-cleaner.version>2.2</dependency.alfresco-trashcan-cleaner.version>
+
     <!-- Alfresco Office Services Module -->
-    <alfresco.aos-module.version>1.1</alfresco.aos-module.version>
+    <alfresco.aos-module.version>1.1.6</alfresco.aos-module.version>
 
     <!-- Versions of binaries packaged in the installer -->
-    <installer.common.version>5.1-20151118</installer.common.version>
-    <installer.tomcat.version>${dependency.tomcat.version}-alfresco-distribution</installer.tomcat.version>
-    <installer.java.version>1.8.0_65</installer.java.version>
-    <installer.postgresql.version>9.4.4-20151016</installer.postgresql.version>
-    <installer.libreoffice.version>4.4.5-20151016</installer.libreoffice.version>
-    <installer.ghostscript.version>8.64</installer.ghostscript.version>
-    <installer.imagemagick.version>6.9.1</installer.imagemagick.version>
+    <installer.common.version>5.2-20170616</installer.common.version>
+    <installer.tomcat.version>${dependency.tomcat.version}-alfresco-distribution-20170616</installer.tomcat.version>
+    <installer.java.version>1.8.0_131</installer.java.version>
+    <installer.postgresql.version>9.4.12</installer.postgresql.version>
+    <installer.libreoffice.version>5.2.1-alfresco</installer.libreoffice.version>
+    <installer.imagemagick.version>7.0.5</installer.imagemagick.version>
+    <installer.alfresco-pdf-renderer.version>1.0</installer.alfresco-pdf-renderer.version>
+
 
     <!-- Install builder version -->
     <installer.installbuilder.version>15.10.1</installer.installbuilder.version>
 
     <!-- Installer version that will be used in the final name -->
     <installer.version.name>${project.version}</installer.version.name>
+    <installer.manager.version>1.0</installer.manager.version>
   </properties>
 
   <!-- Define versions of very common components -->
@@ -177,12 +193,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.12</version>
+            <version>1.7.21</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.12</version>
+            <version>1.7.21</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -198,7 +214,7 @@
         <dependency>
             <groupId>org.alfresco</groupId>
             <artifactId>alfresco-xmlfactory</artifactId>
-            <version>1.0.3</version>
+            <version>${dependency.alfresco-xmlfactory.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.chemistry.opencmis</groupId>
@@ -240,6 +256,17 @@
         </dependency>
         <dependency>
             <groupId>org.alfresco</groupId>
+            <artifactId>alfresco-data-model</artifactId>
+            <version>${dependency.alfresco-data-model.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.alfresco</groupId>
+            <artifactId>alfresco-data-model</artifactId>
+            <classifier>tests</classifier>
+            <version>${dependency.alfresco-data-model.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.alfresco</groupId>
             <artifactId>alfresco-jlan-embed</artifactId>
             <version>${dependency.alfresco-jlan.version}</version>
         </dependency>
@@ -277,7 +304,7 @@
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
-            <version>2.8.1</version>
+            <version>2.9.4</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
@@ -292,7 +319,7 @@
         <dependency>
             <groupId>commons-beanutils</groupId>
             <artifactId>commons-beanutils</artifactId>
-            <version>1.9.2</version>
+            <version>1.9.3</version>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -307,7 +334,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.9</version>
+            <version>1.12</version>
         </dependency>
         <dependency>
             <groupId>commons-digester</groupId>
@@ -327,7 +354,7 @@
         <dependency>
             <groupId>commons-fileupload</groupId>
             <artifactId>commons-fileupload</artifactId>
-            <version>1.3.1</version>
+            <version>1.3.2</version>
         </dependency>
         <dependency>
             <groupId>commons-httpclient</groupId>
@@ -367,7 +394,7 @@
         <dependency>
             <groupId>commons-net</groupId>
             <artifactId>commons-net</artifactId>
-            <version>3.3</version>
+            <version>3.5</version>
         </dependency>
         <dependency>
             <groupId>commons-pool</groupId>
@@ -377,17 +404,17 @@
         <dependency>
             <groupId>commons-validator</groupId>
             <artifactId>commons-validator</artifactId>
-            <version>1.4.1</version>
+            <version>1.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.ws.commons.axiom</groupId>
             <artifactId>axiom-api</artifactId>
-            <version>1.2.15</version>
+            <version>1.2.19</version>
         </dependency>
         <dependency>
             <groupId>org.apache.ws.commons.axiom</groupId>
             <artifactId>axiom-impl</artifactId>
-            <version>1.2.15</version>
+            <version>1.2.18</version>
         </dependency>
         <dependency>
             <groupId>org.tuckey</groupId>
@@ -396,8 +423,8 @@
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>2.5</version>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.0.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -413,22 +440,22 @@
         <dependency>
             <groupId>com.sun.xml.bind</groupId>
             <artifactId>jaxb-xjc</artifactId>
-            <version>2.2.6</version>
+            <version>2.2.11</version>
         </dependency>
         <dependency>
             <groupId>com.sun.xml.bind</groupId>
             <artifactId>jaxb-impl</artifactId>
-            <version>2.2.6</version>
+            <version>2.2.11</version>
         </dependency>
         <dependency>
             <groupId>org.apache.myfaces.core</groupId>
             <artifactId>myfaces-api</artifactId>
-            <version>1.1.8</version>
+            <version>1.1.10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.myfaces.core</groupId>
             <artifactId>myfaces-impl</artifactId>
-            <version>1.1.8</version>
+            <version>1.1.10</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -441,20 +468,25 @@
             <version>${dependency.mysql.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>${dependency.mariadb.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>1.4.187</version>
+            <version>1.4.192</version>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>net.lightbody.bmp</groupId>
             <artifactId>browsermob-core-littleproxy</artifactId>
-            <version>2.1.0-beta-1</version>
+            <version>2.1.0-beta-6</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>net.lightbody.bmp</groupId>
             <artifactId>browsermob-proxy</artifactId>
-            <version>2.1.0-beta-1</version>
+            <version>2.1.0-beta-5</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -488,17 +520,72 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
-            <version>4.4.3</version>
+            <version>4.4.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aop</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+            <version>${dependency.spring.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
             <version>${dependency.spring.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-expression</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jms</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${dependency.spring.version}</version>
+        </dependency>
     </dependencies>
   </dependencyManagement>
 
-  <build>                  
+  <build>
     <!-- Non standard folder layout -->
     <sourceDirectory>source/java</sourceDirectory>
     <testSourceDirectory>source/test-java</testSourceDirectory>
@@ -509,25 +596,25 @@
     </resources>
     <testResources>
         <testResource>
-             <directory>source/test-resources</directory> 
+             <directory>source/test-resources</directory>
         </testResource>
     </testResources>
 
-	<plugins>
-		<plugin>
-			<artifactId>maven-enforcer-plugin</artifactId>
-			<executions>
-				<execution>
-					<id>enforcer</id>
-					<goals>
-						<goal>enforce</goal>
-					</goals>
-					<configuration>
-						<rules>
-							<requireJavaVersion>
-								<version>1.7.0</version>
-							</requireJavaVersion>
-							<bannedDependencies>
+    <plugins>
+        <plugin>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>enforcer</id>
+                    <goals>
+                        <goal>enforce</goal>
+                    </goals>
+                    <configuration>
+                        <rules>
+                            <requireJavaVersion>
+                                <version>1.8.0</version>
+                            </requireJavaVersion>
+                            <bannedDependencies>
                                 <excludes>
                                     <exclude>xerces</exclude>
                                     <exclude>org.apache.xerces</exclude>
@@ -535,12 +622,12 @@
                                 <includes>
                                     <include>xerces:xercesImpl:2.10.0-alfresco-patched</include>
                                 </includes>
-							</bannedDependencies>
-						</rules>
-					</configuration>
-				</execution>
-			</executions>
-		</plugin>
+                            </bannedDependencies>
+                        </rules>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
 
         <plugin>
             <groupId>org.codehaus.mojo</groupId>
@@ -576,6 +663,44 @@
                 </execution>
             </executions>
         </plugin>
+
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <configuration>
+                <addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
+                <organizationName>Alfresco Software Limited</organizationName>
+                <failOnMissingHeader>true</failOnMissingHeader>
+                <failOnNotUptodateHeader>true</failOnNotUptodateHeader>
+                <licenseResolver>classpath://alfresco</licenseResolver>
+                <licenseName>${licenseName}</licenseName>
+                <roots>
+                    <root>src</root>
+                    <root>source</root>
+                </roots>
+                <includes>
+                    <include>**/*.java</include>
+                    <include>**/*.jsp</include>
+                </includes>
+            </configuration>
+            <executions>
+                <execution>
+                    <id>check-licenses</id>
+                    <phase>generate-sources</phase>
+                    <goals>
+                        <goal>check-file-header</goal>
+                    </goals>
+                </execution>
+            </executions>
+            <dependencies>
+                <dependency>
+                    <groupId>org.alfresco</groupId>
+                    <artifactId>alfresco-license-headers</artifactId>
+                    <version>1.0</version>
+                </dependency>
+            </dependencies>
+        </plugin>
+
         <plugin>
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
@@ -604,18 +729,18 @@
             </executions>
         </plugin>
 
-		<!-- Create a jar of test classes, to be reused later in remote-api -->
-		<plugin>
-			<artifactId>maven-jar-plugin</artifactId>
-			<executions>
-				<execution>
-					<id>create-test-jar</id>
-					<goals>
-						<goal>test-jar</goal>
-					</goals>
-				</execution>
-			</executions>
-		</plugin>
+        <!-- Create a jar of test classes, to be reused later in remote-api -->
+        <plugin>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>create-test-jar</id>
+                    <goals>
+                        <goal>test-jar</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
 
         <!--
             Add tomcat's shared/classes as a test source. This is not a nice solution
@@ -643,6 +768,24 @@
                     </configuration>
                 </execution>
             </executions>
+        </plugin>
+
+        <!-- Configure deployment of releases to Staging area of Nexus -->
+        <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <extensions>true</extensions>
+            <configuration>
+                <serverId>alfresco-internal-staging</serverId>
+                <nexusUrl>https://artifacts.alfresco.com/nexus</nexusUrl>
+                <stagingProfileId>${release.staging.profile}</stagingProfileId>
+                <stagingDescription>Staging Platform ${project.version} (${build-key}-${build-number} ${scm-revision})</stagingDescription>
+                <tags>
+                    <build.number>${build-number}</build.number>
+                    <build.key>${build-key}</build.key>
+                    <build.revision>${scm-revision}</build.revision>
+                </tags>
+            </configuration>
         </plugin>
     </plugins>
 
@@ -687,9 +830,9 @@
                 <configuration>
                     <javadocDirectory>source/javadoc</javadocDirectory>
                     <excludePackageNames>org.customer,org.apache</excludePackageNames>
-                    <!-- Uncomment to generate javadoc on Java 8
-                    <additionalparam>-Xdoclint:none</additionalparam>
-                    -->
+                    <links>
+                        <link>http://docs.oracle.com/javaee/7/api</link>
+                    </links>
                 </configuration>
             </plugin>
             <plugin>
@@ -700,10 +843,10 @@
                             <Specification-Version>${version.major}.${version.minor}.${version.revision}</Specification-Version>
                             <Implementation-Version>${project.version}</Implementation-Version>
                             <Build-Date>${maven.build.timestamp}</Build-Date>
-                            <Build-Name>${bamboo_planName}</Build-Name>
-                            <Build-Key>${bamboo_fullBuildKey}</Build-Key>
-                            <Build-Number>${bamboo_buildNumber}</Build-Number>
-                            <Build-Revision>${bamboo_repository_revision_number}</Build-Revision>
+                            <Build-Name>${build-name}</Build-Name>
+                            <Build-Key>${build-key}-${build-number}</Build-Key>
+                            <Build-Number>${build-number}</Build-Number>
+                            <Build-Revision>${scm-revision}</Build-Revision>
                         </manifestEntries>
                     </archive>
                 </configuration>
@@ -716,19 +859,18 @@
                             <Specification-Version>${version.major}.${version.minor}.${version.revision}</Specification-Version>
                             <Implementation-Version>${project.version}</Implementation-Version>
                             <Build-Date>${maven.build.timestamp}</Build-Date>
-                            <Build-Date>${maven.build.timestamp}</Build-Date>
-                            <Build-Name>${bamboo_planName}</Build-Name>
-                            <Build-Key>${bamboo_fullBuildKey}</Build-Key>
-                            <Build-Number>${bamboo_buildNumber}</Build-Number>
-                            <Build-Revision>${bamboo_repository_revision_number}</Build-Revision>
+                            <Build-Name>${build-name}</Build-Name>
+                            <Build-Key>${build-key}-${build-number}</Build-Key>
+                            <Build-Number>${build-number}</Build-Number>
+                            <Build-Revision>${scm-revision}</Build-Revision>
                         </manifestEntries>
                         <manifestSections>
                             <manifestSection>
                                 <name>Source-control</name>
                                 <manifestEntries>
-                                    <Last-change-Revision>${bamboo_custom_svn_lastchange_revision_number}</Last-change-Revision>
-                                    <Source-Revision>${bamboo_repository_revision_number}</Source-Revision>
-                                    <Source-Url>${bamboo_planRepository_repositoryUrl}</Source-Url>
+                                    <Last-change-Revision>${scm-revision}</Last-change-Revision>
+                                    <Source-Revision>${scm-revision}</Source-Revision>
+                                    <Source-Url>${scm-path}</Source-Url>
                                 </manifestEntries>
                             </manifestSection>
                         </manifestSections>
@@ -879,6 +1021,31 @@
                     <password>${db.master.password}</password>
                 </configuration>
             </plugin>
+            <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+            <plugin>
+                <groupId>org.eclipse.m2e</groupId>
+                <artifactId>lifecycle-mapping</artifactId>
+                <version>1.0.0</version>
+                <configuration>
+                    <lifecycleMappingMetadata>
+                        <pluginExecutions>
+                            <pluginExecution>
+                                <pluginExecutionFilter>
+                                    <groupId>org.codehaus.mojo</groupId>
+                                    <artifactId>license-maven-plugin</artifactId>
+                                    <versionRange>[1.9,)</versionRange>
+                                    <goals>
+                                        <goal>check-file-header</goal>
+                                    </goals>
+                                </pluginExecutionFilter>
+                                <action>
+                                    <ignore></ignore>
+                                </action>
+                            </pluginExecution>
+                        </pluginExecutions>
+                    </lifecycleMappingMetadata>
+                </configuration>
+            </plugin>
         </plugins>
     </pluginManagement>
   </build>
@@ -892,7 +1059,7 @@
         <id>run</id>
         <build>
             <plugins>
-                
+
                 <plugin>
                   <groupId>org.apache.maven.plugins</groupId>
                   <artifactId>maven-dependency-plugin</artifactId>
@@ -1125,8 +1292,6 @@
         <id>allprojects</id>
         <modules>
             <module>packaging</module>
-            <module>projects/qa-share</module>
-            <module>projects/cmm-qa</module>
             <module>projects/office-application</module>
         </modules>
 
@@ -1166,12 +1331,61 @@
 
     <profile>
         <id>mariadb-props</id>
+
         <properties>
-            <db.master.url>jdbc:mysql://localhost/</db.master.url>
-            <db.driver>com.mysql.jdbc.Driver</db.driver>
-            <db.url>jdbc:mysql://localhost/${db.name}</db.url>
+            <db.master.url>jdbc:mariadb://localhost/</db.master.url>
+            <db.driver>org.mariadb.jdbc.Driver</db.driver>
+            <db.url>jdbc:mariadb://localhost/${db.name}</db.url>
+            <db.create.command>create database ${db.name} CHARACTER SET utf8 COLLATE utf8_bin;</db.create.command>
         </properties>
+
     </profile>
+
+    <profile>
+        <id>mariadb</id>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.tomcat.maven</groupId>
+                    <artifactId>tomcat7-maven-plugin</artifactId>
+                    <configuration>
+                        <systemProperties>
+                            <db.driver>${db.driver}</db.driver>
+                            <db.url>${db.url}</db.url>
+                        </systemProperties>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.mariadb.jdbc</groupId>
+                            <artifactId>mariadb-java-client</artifactId>
+                            <version>${dependency.mariadb.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>sql-maven-plugin</artifactId>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.mariadb.jdbc</groupId>
+                            <artifactId>mariadb-java-client</artifactId>
+                            <version>${dependency.mariadb.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+            </plugins>
+        </build>
+        <dependencies>
+            <dependency>
+                <groupId>org.mariadb.jdbc</groupId>
+                <artifactId>mariadb-java-client</artifactId>
+                <version>${dependency.mariadb.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </profile>
+
+
 
     <profile>
         <id>oracle-props</id>
@@ -1351,6 +1565,24 @@
         </dependencies>
     </profile>
 
+    <profile>
+        <id>doclint-java8-max</id>
+        <activation>
+            <jdk>[1.8,)</jdk>
+        </activation>
+        <build>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <configuration>
+                        <!-- <additionalparam>-Xmaxwarns 10000 -Xmaxerrs 10000</additionalparam> to detect more than 100 error -->
+                        <additionalparam>-Xdoclint:none</additionalparam>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+
     <!-- Generate the Javadoc for Public API only (filtered on AlfrescoPublicApi annotation) -->
     <profile>
         <id>publicapi</id>
@@ -1414,28 +1646,28 @@
         </build>
     </profile>
 
-	<profile>
-		<id>solr-http</id>
-		<build>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.tomcat.maven</groupId>
-					<artifactId>tomcat7-maven-plugin</artifactId>
-					<configuration>
-						<systemProperties>
-							<index.subsystem.name>solr</index.subsystem.name>
-							<solr.host>localhost</solr.host>
-							<solr.port>${tomcat.default.solr.port}</solr.port>
-							<solr.secureComms>none</solr.secureComms>
-							<solr.backup.alfresco.numberToKeep>0</solr.backup.alfresco.numberToKeep>
+    <profile>
+        <id>solr-http</id>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.tomcat.maven</groupId>
+                    <artifactId>tomcat7-maven-plugin</artifactId>
+                    <configuration>
+                        <systemProperties>
+                            <index.subsystem.name>solr</index.subsystem.name>
+                            <solr.host>localhost</solr.host>
+                            <solr.port>${tomcat.default.solr.port}</solr.port>
+                            <solr.secureComms>none</solr.secureComms>
+                            <solr.backup.alfresco.numberToKeep>0</solr.backup.alfresco.numberToKeep>
                             <solr.backup.archive.numberToKeep>0</solr.backup.archive.numberToKeep>
-						</systemProperties>
-					</configuration>
-				</plugin>
-			</plugins>
-		</build>
-	</profile>
-	  <profile>
+                        </systemProperties>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+      <profile>
         <id>solr4-ssl</id>
         <build>
             <plugins>

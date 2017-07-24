@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2017 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.rest.api.tests.client;
 
 import java.io.IOException;
@@ -107,7 +132,41 @@ public class AuthenticatedHttp extends AbstractHttp
             return executeWithBasicAuthentication(method, userName, password, callback);
         }
     }
-    
+
+    public <T extends Object> T executeHttpMethodUnauthenticated(HttpMethod method, HttpRequestCallback<T> callback)
+    {
+        try
+        {
+            // Try executing the method
+            httpProvider.getHttpClient().executeMethod(null, method);
+            if (callback != null)
+            {
+                return callback.onCallSuccess(method);
+            }
+            return null;
+        }
+        catch (Throwable t)
+        {
+            boolean handled = false;
+            // Delegate to callback to handle error. If not available, throw exception
+            if (callback != null)
+            {
+                handled = callback.onError(method, t);
+            }
+
+            if (!handled)
+            {
+                throw new RuntimeException("Error while executing an un-authenticated HTTP-call (" + method.getPath() + ")", t);
+            }
+            return null;
+
+        }
+        finally
+        {
+            method.releaseConnection();
+        }
+    }
+
     /**
      * Execute the given method, authenticated as the Alfresco Administrator.
      * 
@@ -131,7 +190,7 @@ public class AuthenticatedHttp extends AbstractHttp
     /**
      * Execute the given method, authenticated as the given user using Basic Authentication.
      * @param method method to execute
-     * @param userName name of user to authenticate
+     * @param userName name of user to authenticate (note: if null then attempts to run with no authentication - eq. Quick/Shared Link test)
      * @param callback called after http-call is executed. When callback returns, the 
      *  response stream is closed, so all respose-related operations should be done in the callback. Can be null.
      * @return result returned by the callback or null if no callback is given.
@@ -141,9 +200,13 @@ public class AuthenticatedHttp extends AbstractHttp
         try
         {
             HttpState state = new HttpState();
-            state.setCredentials(
+
+            if (userName != null)
+            {
+                state.setCredentials(
                         new AuthScope(null, AuthScope.ANY_PORT),
                         new UsernamePasswordCredentials(userName, password));
+            }
             
             httpProvider.getHttpClient().executeMethod(null, method, state);
             

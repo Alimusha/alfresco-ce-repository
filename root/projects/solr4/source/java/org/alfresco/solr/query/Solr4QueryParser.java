@@ -1,22 +1,33 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr.query;
+
+import static org.alfresco.util.SearchDateConversion.getDateEnd;
+import static org.alfresco.util.SearchDateConversion.getDateStart;
+import static org.alfresco.util.SearchDateConversion.parseDateString;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -92,10 +103,12 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
+import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.RegexpQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.search.spans.SpanMultiTermQueryWrapper;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanOrQuery;
@@ -910,7 +923,15 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 		PropertyDefinition pd = QueryParserUtils.matchPropertyDefinition(searchParameters.getNamespace(), namespacePrefixResolver, dictionaryService, queryText);
 		if (pd != null)
 		{
-			return createTermQuery(FIELD_NULLPROPERTIES, pd.getName().toString());
+        	 Query q1 =  createTermQuery(FIELD_NULLPROPERTIES, pd.getName().toString());
+             Query q2 =  createTermQuery(FIELD_PROPERTIES, pd.getName().toString());
+             BooleanQuery query = new BooleanQuery();
+             query.add(q1, Occur.SHOULD);
+             BooleanQuery wrapped = new BooleanQuery();
+             wrapped.add(q2, Occur.MUST_NOT);
+             wrapped.add(createTermQuery(FIELD_ISNODE, "T"), Occur.MUST);
+             query.add(wrapped, Occur.SHOULD);
+             return query;
 		}
 		else
 		{
@@ -1569,8 +1590,27 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 			}
 		}
 
-		// Remove small bits already covered in larger fragments 
-		list = getNonContained(list);
+        // Fix up position increments for in phrase isolated wildcards
+        
+        boolean lastWasWild = false;
+        for(int i = 0; i < list.size() -1; i++)
+        {
+        	for(int j = list.get(i).endOffset() + 1; j < list.get(i + 1).startOffset() - 1; j++)
+        	{
+        		if(wildcardPoistions.contains(j))
+        		{
+        			if(!lastWasWild)
+        			{
+        			    list.get(i+1).setPositionIncrement(list.get(i+1).getPositionIncrement() + 1);
+        			}
+        			lastWasWild = true;
+        		}
+        		else
+        		{
+        			lastWasWild = false;
+        		}
+        	}
+        }
 
 		Collections.sort(list, new Comparator<org.apache.lucene.analysis.Token>()
 				{
@@ -1878,8 +1918,9 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 				String post = postfix.toString();
 				int oldPositionIncrement = replace.getPositionIncrement();
 				String replaceTermText = replace.toString();
+				String replaceType = replace.type();
 				replace = new org.apache.lucene.analysis.Token(replaceTermText + post, replace.startOffset(), replace.endOffset() + post.length());
-				replace.setType(replace.type());
+				replace.setType(replaceType);
 				replace.setPositionIncrement(oldPositionIncrement);
 				fixedTokenSequence.add(replace);
 			}
@@ -2330,7 +2371,6 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 
 	/**
      * @param field
-     * @param fixedTokenSequences LinkedList<LinkedList<org.apache.lucene.analysis.Token>>
      * @return Query
      */
     protected SpanOrQuery generateSpanOrQuery(String field, LinkedList<LinkedList<org.apache.lucene.analysis.Token>> fixedTokenSequences)
@@ -2578,7 +2618,7 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 				}
 			}
 		}
-		return true;
+		return false;
 	}
 
 	private Set<Integer> getWildcardPositions(String string)
@@ -3794,7 +3834,9 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 		}
 		else
 		{
-			return super.newWildcardQuery(t);
+			org.apache.lucene.search.WildcardQuery query = new org.apache.lucene.search.WildcardQuery(t);
+			query.setRewriteMethod(new MultiTermQuery.TopTermsScoringBooleanQueryRewrite(topTermSpanRewriteLimit));
+			return query;
 		}
 	}
 
@@ -4301,128 +4343,6 @@ public class Solr4QueryParser extends QueryParser implements QueryConstants
 		return true;
 
 	}
-
-	/**
-     * @param dateAndResolution
-     * @return
-	 */
-	private String getDateEnd(Pair<Date, Integer> dateAndResolution)
-	{
-		Calendar cal= Calendar.getInstance(I18NUtil.getLocale());
-		cal.setTime(dateAndResolution.getFirst());
-		switch(dateAndResolution.getSecond())
-		{
-		case Calendar.YEAR:
-			cal.set(Calendar.MONTH, cal.getActualMaximum(Calendar.MONTH));
-		case Calendar.MONTH:
-			cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
-		case Calendar.DAY_OF_MONTH:
-			cal.set(Calendar.HOUR_OF_DAY, cal.getActualMaximum(Calendar.HOUR_OF_DAY));
-		case Calendar.HOUR_OF_DAY:
-			cal.set(Calendar.MINUTE, cal.getActualMaximum(Calendar.MINUTE));
-		case Calendar.MINUTE:
-			cal.set(Calendar.SECOND, cal.getActualMaximum(Calendar.SECOND));
-		case Calendar.SECOND:
-			cal.set(Calendar.MILLISECOND, cal.getActualMaximum(Calendar.MILLISECOND));
-		case Calendar.MILLISECOND:
-		default:
-		}
-		SimpleDateFormat formatter = CachingDateFormat.getSolrDatetimeFormat();
-		formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-		return formatter.format(cal.getTime());
-	}
-
-	/**
-     * @param dateAndResolution
-     * @return
-	 */
-	private String getDateStart(Pair<Date, Integer> dateAndResolution)
-	{
-		Calendar cal= Calendar.getInstance(I18NUtil.getLocale());
-		cal.setTime(dateAndResolution.getFirst());
-		switch(dateAndResolution.getSecond())
-		{
-		case Calendar.YEAR:
-			cal.set(Calendar.MONTH, cal.getActualMinimum(Calendar.MONTH));
-		case Calendar.MONTH:
-			cal.set(Calendar.DAY_OF_MONTH, cal.getActualMinimum(Calendar.DAY_OF_MONTH));
-		case Calendar.DAY_OF_MONTH:
-			cal.set(Calendar.HOUR_OF_DAY, cal.getActualMinimum(Calendar.HOUR_OF_DAY));
-		case Calendar.HOUR_OF_DAY:
-			cal.set(Calendar.MINUTE, cal.getActualMinimum(Calendar.MINUTE));
-		case Calendar.MINUTE:
-			cal.set(Calendar.SECOND, cal.getActualMinimum(Calendar.SECOND));
-		case Calendar.SECOND:
-			cal.set(Calendar.MILLISECOND, cal.getActualMinimum(Calendar.MILLISECOND));
-		case Calendar.MILLISECOND:
-		default:
-		}
-		SimpleDateFormat formatter = CachingDateFormat.getSolrDatetimeFormat();
-		formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-		return formatter.format(cal.getTime());
-	}
-
-	private Pair<Date, Integer> parseDateString(String dateString)
-	{
-		try
-		{
-			Pair<Date, Integer> result = CachingDateFormat.lenientParse(dateString, Calendar.YEAR);
-			return result;
-		}
-		catch (java.text.ParseException e)
-		{
-			SimpleDateFormat oldDf = CachingDateFormat.getDateFormat();
-			try
-			{
-				Date date = oldDf.parse(dateString);
-				return new Pair<Date, Integer>(date, Calendar.SECOND);
-			}
-			catch (java.text.ParseException ee)
-			{
-				if (dateString.equalsIgnoreCase("min"))
-				{
-					Calendar cal = Calendar.getInstance(I18NUtil.getLocale());
-					cal.set(Calendar.YEAR, cal.getMinimum(Calendar.YEAR));
-					cal.set(Calendar.DAY_OF_YEAR, cal.getMinimum(Calendar.DAY_OF_YEAR));
-					cal.set(Calendar.HOUR_OF_DAY, cal.getMinimum(Calendar.HOUR_OF_DAY));
-					cal.set(Calendar.MINUTE, cal.getMinimum(Calendar.MINUTE));
-					cal.set(Calendar.SECOND, cal.getMinimum(Calendar.SECOND));
-					cal.set(Calendar.MILLISECOND, cal.getMinimum(Calendar.MILLISECOND));
-					return new Pair<Date, Integer>(cal.getTime(), Calendar.MILLISECOND);
-				}
-				else if (dateString.equalsIgnoreCase("now"))
-				{
-					return new Pair<Date, Integer>(new Date(), Calendar.MILLISECOND);
-				}
-				else if (dateString.equalsIgnoreCase("today"))
-				{
-					Calendar cal = Calendar.getInstance(I18NUtil.getLocale());
-					cal.setTime(new Date());
-					cal.set(Calendar.HOUR_OF_DAY, cal.getMinimum(Calendar.HOUR_OF_DAY));
-					cal.set(Calendar.MINUTE, cal.getMinimum(Calendar.MINUTE));
-					cal.set(Calendar.SECOND, cal.getMinimum(Calendar.SECOND));
-					cal.set(Calendar.MILLISECOND, cal.getMinimum(Calendar.MILLISECOND));
-					return new Pair<Date, Integer>(cal.getTime(), Calendar.DAY_OF_MONTH);
-				}
-				else if (dateString.equalsIgnoreCase("max"))
-				{
-					Calendar cal = Calendar.getInstance(I18NUtil.getLocale());
-					cal.set(Calendar.YEAR, cal.getMaximum(Calendar.YEAR));
-					cal.set(Calendar.DAY_OF_YEAR, cal.getMaximum(Calendar.DAY_OF_YEAR));
-					cal.set(Calendar.HOUR_OF_DAY, cal.getMaximum(Calendar.HOUR_OF_DAY));
-					cal.set(Calendar.MINUTE, cal.getMaximum(Calendar.MINUTE));
-					cal.set(Calendar.SECOND, cal.getMaximum(Calendar.SECOND));
-					cal.set(Calendar.MILLISECOND, cal.getMaximum(Calendar.MILLISECOND));
-					return new Pair<Date, Integer>(cal.getTime(), Calendar.MILLISECOND);
-				}
-				else
-				{
-					return null; // delegate to SOLR date parsing
-				}
-			}
-		}
-	}
-
 
 	protected Query functionQueryBuilder(String expandedFieldName, String ending, QName propertyQName, PropertyDefinition propertyDef, IndexTokenisationMode tokenisationMode, String queryText,
 			LuceneFunction luceneFunction) throws ParseException

@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.rest.framework.tests.core;
 
 import static org.junit.Assert.assertEquals;
@@ -12,16 +37,17 @@ import org.alfresco.rest.framework.resource.parameters.where.InvalidQueryExcepti
 import org.alfresco.rest.framework.resource.parameters.where.Query;
 import org.alfresco.rest.framework.resource.parameters.where.QueryHelper;
 import org.alfresco.rest.framework.resource.parameters.where.QueryHelper.WalkerCallbackAdapter;
-import org.alfresco.rest.framework.webscripts.ResourceWebScriptHelper;
+import org.alfresco.rest.framework.tools.RecognizedParamsExtractor;
 import org.antlr.runtime.tree.CommonTree;
 import org.junit.Test;
 
-public class WhereTests {
+public class WhereTests implements RecognizedParamsExtractor
+{
 
 	@Test
 	public void basicTest() throws IOException {
 		
-		Query theQuery  = ResourceWebScriptHelper.getWhereClause(" ( fred   > g ) ");
+		Query theQuery  = getWhereClause(" ( fred   > g ) ");
 		CommonTree ast = theQuery.getTree();
 		//check AST structure
 		assertEquals(WhereClauseParser.GREATERTHAN, ast.getType());
@@ -32,13 +58,13 @@ public class WhereTests {
 	@Test
 	public void existClauseTest()
 	{
-	    Query theQuery  = ResourceWebScriptHelper.getWhereClause(null);
+	    Query theQuery  = getWhereClause(null);
 	    assertNotNull(theQuery);
 	    assertTrue("Null passed in so nothing to theQuery.", theQuery.getTree() == null);
 	    
 	    try
 	    {
-	        theQuery  = ResourceWebScriptHelper.getWhereClause("fred");
+	        theQuery  = getWhereClause("fred");
 	        fail("Should throw an InvalidQueryException");
 	    }
 	    catch (InvalidQueryException error)
@@ -48,7 +74,7 @@ public class WhereTests {
 	    
 	    try
 	    {
-	        theQuery  = ResourceWebScriptHelper.getWhereClause("(noClosingBracket");
+	        theQuery  = getWhereClause("(noClosingBracket");
 	        fail("Should throw an InvalidQueryException");
 	    }
 	    catch (InvalidQueryException error)
@@ -58,7 +84,7 @@ public class WhereTests {
 	    
 	    try
 	    {
-	        theQuery  = ResourceWebScriptHelper.getWhereClause("noOpeningBracket)");
+	        theQuery  = getWhereClause("noOpeningBracket)");
 	        fail("Should throw an InvalidQueryException");
 	    }
 	    catch (InvalidQueryException error)
@@ -69,7 +95,7 @@ public class WhereTests {
 	    
 	    try
 	    {
-	    	 theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(target.file))");
+	    	 theQuery  = getWhereClause("(EXISTS(target.file))");
 	        fail("Should throw an InvalidQueryException");
 	    }
 	    catch (InvalidQueryException error)
@@ -77,34 +103,34 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(exists(/target/file))");
+	    theQuery  = getWhereClause("(exists(/target/file))");
 	    assertExistsPropertyEquals("/target/file", theQuery, false);
 	
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(b))");
+	    theQuery  = getWhereClause("(EXISTS(b))");
 	    assertExistsPropertyEquals("b", theQuery, false);
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("  ( EXISTS ( whitespace ) )  ");
+	    theQuery  = getWhereClause("  ( EXISTS ( whitespace ) )  ");
 	    assertExistsPropertyEquals("whitespace", theQuery, false);
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(exists ( folder ))");
+	    theQuery  = getWhereClause("(exists ( folder ))");
 	    assertExistsPropertyEquals("folder", theQuery, false);
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(NOT EXISTS(b))");
+	    theQuery  = getWhereClause("(NOT EXISTS(b))");
 	    assertExistsPropertyEquals("b", theQuery, true);
 	
-	    theQuery  = ResourceWebScriptHelper.getWhereClause(" (NOT EXISTS(b))");
+	    theQuery  = getWhereClause(" (NOT EXISTS(b))");
 	    assertExistsPropertyEquals("b", theQuery, true);
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(  NOT EXISTS(b))");
+	    theQuery  = getWhereClause("(  NOT EXISTS(b))");
 	    assertExistsPropertyEquals("b", theQuery, true);
 
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("  (  NOT EXISTS(b))");
+	    theQuery  = getWhereClause("  (  NOT EXISTS(b))");
 	    assertExistsPropertyEquals("b", theQuery, true);
 	    
 	    try
 	    {
-	      theQuery  = ResourceWebScriptHelper.getWhereClause("(exists  folder)");
+	      theQuery  = getWhereClause("(exists  folder)");
 	      fail("Should throw an InvalidQueryException, 'folder' should have a bracket around it");
 	    }
 	    catch (InvalidQueryException error)
@@ -112,7 +138,7 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-        theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(/target/folder) AND NOT EXISTS(/target/site))");
+        theQuery  = getWhereClause("(EXISTS(/target/folder) AND NOT EXISTS(/target/site))");
 	    assertNotNull(theQuery);
 	    CommonTree tree = theQuery.getTree();
 	    assertNotNull(tree);
@@ -141,7 +167,7 @@ public class WhereTests {
 	    
 	    try
 	    {
-	        theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(/target/folder)OR EXISTS(/target/site))");
+	        theQuery  = getWhereClause("(EXISTS(/target/folder)OR EXISTS(/target/site))");
 	        fail("Should throw an InvalidQueryException, the OR should have a space before it.");
 	    }
 	    catch (InvalidQueryException error)
@@ -149,7 +175,7 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(NOT EXISTS(/target/folder) OR EXISTS(/target/site))");
+	    theQuery  = getWhereClause("(NOT EXISTS(/target/folder) OR EXISTS(/target/site))");
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
 			@Override
 			public void exists(String propertyName, boolean negated) {
@@ -171,7 +197,7 @@ public class WhereTests {
 			
 		});
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS   (  /target/folder  )   OR   EXISTS(  /target/site  )  )");
+	    theQuery  = getWhereClause("(EXISTS   (  /target/folder  )   OR   EXISTS(  /target/site  )  )");
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
 			int i=0;
 			@Override
@@ -195,7 +221,7 @@ public class WhereTests {
 			
 		});
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(target/file) AND EXISTS(target/folder) AND EXISTS(target/site))");
+	    theQuery  = getWhereClause("(EXISTS(target/file) AND EXISTS(target/folder) AND EXISTS(target/site))");
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
 			int i=0;
 			@Override
@@ -229,25 +255,25 @@ public class WhereTests {
 	@Test
 	public void inClauseTest()
 	{
-	    Query theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt in (5,8) )");
+	    Query theQuery  = getWhereClause("( dueAt in (5,8) )");
 	    inChecks(theQuery, "dueAt", "5", "8");
 
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("( fred/bloggs in (head,elbow) )");
+	    theQuery  = getWhereClause("( fred/bloggs in (head,elbow) )");
 	    inChecks(theQuery, "fred/bloggs", "head", "elbow");
 
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne in (5,8,4) )");
+		theQuery  = getWhereClause("( nextOne in (5,8,4) )");
 	    inChecks(theQuery, "nextOne", "5", "8", "4");
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne in (5,56,fred) )");
+		theQuery  = getWhereClause("( nextOne in (5,56,fred) )");
 	    inChecks(theQuery, "nextOne", "5", "56", "fred");
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne in (5,56,'fred&') )");
+		theQuery  = getWhereClause("( nextOne in (5,56,'fred&') )");
 	    inChecks(theQuery, "nextOne", "5", "56", "fred&");
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne in ('me , you',56,egg) )");
+		theQuery  = getWhereClause("( nextOne in ('me , you',56,egg) )");
 	    inChecks(theQuery, "nextOne", "me , you", "56", "egg");
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( NOT nextOne in (5,56,fred, king, kong, 'fred\\'^') )");
+		theQuery  = getWhereClause("( NOT nextOne in (5,56,fred, king, kong, 'fred\\'^') )");
 	    CommonTree tree = theQuery.getTree();
 	    assertNotNull(tree);
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
@@ -268,15 +294,15 @@ public class WhereTests {
 	@Test
 	public void betweenClauseTest()
 	{
-	    Query theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt between (5,8) )");
+	    Query theQuery  = getWhereClause("( dueAt between (5,8) )");
 	    betweenChecks(theQuery, "dueAt", "5", "8");
 
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("( fred/bloggs between (head,elbow) )");
+	    theQuery  = getWhereClause("( fred/bloggs between (head,elbow) )");
 	    betweenChecks(theQuery, "fred/bloggs", "head", "elbow");
 
 	    try
 	    {
-		    theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne between (5,8,4) )");
+		    theQuery  = getWhereClause("( nextOne between (5,8,4) )");
 	        fail("Should throw an InvalidQueryException, between can have only two values.");
 	    }
 	    catch (InvalidQueryException error)
@@ -286,7 +312,7 @@ public class WhereTests {
 	    
 	    try
 	    {
-		    theQuery  = ResourceWebScriptHelper.getWhereClause("( nextOne between 5,8 )");
+		    theQuery  = getWhereClause("( nextOne between 5,8 )");
 	        fail("Should throw an InvalidQueryException, Need brackets.");
 	    }
 	    catch (InvalidQueryException error)
@@ -294,7 +320,7 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(NOT dueAt between (5,8) AND nextOne between (green,blue))");
+	    theQuery  = getWhereClause("(NOT dueAt between (5,8) AND nextOne between (green,blue))");
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
 			@Override
 			public void between(String property, String firstVal, String secondVal, boolean negated) {
@@ -324,18 +350,18 @@ public class WhereTests {
 	@Test
 	public void matchesClauseTest()
 	{
-		Query theQuery  = ResourceWebScriptHelper.getWhereClause("(fred matches(bob))");
+		Query theQuery  = getWhereClause("(fred matches(bob))");
 		matchesChecks(theQuery, "fred", "bob");
 		
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("( king/kong/hair/shoulders/knees/toes matches ('fred%') )");
+	    theQuery  = getWhereClause("( king/kong/hair/shoulders/knees/toes matches ('fred%') )");
 		matchesChecks(theQuery, "king/kong/hair/shoulders/knees/toes", "fred%");
 		
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("( niceone matches (bob) )");
+	    theQuery  = getWhereClause("( niceone matches (bob) )");
 		matchesChecks(theQuery, "niceone", "bob");
 		
 	    try
 	    {
-			theQuery  = ResourceWebScriptHelper.getWhereClause("( fred matches bob )");
+			theQuery  = getWhereClause("( fred matches bob )");
 	        fail("Should throw an InvalidQueryException, Need brackets.");
 	    }
 	    catch (InvalidQueryException error)
@@ -348,25 +374,25 @@ public class WhereTests {
 	@Test
 	public void comparisonClauseTest()
 	{
-	    Query theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt > '12.04.345' )");
+	    Query theQuery  = getWhereClause("( dueAt > '12.04.345' )");
 	    int comparisonOperator = WhereClauseParser.GREATERTHAN;
 		comparisonChecks(theQuery, comparisonOperator, "dueAt", "12.04.345");
 		
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt >= '12.04.345' )");
+		theQuery  = getWhereClause("( dueAt >= '12.04.345' )");
 	    comparisonOperator = WhereClauseParser.GREATERTHANOREQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "dueAt", "12.04.345");
 		
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt < '12.04.345' )");
+		theQuery  = getWhereClause("( dueAt < '12.04.345' )");
 	    comparisonOperator = WhereClauseParser.LESSTHAN;
 		comparisonChecks(theQuery, comparisonOperator, "dueAt", "12.04.345");
 		
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt <= '12.04.345' )");
+		theQuery  = getWhereClause("( dueAt <= '12.04.345' )");
 	    comparisonOperator = WhereClauseParser.LESSTHANOREQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "dueAt", "12.04.345");
 		
 	    try
 	    {
-			theQuery  = ResourceWebScriptHelper.getWhereClause("( Fred/Bloggs = %$NICE&* )");
+			theQuery  = getWhereClause("( Fred/Bloggs = %$NICE&* )");
 	        fail("Should throw an InvalidQueryException, needs single quotes");
 	    }
 	    catch (InvalidQueryException error)
@@ -374,13 +400,13 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( Fred/Bloggs = '%$NICE&*' )");
+		theQuery  = getWhereClause("( Fred/Bloggs = '%$NICE&*' )");
 	    comparisonOperator = WhereClauseParser.EQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "Fred/Bloggs", "%$NICE&*");
 		
 	    try
 	    {
-			theQuery  = ResourceWebScriptHelper.getWhereClause("( Ken = (456) )");
+			theQuery  = getWhereClause("( Ken = (456) )");
 	        fail("Should throw an InvalidQueryException, needs single quotes no brackets");
 	    }
 	    catch (InvalidQueryException error)
@@ -388,15 +414,15 @@ public class WhereTests {
 	        //this is correct
 	    }
 	    
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( Ken = '456' )");
+		theQuery  = getWhereClause("( Ken = '456' )");
 	    comparisonOperator = WhereClauseParser.EQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "Ken", "456");
 			
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( DogHouse = 'Cat\\\'s House' )");
+		theQuery  = getWhereClause("( DogHouse = 'Cat\\\'s House' )");
 	    comparisonOperator = WhereClauseParser.EQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "DogHouse", "Cat\\\'s House");
 		
-		theQuery  = ResourceWebScriptHelper.getWhereClause("( KING_KONG >= 'Mighty Mouse' )");
+		theQuery  = getWhereClause("( KING_KONG >= 'Mighty Mouse' )");
 	    comparisonOperator = WhereClauseParser.GREATERTHANOREQUALS;
 		comparisonChecks(theQuery, comparisonOperator, "KING_KONG", "Mighty Mouse");
 		
@@ -417,25 +443,25 @@ public class WhereTests {
 	@Test
 	public void getChildrenTests()
 	{
-		Query theQuery  = ResourceWebScriptHelper.getWhereClause("(fred matches(bob))");
+		Query theQuery  = getWhereClause("(fred matches(bob))");
 	    assertNotNull(theQuery);
 	    CommonTree tree = theQuery.getTree();
 	    assertNotNull(tree);
 	    assertTrue(2 == QueryHelper.getChildren(tree).size());
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("( dueAt between (5,8) )");
+	    theQuery  = getWhereClause("( dueAt between (5,8) )");
 	    assertNotNull(theQuery);
 	    tree = theQuery.getTree();
 	    assertNotNull(tree);
 	    assertTrue(3 == QueryHelper.getChildren(tree).size());
 	    
-	    theQuery  = ResourceWebScriptHelper.getWhereClause("(NOT EXISTS(b))");
+	    theQuery  = getWhereClause("(NOT EXISTS(b))");
 	    assertNotNull(theQuery);
 	    tree = theQuery.getTree();
 	    assertNotNull(tree);
 	    assertTrue(1  == QueryHelper.getChildren(tree).size());
 	    
-        theQuery  = ResourceWebScriptHelper.getWhereClause("(EXISTS(/target/folder) AND EXISTS(/target/site))");
+        theQuery  = getWhereClause("(EXISTS(/target/folder) AND EXISTS(/target/site))");
 	    assertNotNull(theQuery);
 	    tree = theQuery.getTree();
 	    assertNotNull(tree);
@@ -459,7 +485,7 @@ public class WhereTests {
 		assertEquals(WhereClauseParser.PROPERTYVALUE, tree.getChild(1).getType());
 		QueryHelper.walk(theQuery, new WalkerCallbackAdapter(){
 			@Override
-			public void comparison(int comparisonType, String propertyName, String propertyValue) {
+			public void comparison(int comparisonType, String propertyName, String propertyValue, boolean negated) {
 				assertTrue("Property name should be "+propName,propName.equals(propertyName));
 				assertTrue(comparisonOperator == comparisonType);
 				assertTrue("Property value should be "+propVal,propVal.equals(propertyValue));

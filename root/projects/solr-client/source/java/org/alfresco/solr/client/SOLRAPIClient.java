@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr Client
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr.client;
 
@@ -596,6 +603,11 @@ public class SOLRAPIClient
         
         body.put("maxResults", maxResults);
 
+        if(parameters.getShardProperty() != null)
+        {
+            body.put("shardProperty", parameters.getShardProperty().toString());
+        }
+        
         PostRequest req = new PostRequest(url.toString(), body.toString(), "application/json");
  
         Response response = null;
@@ -650,6 +662,11 @@ public class SOLRAPIClient
                 nodeInfo.setAclId(jsonNodeInfo.getLong("aclId"));
             }
             
+            if(jsonNodeInfo.has("shardPropertyValue"))
+            {
+                nodeInfo.setShardPropertyValue(jsonNodeInfo.getString("shardPropertyValue"));
+            }
+            
             if(jsonNodeInfo.has("tenant"))
             {
                 nodeInfo.setTenant(jsonNodeInfo.getString("tenant"));
@@ -698,7 +715,7 @@ public class SOLRAPIClient
             {
                 JSONObject pair = a.getJSONObject(k);
                 Locale locale = deserializer.deserializeValue(Locale.class, pair.getString("locale"));
-                String mlValue = pair.has("value") ? pair.getString("value") : null;
+                String mlValue = pair.has("value") && !pair.isNull("value") ? pair.getString("value") : null;
                 mlValues.put(locale, mlValue);
             }
 
@@ -708,15 +725,15 @@ public class SOLRAPIClient
         {
             JSONObject o = (JSONObject)value;
             
-            String localeStr = o.has("locale") ? o.getString("locale") : null;
-            Locale locale = (o.has("locale") ? deserializer.deserializeValue(Locale.class, localeStr) : null);
+            String localeStr = o.has("locale") && !o.isNull("locale") ? o.getString("locale") : null;
+            Locale locale = (o.has("locale") && !o.isNull("locale") ? deserializer.deserializeValue(Locale.class, localeStr) : null);
 
-            Long size = o.has("size") ? o.getLong("size") : null;
+            Long size = o.has("size") && !o.isNull("size") ? o.getLong("size") : null;
 
-            String encoding = o.has("encoding") ? o.getString("encoding") : null;
-            String mimetype = o.has("mimetype") ? o.getString("mimetype") : null;
+            String encoding = o.has("encoding") && !o.isNull("encoding") ? o.getString("encoding") : null;
+            String mimetype = o.has("mimetype") && !o.isNull("mimetype") ? o.getString("mimetype") : null;
 
-            Long id = o.has("contentId") ? o.getLong("contentId") : null;
+            Long id = o.has("contentId") && !o.isNull("contentId") ? o.getLong("contentId") : null;
             
             ret = new ContentPropertyValue(locale, size, encoding, mimetype, id);
         }
@@ -923,14 +940,21 @@ public class SOLRAPIClient
             {
                 JSONArray jsonPaths = jsonNodeInfo.getJSONArray("paths");
                 List<Pair<String, QName>> paths = new ArrayList<Pair<String, QName>>(jsonPaths.length());
+                List<String> ancestorPaths = new ArrayList<String>();
                 for(int j = 0; j < jsonPaths.length(); j++)
                 {
-                    JSONObject path = new JSONObject(jsonPaths.getString(j));
+                    JSONObject path = jsonPaths.getJSONObject(j);
                     String pathValue = path.getString("path");
                     QName qname = path.has("qname") ? deserializer.deserializeValue(QName.class, path.getString("qname")) : null;
                     paths.add(new Pair<String, QName>(pathValue, qname));
+                    if(path.has("apath"))
+                    {
+                    	String ancestorPath = path.getString("apath");
+                    	ancestorPaths.add(ancestorPath);
+                    }
                 }
                 metaData.setPaths(paths);
+                metaData.setAncestorPaths(ancestorPaths);
             }
             
             if(jsonNodeInfo.has("namePaths"))
@@ -1229,8 +1253,7 @@ public class SOLRAPIClient
                 {
                     try
                     {
-                        Date date = ISO8601DateFormat.parse(source);
-                        return date;
+                        return ISO8601DateFormat.parse(source);
                     }
                     catch (Exception e)
                     {

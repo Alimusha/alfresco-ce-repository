@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Sharepoint Protocol
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.module.vti.handler.alfresco;
 
@@ -48,8 +55,8 @@ import org.alfresco.repo.tenant.TenantService;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
 import org.alfresco.repo.version.VersionModel;
 import org.alfresco.repo.webdav.ActivityPostProducer;
-import org.alfresco.repo.webdav.WebDAVActivityPoster;
 import org.alfresco.repo.webdav.WebDAV;
+import org.alfresco.repo.webdav.WebDAVActivityPoster;
 import org.alfresco.repo.webdav.WebDAVHelper;
 import org.alfresco.repo.webdav.WebDAVServerException;
 import org.alfresco.service.cmr.model.FileFolderService;
@@ -68,7 +75,7 @@ import org.alfresco.service.cmr.webdav.WebDavService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.util.Pair;
 import org.alfresco.util.TempFileProvider;
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
+import org.apache.chemistry.opencmis.server.shared.TempStoreOutputStreamFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.extensions.surf.util.URLDecoder;
@@ -96,15 +103,15 @@ public class AlfrescoMethodHandler extends AbstractAlfrescoMethodHandler impleme
     private String tempDirectoryName = null;
     private int memoryThreshold = 4 * 1024 * 1024; // 4mb
     private long maxContentSize = (long) 4 * 1024 * 1024 * 1024; // 4gb
-    private ThresholdOutputStreamFactory streamFactory = null;
+    private TempStoreOutputStreamFactory streamFactory = null;
     
     public void init()
     {
         File tempDirectory = TempFileProvider.getTempDir(tempDirectoryName);
-        this.streamFactory = ThresholdOutputStreamFactory.newInstance(tempDirectory, memoryThreshold, maxContentSize, encryptTempFiles);
+        this.streamFactory = TempStoreOutputStreamFactory.newInstance(tempDirectory, memoryThreshold, maxContentSize, encryptTempFiles);
     }
 
-    public void setStreamFactory(ThresholdOutputStreamFactory streamFactory)
+    public void setStreamFactory(TempStoreOutputStreamFactory streamFactory)
     {
         this.streamFactory = streamFactory;
     }

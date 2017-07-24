@@ -1,47 +1,31 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr Client
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr.client;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.AlgorithmParameters;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
 import junit.framework.TestCase;
-
 import org.alfresco.encryption.DefaultEncryptionUtils;
 import org.alfresco.encryption.KeyProvider;
 import org.alfresco.encryption.KeyResourceLoader;
@@ -53,20 +37,12 @@ import org.alfresco.httpclient.AlfrescoHttpClient;
 import org.alfresco.httpclient.AuthenticationException;
 import org.alfresco.httpclient.HttpClientFactory;
 import org.alfresco.httpclient.HttpClientFactory.SecureCommsType;
-import org.alfresco.httpclient.MD5EncryptionParameters;
 import org.alfresco.opencmis.dictionary.CMISDictionaryRegistry;
 import org.alfresco.opencmis.dictionary.CMISStrictDictionaryService;
 import org.alfresco.opencmis.mapping.CMISMapping;
 import org.alfresco.opencmis.mapping.RuntimePropertyLuceneBuilderMapping;
 import org.alfresco.repo.cache.MemoryCache;
-import org.alfresco.repo.dictionary.DictionaryComponent;
-import org.alfresco.repo.dictionary.DictionaryDAOImpl;
-import org.alfresco.repo.dictionary.CompiledModelsCache;
-import org.alfresco.repo.dictionary.DictionaryNamespaceComponent;
-import org.alfresco.repo.dictionary.DictionaryRegistry;
-import org.alfresco.repo.dictionary.M2Model;
-import org.alfresco.repo.dictionary.M2Namespace;
-import org.alfresco.repo.dictionary.NamespaceDAO;
+import org.alfresco.repo.dictionary.*;
 import org.alfresco.repo.i18n.StaticMessageLookup;
 import org.alfresco.repo.tenant.SingleTServiceImpl;
 import org.alfresco.repo.tenant.TenantService;
@@ -82,6 +58,16 @@ import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.JSONException;
+
+import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.security.AlgorithmParameters;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests {@link SOLRAPIClient} Note: need to make sure that source/solr/instance is on the run classpath. Note: doesn't
@@ -101,13 +87,7 @@ public class SOLRAPIClientTest extends TestCase
 
     private SOLRAPIClient tamperWithClient;
 
-    private TenantService tenantService;
-
-    private NamespaceDAO namespaceDAO;
-
     private DictionaryDAOImpl dictionaryDAO;
-
-    private DictionaryComponent dictionaryComponent;
 
     private CMISStrictDictionaryService cmisDictionaryService;
 
@@ -140,10 +120,10 @@ public class SOLRAPIClientTest extends TestCase
     {
         if(client == null)
         {
-            tenantService = new SingleTServiceImpl();
+            TenantService tenantService = new SingleTServiceImpl();
 
             dictionaryDAO = new DictionaryDAOImpl();
-            namespaceDAO = dictionaryDAO;
+            NamespaceDAO namespaceDAO = dictionaryDAO;
             dictionaryDAO.setTenantService(tenantService);
             
             CompiledModelsCache compiledModelsCache = new CompiledModelsCache();
@@ -163,7 +143,7 @@ public class SOLRAPIClientTest extends TestCase
             dictionaryDAO.setResourceClassLoader(getResourceClassLoader());
             dictionaryDAO.init();
 
-            dictionaryComponent = new DictionaryComponent();
+            DictionaryComponent dictionaryComponent = new DictionaryComponent();
             dictionaryComponent.setDictionaryDAO(dictionaryDAO);
             dictionaryComponent.setMessageLookup(new StaticMessageLookup());
 
@@ -283,8 +263,7 @@ public class SOLRAPIClientTest extends TestCase
                 8443, 40, 40, 0);
         // TODO need to make port configurable depending on secure comms, or just make redirects
         // work
-        AlfrescoHttpClient repoClient = httpClientFactory.getRepoClient("localhost", 8443);
-        return repoClient;
+        return httpClientFactory.getRepoClient("localhost", 8443);
     }
 
     public ClassLoader getResourceClassLoader()

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.authentication;
 
@@ -2147,5 +2154,63 @@ public class AuthenticationTest extends TestCase
         nspr.registerNamespace("namespace", "namespace");
         nspr.registerNamespace(NamespaceService.DEFAULT_PREFIX, defaultURI);
         return nspr;
+    }
+
+    public void testCreatingUserWithEmptyPassword() throws Exception
+    {
+        String previousAuthenticatedUser = AuthenticationUtil.getFullyAuthenticatedUser();
+        String userName = GUID.generate();
+        String rawPass = "";
+        try
+        {
+            dao.createUser(userName, null, rawPass.toCharArray());
+            NodeRef userNodeRed = getRepositoryAuthenticationDao().getUserOrNull(userName);
+            assertNotNull(userNodeRed);
+
+            Map<QName, Serializable> properties = nodeService.getProperties(userNodeRed);
+            assertEquals(properties.get(ContentModel.PROP_ENABLED), false);
+
+            properties.remove(ContentModel.PROP_ENABLED);
+            properties.put(ContentModel.PROP_ENABLED, true);
+            nodeService.setProperties(userNodeRed, properties);
+            assertEquals(properties.get(ContentModel.PROP_ENABLED), true);
+
+            try
+            {
+                authenticationService.authenticate(userName, rawPass.toCharArray());
+                fail("Authentication should have been rejected");
+            }
+            catch (IllegalArgumentException e)
+            {
+                assertEquals(e.getMessage(), "rawPassword is a mandatory parameter");
+            }
+
+            rawPass = "newPassword";
+            dao.updateUser(userName, rawPass.toCharArray());
+            try
+            {
+                authenticationService.authenticate(userName, rawPass.toCharArray());
+            }
+            catch (AuthenticationException e)
+            {
+                fail("Authentication should have passed.");
+            }
+            assertEquals(authenticationService.getCurrentUserName(), userName);
+        }
+        finally
+        {
+            if (previousAuthenticatedUser != null)
+            {
+                AuthenticationUtil.setFullyAuthenticatedUser(previousAuthenticatedUser);
+            }
+            try
+            {
+                dao.deleteUser(userName);
+            }
+            catch (Exception e)
+            {
+                // Nothing to do here.
+            }
+        }
     }
 }

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.model.ml;
@@ -90,7 +97,7 @@ public class EmptyTranslationAspect implements
     }   
 
     /**
-     * Copy a <b>cm:mlEmptyTranslation<b> is not permit.
+     * Copy a <b>cm:mlEmptyTranslation</b> is not permit.
      */
     public void onCopyNode(QName classRef, NodeRef sourceNodeRef, StoreRef destinationStoreRef, boolean copyToNewNode, PolicyScope copyDetails) 
     {
@@ -98,7 +105,7 @@ public class EmptyTranslationAspect implements
     }
 
     /** 
-      * If a content is added to a <b>cm:mlEmptyTranslation<b>, remove this aspect. 
+      * If a content is added to a <b>cm:mlEmptyTranslation</b>, remove this aspect. 
       */
     public void onContentUpdate(NodeRef nodeRef, boolean newContent) 
     {

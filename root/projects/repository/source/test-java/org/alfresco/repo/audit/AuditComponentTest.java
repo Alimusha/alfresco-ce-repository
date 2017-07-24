@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.audit;
 
@@ -29,6 +36,7 @@ import org.alfresco.model.ContentModel;
 import org.alfresco.repo.audit.model.AuditApplication;
 import org.alfresco.repo.audit.model.AuditModelException;
 import org.alfresco.repo.audit.model.AuditModelRegistryImpl;
+import org.alfresco.repo.domain.schema.SchemaBootstrap;
 import org.alfresco.repo.node.NodeServicePolicies.OnCreateNodePolicy;
 import org.alfresco.repo.policy.JavaBehaviour;
 import org.alfresco.repo.policy.PolicyComponent;
@@ -55,6 +63,7 @@ import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.test_category.OwnJVMTestsCategory;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.EqualsHelper;
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -412,7 +421,7 @@ public class AuditComponentTest extends TestCase
         
         sb.delete(0, sb.length());
         rowCount.setValue(0);
-        auditComponent.auditQuery(callback, params, -1);
+        auditComponent.auditQuery(callback, params, Integer.MAX_VALUE);
         assertTrue("Expected some data", rowCount.intValue() > 0);
         logger.debug(sb.toString());
         int allResults = rowCount.intValue();
@@ -428,7 +437,7 @@ public class AuditComponentTest extends TestCase
         sb.delete(0, sb.length());
         rowCount.setValue(0);
         params.setToTime(beforeTime);
-        auditComponent.auditQuery(callback, params, -1);
+        auditComponent.auditQuery(callback, params, Integer.MAX_VALUE);
         params.setToTime(null);
         logger.debug(sb.toString());
         int resultsBefore = rowCount.intValue();
@@ -437,7 +446,7 @@ public class AuditComponentTest extends TestCase
         sb.delete(0, sb.length());
         rowCount.setValue(0);
         params.setFromTime(beforeTime);
-        auditComponent.auditQuery(callback, params, -1);
+        auditComponent.auditQuery(callback, params, Integer.MAX_VALUE);
         params.setFromTime(null);
         logger.debug(sb.toString());
         int resultsAfter = rowCount.intValue();
@@ -449,7 +458,7 @@ public class AuditComponentTest extends TestCase
         sb.delete(0, sb.length());
         rowCount.setValue(0);
         params.setUser(user);
-        auditComponent.auditQuery(callback, params, -1);
+        auditComponent.auditQuery(callback, params, Integer.MAX_VALUE);
         params.setUser(null);
         assertTrue("Expected some data for specific user", rowCount.intValue() > 0);
         logger.debug(sb.toString());
@@ -457,7 +466,7 @@ public class AuditComponentTest extends TestCase
         sb.delete(0, sb.length());
         rowCount.setValue(0);
         params.setUser("Numpty");
-        auditComponent.auditQuery(callback, params, -1);
+        auditComponent.auditQuery(callback, params, Integer.MAX_VALUE);
         params.setUser(null);
         assertTrue("Expected no data for bogus user", rowCount.intValue() == 0);
         logger.debug(sb.toString());
@@ -600,7 +609,7 @@ public class AuditComponentTest extends TestCase
         clearAuditLog(APPLICATION_API_TEST);
         results.clear();
         sb.delete(0, sb.length());
-        queryAuditLog(auditQueryCallback, params, -1);
+        queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
         logger.debug(sb.toString());
         assertTrue("There should be no audit entries for the API test after a clear", results.isEmpty());
         
@@ -634,7 +643,7 @@ public class AuditComponentTest extends TestCase
         // Check that the call was audited
         results.clear();
         sb.delete(0, sb.length());
-        queryAuditLog(auditQueryCallback, params, -1);
+        queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
         logger.debug(sb.toString());
         assertFalse("Did not get any audit results after successful login", results.isEmpty());
 
@@ -665,7 +674,7 @@ public class AuditComponentTest extends TestCase
         {
             results.clear();
             sb.delete(0, sb.length());
-            queryAuditLog(auditQueryCallback, params, -1);
+            queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
 	        if(results.size() == iterations)
 	        {
 	        	break;
@@ -683,11 +692,49 @@ public class AuditComponentTest extends TestCase
                 "Clearing " + results.size() + " entries by ID took " + (System.currentTimeMillis() - before) + "ms.");
         results.clear();
         sb.delete(0, sb.length());
-        queryAuditLog(auditQueryCallback, params, -1);
+        queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
         logger.debug(sb.toString());
         assertEquals("Explicit audit entries were not deleted", 0, results.size());
     }
-    
+
+    public void testAuditQuery_MinId() throws Exception
+    {
+        AuditQueryCallback auditQueryCallback = new AuditQueryCallback()
+        {
+            public boolean valuesRequired()
+            {
+                return true;
+            }
+
+            public boolean handleAuditEntry(
+                    Long entryId,
+                    String applicationName,
+                    String user,
+                    long time,
+                    Map<String, Serializable> values)
+            {
+                if (logger.isDebugEnabled())
+                {
+                    logger.debug(
+                            "Audit Entry " + entryId + ": " + applicationName + ", " + user + ", " + new Date(time) + "\n" +
+                            "   Data: " + values);
+                }
+                return true;
+            }
+
+            public boolean handleAuditEntryError(Long entryId, String errorMsg, Throwable error)
+            {
+                throw new AlfrescoRuntimeException(errorMsg, error);
+            }
+        };
+        
+        AuditQueryParameters params = new AuditQueryParameters();
+        params.setApplicationName(APPLICATION_API_TEST);
+        params.setForward(false);
+        params.setToId(Long.MAX_VALUE);
+        queryAuditLog(auditQueryCallback, params, 1);
+    }
+
     public void testAuditQuery_MaxId() throws Exception
     {
         AuditQueryCallback auditQueryCallback = new AuditQueryCallback()
@@ -778,7 +825,7 @@ public class AuditComponentTest extends TestCase
         clearAuditLog(APPLICATION_ALF12638_TEST);
         results.clear();
         sb.delete(0, sb.length());
-        queryAuditLog(auditQueryCallback, params, -1);
+        queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
         assertTrue("There should be no audit entries for the API test after a clear", results.isEmpty());
         
         try
@@ -794,7 +841,7 @@ public class AuditComponentTest extends TestCase
         boolean success = false;
         for (int i = 0; i < 30; i++)
         {
-            queryAuditLog(auditQueryCallback, params, -1);
+            queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
             if (results.size() > 1)
             {
                 logger.debug(sb.toString());
@@ -929,7 +976,7 @@ public class AuditComponentTest extends TestCase
         clearAuditLog(APPLICATION_MNT10767_TEST);
         results.clear();
         sb.delete(0, sb.length());
-        queryAuditLog(auditQueryCallback, params, -1);
+        queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
         assertTrue("There should be no audit entries for the API test after a clear", results.isEmpty());
 
         PolicyComponent policyComponent = (PolicyComponent) ctx.getBean("policyComponent");
@@ -948,7 +995,7 @@ public class AuditComponentTest extends TestCase
             boolean success = false;
             for (int i = 0; i < 30; i++)
             {
-                queryAuditLog(auditQueryCallback, params, -1);
+                queryAuditLog(auditQueryCallback, params, Integer.MAX_VALUE);
                 if (results.size() > 1)
                 {
                     logger.debug(sb.toString());
@@ -1100,5 +1147,40 @@ public class AuditComponentTest extends TestCase
         {
             transactionServiceImpl.setAllowWrite(true, veto);   
         }
+    }
+
+    public void testAuditTruncatedValues()
+    {
+        final String rootPath = "/test/one.one/two.one";
+
+        // String value with length grater then the DB supported threshold.
+        final String stringValue = RandomStringUtils.randomAlphanumeric(SchemaBootstrap.DEFAULT_MAX_STRING_LENGTH + 1);
+        final MLText mlTextValue = new MLText();
+        mlTextValue.put(Locale.ENGLISH, stringValue);
+
+        final RetryingTransactionCallback<Map<String, Serializable>> testCallback = new RetryingTransactionCallback<Map<String, Serializable>>()
+        {
+            public Map<String, Serializable> execute() throws Throwable
+            {
+                final Map<String, Serializable> values = new HashMap<>();
+                values.put("/3.1/4.1", stringValue);
+                values.put("/3.1/4.2", mlTextValue);
+
+                return auditComponent.recordAuditValues(rootPath, values);
+            }
+        };
+        RunAsWork<Map<String, Serializable>> testRunAs = new RunAsWork< Map<String, Serializable>>()
+        {
+            public Map<String, Serializable> doWork() throws Exception
+            {
+                return transactionService.getRetryingTransactionHelper().doInTransaction(testCallback);
+            }
+        };
+
+        Map<String, Serializable> result = AuthenticationUtil.runAs(testRunAs, "SomeOtherUser");
+
+        // Check that the values aren't truncated.
+        assertEquals(stringValue, result.get("/test/1.1/2.1/3.1/4.1/value.1"));
+        assertEquals(mlTextValue, result.get("/test/1.1/2.1/3.1/4.2/value.2"));
     }
 }

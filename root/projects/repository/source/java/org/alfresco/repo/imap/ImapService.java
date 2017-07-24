@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.imap;
 
@@ -121,7 +128,7 @@ public interface ImapService
      * <br />
      * <code>mailbox</code> parameter may specify absolute or relative path to a folder. Absolute path uniquely identifies some directory, whereas relative path implies that root
      * folder should be <code>IMAP home</code> directory for the specified <code>user</code> rather than <code>IMAP root</code> (i.e. <code>IMAP mount point</code>). Mailbox will
-     * be found or created (<code>mayCreate=true<code>, <code>mayExist=false<code> or ) in <code>user<code>'s <code>IMAP home</code> directory if relative path is specified.<br />
+     * be found or created (<code>mayCreate=true</code>, <code>mayExist=false</code> or ) in <code>user</code>'s <code>IMAP home</code> directory if relative path is specified.<br />
      * <br />
      * <code>mayExist</code> and mayCreate parameters' combinations and results:
      * <ul>

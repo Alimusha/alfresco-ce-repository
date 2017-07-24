@@ -1,26 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.web.scripts.bulkimport.copy;
@@ -72,7 +73,8 @@ public class BulkFilesystemImportWebScript extends AbstractBulkFileSystemImportW
         String targetNodeRefStr = null;
         String targetPath = null;
         String sourceDirectoryStr = null;
-        String replaceExistingStr = null;
+        @Deprecated String replaceExistingStr = null;
+        String existingFileModeStr = null;
         String batchSizeStr = null;
         String numThreadsStr = null;
         String disableRulesStr = null;
@@ -86,6 +88,7 @@ public class BulkFilesystemImportWebScript extends AbstractBulkFileSystemImportW
                 NodeRef targetNodeRef = null;
                 File sourceDirectory = null;
                 boolean replaceExisting = false;
+                BulkImportParameters.ExistingFileMode existingFileMode = null;
                 int batchSize = bulkImporter.getDefaultBatchSize();
                 int numThreads = bulkImporter.getDefaultNumThreads();
                 boolean disableRules = false;
@@ -95,6 +98,8 @@ public class BulkFilesystemImportWebScript extends AbstractBulkFileSystemImportW
                 targetPath = request.getParameter(PARAMETER_TARGET_PATH);
                 sourceDirectoryStr = request.getParameter(PARAMETER_SOURCE_DIRECTORY);
                 replaceExistingStr = request.getParameter(PARAMETER_REPLACE_EXISTING);
+                existingFileModeStr = request.getParameter(PARAMETER_EXISTING_FILE_MODE);
+
                 batchSizeStr = request.getParameter(PARAMETER_BATCH_SIZE);
                 numThreadsStr = request.getParameter(PARAMETER_NUM_THREADS);
                 disableRulesStr = request.getParameter(PARAMETER_DISABLE_RULES);
@@ -107,10 +112,25 @@ public class BulkFilesystemImportWebScript extends AbstractBulkFileSystemImportW
                 }
                 
                 sourceDirectory = new File(sourceDirectoryStr.trim());
-                
+
+                if (replaceExistingStr != null && existingFileModeStr != null)
+                {
+                    // Check that we haven't had both the deprecated and new (existingFileMode)
+                    // parameters supplied.
+                    throw new IllegalStateException(
+                            String.format("Only one of these parameters may be used, not both: %s, %s",
+                                    PARAMETER_REPLACE_EXISTING,
+                                    PARAMETER_EXISTING_FILE_MODE));
+                }
+
                 if (replaceExistingStr != null && replaceExistingStr.trim().length() > 0)
                 {
                     replaceExisting = PARAMETER_VALUE_REPLACE_EXISTING.equals(replaceExistingStr);
+                }
+
+                if (existingFileModeStr != null && existingFileModeStr.trim().length() > 0)
+                {
+                    existingFileMode = BulkImportParameters.ExistingFileMode.valueOf(existingFileModeStr);
                 }
 
                 if (disableRulesStr != null && disableRulesStr.trim().length() > 0)
@@ -156,7 +176,16 @@ public class BulkFilesystemImportWebScript extends AbstractBulkFileSystemImportW
                 	}
                 }
 
-                bulkImportParameters.setReplaceExisting(replaceExisting);
+                if (existingFileMode != null)
+                {
+                    bulkImportParameters.setExistingFileMode(existingFileMode);
+                }
+                else
+                {
+                    // Fall back to the old/deprecated way.
+                    bulkImportParameters.setReplaceExisting(replaceExisting);
+                }
+
                 bulkImportParameters.setTarget(targetNodeRef);
                 bulkImportParameters.setDisableRulesService(disableRules);
 

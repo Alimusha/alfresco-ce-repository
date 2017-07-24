@@ -1,28 +1,29 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,10 +35,8 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.util.Date;
 import java.util.Locale;
 
-import org.alfresco.repo.content.ContentStore.ContentUrlHandler;
 import org.alfresco.service.cmr.repository.ContentIOException;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentStreamListener;
@@ -46,6 +45,12 @@ import org.alfresco.util.TempFileProvider;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Abstract base class that provides a set of tests for implementations
@@ -57,7 +62,6 @@ import org.junit.Test;
  * 
  * @author Derek Hulley
  */
-@SuppressWarnings("deprecation")
 public abstract class AbstractWritableContentStoreTest extends AbstractReadOnlyContentStoreTest
 {
     protected static Log logger = LogFactory.getLog(AbstractWritableContentStoreTest.class);
@@ -373,26 +377,6 @@ public abstract class AbstractWritableContentStoreTest extends AbstractReadOnlyC
         assertTrue("After-content reader should be closed after reading", readerAfterWrite.isClosed());
     }
     
-    /**
-     * Helper method to check if a store contains a particular URL using the getUrl method
-     */
-    private boolean searchForUrl(ContentStore store, final String contentUrl, Date from, Date to)
-    {
-        final boolean[] found = new boolean[] {false};
-        ContentUrlHandler handler = new ContentUrlHandler()
-        {
-            public void handle(String checkContentUrl)
-            {
-                if (contentUrl.equals(checkContentUrl))
-                {
-                    found[0] = true;
-                }
-            }
-        };
-        getStore().getUrls(from, to, handler);
-        return found[0];
-    }
-
     @Test
     public void testDeleteSimple() throws Exception
     {
@@ -444,14 +428,17 @@ public abstract class AbstractWritableContentStoreTest extends AbstractReadOnlyC
                 writer.getContentUrl(), reader.getContentUrl());
         
         // open the stream onto the content
-        InputStream is = reader.getContentInputStream();
+        InputStream is = reader.exists() ? reader.getContentInputStream() : null;
         
         // attempt to delete the content
         boolean deleted = store.delete(contentUrl);
 
         // close the reader stream
-        is.close();
-        
+        if(is != null)
+        {
+            is.close();
+        }
+
         // get a fresh reader
         reader = store.getReader(contentUrl);
         assertNotNull(reader);
@@ -642,46 +629,6 @@ public abstract class AbstractWritableContentStoreTest extends AbstractReadOnlyC
         String check = new String(buffer, 0, count);
         
         assertEquals("Write out of and read into files failed", content, check);
-    }
-    
-    /**
-     * Tests retrieval of all content URLs
-     * <p>
-     * Only applies when {@link #getStore()} returns a value.
-     */
-    @Test
-    public void testListUrls() throws Exception
-    {
-        ContentStore store = getStore();
-        // Ensure that this test can be done
-        try
-        {
-            searchForUrl(store, "abc", null, null);
-        }
-        catch (UnsupportedOperationException e)
-        {
-            logger.warn("Store test testListUrls not possible on " + store.getClass().getName());
-            return;
-        }
-        // Proceed with the test
-        ContentWriter writer = getWriter();
-        String contentUrl = writer.getContentUrl();
-
-        boolean inStore = searchForUrl(store, contentUrl, null, null);
-        assertTrue("Writer URL not listed by store", inStore);
-
-        Date yesterday = new Date(System.currentTimeMillis() - 3600L * 1000L * 24L);
-        
-        // write some data
-        writer.putContent("The quick brown fox...");
-
-        // check again
-        inStore = searchForUrl(store, contentUrl, null, null);
-        assertTrue("Writer URL not listed by store", inStore);
-        
-        // check that the query for content created before this time yesterday doesn't return the URL
-        inStore = searchForUrl(store, contentUrl, null, yesterday);
-        assertFalse("URL was younger than required, but still shows up", inStore);
     }
     
     /**

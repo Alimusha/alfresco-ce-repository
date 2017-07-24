@@ -1,20 +1,28 @@
+
 /*
- * Copyright (C) 2005-2016 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.opencmis;
@@ -26,8 +34,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -50,6 +60,7 @@ import org.alfresco.opencmis.search.CMISQueryOptions.CMISQueryMode;
 import org.alfresco.repo.action.evaluator.ComparePropertyValueEvaluator;
 import org.alfresco.repo.action.executer.AddFeaturesActionExecuter;
 import org.alfresco.repo.audit.AuditComponent;
+import org.alfresco.repo.audit.AuditComponentImpl;
 import org.alfresco.repo.audit.AuditServiceImpl;
 import org.alfresco.repo.audit.UserAuditFilter;
 import org.alfresco.repo.audit.model.AuditModelRegistryImpl;
@@ -57,9 +68,11 @@ import org.alfresco.repo.content.MimetypeMap;
 import org.alfresco.repo.dictionary.DictionaryDAO;
 import org.alfresco.repo.dictionary.M2Model;
 import org.alfresco.repo.domain.audit.AuditDAO;
+import org.alfresco.repo.domain.node.ContentDataWithId;
 import org.alfresco.repo.domain.node.NodeDAO;
 import org.alfresco.repo.model.Repository;
 import org.alfresco.repo.node.archive.NodeArchiveService;
+import org.alfresco.repo.security.authentication.AuthenticationComponent;
 import org.alfresco.repo.security.authentication.AuthenticationContext;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.security.authentication.AuthenticationUtil.RunAsWork;
@@ -71,6 +84,7 @@ import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
 import org.alfresco.repo.version.VersionableAspectTest;
 import org.alfresco.repo.workflow.WorkflowDeployer;
+import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.action.ActionCondition;
 import org.alfresco.service.cmr.action.ActionService;
 import org.alfresco.service.cmr.dictionary.AspectDefinition;
@@ -108,6 +122,7 @@ import org.apache.chemistry.opencmis.commons.PropertyIds;
 import org.apache.chemistry.opencmis.commons.data.Ace;
 import org.apache.chemistry.opencmis.commons.data.AllowableActions;
 import org.apache.chemistry.opencmis.commons.data.CmisExtensionElement;
+import org.apache.chemistry.opencmis.commons.data.ContentStream;
 import org.apache.chemistry.opencmis.commons.data.FailedToDeleteData;
 import org.apache.chemistry.opencmis.commons.data.ObjectData;
 import org.apache.chemistry.opencmis.commons.data.ObjectInFolderData;
@@ -128,6 +143,7 @@ import org.apache.chemistry.opencmis.commons.enums.IncludeRelationships;
 import org.apache.chemistry.opencmis.commons.enums.UnfileObject;
 import org.apache.chemistry.opencmis.commons.enums.VersioningState;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisUpdateConflictException;
 import org.apache.chemistry.opencmis.commons.impl.dataobjects.AccessControlListImpl;
@@ -144,6 +160,8 @@ import org.apache.chemistry.opencmis.commons.impl.server.AbstractServiceFactory;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
 import org.apache.chemistry.opencmis.commons.spi.Holder;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -158,6 +176,8 @@ import org.springframework.extensions.webscripts.GUID;
  */
 public class CMISTest
 {
+    private static Log logger = LogFactory.getLog(CMISTest.class);
+
     private static final QName TEST_START_TASK = QName.createQName("http://www.alfresco.org/model/workflow/test/1.0", "startTaskVarScriptAssign");
     private static final QName TEST_WORKFLOW_TASK = QName.createQName("http://www.alfresco.org/model/workflow/test/1.0", "assignVarTask");
     
@@ -189,6 +209,7 @@ public class CMISTest
     private TenantService tenantService;
     private SearchService searchService;
     private java.util.Properties globalProperties;
+    private AuditComponentImpl auditComponent;
 
     private AlfrescoCmisServiceFactory factory;
 	
@@ -367,7 +388,8 @@ public class CMISTest
         this.tenantAdminService = (TenantAdminService) ctx.getBean("tenantAdminService");
         this.tenantService = (TenantService) ctx.getBean("tenantService");
         this.searchService = (SearchService) ctx.getBean("SearchService");
-        
+        this.auditComponent = (AuditComponentImpl) ctx.getBean("auditComponent");
+
         this.globalProperties = (java.util.Properties) ctx.getBean("global-properties");
         this.globalProperties.setProperty(VersionableAspectTest.AUTO_VERSION_PROPS_KEY, "true");
     }
@@ -594,8 +616,8 @@ public class CMISTest
 
         // populate workflow parameters
         java.util.Properties props = new java.util.Properties();
-        props.setProperty(WorkflowDeployer.ENGINE_ID, "jbpm");
-        props.setProperty(WorkflowDeployer.LOCATION, "jbpmresources/test_taskVarScriptAssign.xml");
+        props.setProperty(WorkflowDeployer.ENGINE_ID, "activiti");
+        props.setProperty(WorkflowDeployer.LOCATION, "activiti/testCustomActiviti.bpmn20.xml");
         props.setProperty(WorkflowDeployer.MIMETYPE, "text/xml");
         props.setProperty(WorkflowDeployer.REDEPLOY, Boolean.FALSE.toString());
 
@@ -605,7 +627,7 @@ public class CMISTest
         testWorkflowDeployer.setWorkflowDefinitions(definitions);
 
         List<String> models = new ArrayList<String>(1);
-        models.add("jbpmresources/testWorkflowModel.xml");
+        models.add("activiti/testWorkflowModel.xml");
 
         testWorkflowDeployer.setModels(models);
 
@@ -635,6 +657,9 @@ public class CMISTest
         // check that workflow types were correctly bootstrapped
         assertNotNull(startTaskTypeDefinition);
         assertNotNull(workflowTaskTypeDefinition);
+
+        // caches are refreshed asynchronously
+        Thread.sleep(5000);
 
         // check that loaded model is available via CMIS API
         CallContext context = new SimpleCallContext("admin", "admin", CmisVersion.CMIS_1_1);
@@ -775,6 +800,12 @@ public class CMISTest
     @Test
     public void testContentMimeTypeDetection()
     {
+        ServiceRegistry serviceRegistry = (ServiceRegistry) ctx.getBean(ServiceRegistry.SERVICE_REGISTRY);
+        FileFolderService ffs = serviceRegistry.getFileFolderService();
+        AuthenticationComponent authenticationComponent = (AuthenticationComponent) ctx.getBean("authenticationComponent");
+        final String isoEncoding = "ISO-8859-1";
+        final String utfEncoding = "UTF-8";
+
         // get repository id
     	List<RepositoryInfo> repositories = withCmisService(new CmisServiceCallback<List<RepositoryInfo>>()
     	{
@@ -845,11 +876,16 @@ public class CMISTest
 				}
             });
             assertEquals("Mimetype is not defined correctly.", MimetypeMap.MIMETYPE_HTML, contentType);
+
+            // check that the encoding is detected correctly
+            checkEncoding(ffs, authenticationComponent, objectData, utfEncoding);
         }
 
-        // create content stream with mimetype and encoding
+        // create content stream with mimetype and encoding as UTF-8
         {
-            String mimeType = MimetypeMap.MIMETYPE_TEXT_PLAIN + "; charset=UTF-8";
+            String mimeType = MimetypeMap.MIMETYPE_TEXT_PLAIN + "; charset="+isoEncoding;
+            // NOTE that we intentionally specify the wrong charset here. 
+            // Alfresco will detect the encoding (as UTF-8 - given by the ContentStreamImpl constructor)
             final ContentStreamImpl contentStreamHTML = new ContentStreamImpl(null, mimeType, "<html><head><title> Hello </title></head><body><p> Test html</p></body></html></body></html>");
             withCmisService(new CmisServiceCallback<Void>()
             {
@@ -882,6 +918,66 @@ public class CMISTest
 				}
             });
             assertEquals("Mimetype is not defined correctly.", MimetypeMap.MIMETYPE_TEXT_PLAIN, contentType);
+
+            // check that the encoding is detected correctly
+            checkEncoding(ffs, authenticationComponent, objectData, utfEncoding);
+        }
+
+        // create content stream with mimetype and encoding as ISO-8859-1
+        {
+            String mimeType = MimetypeMap.MIMETYPE_TEXT_PLAIN + "; charset=" + utfEncoding;
+            // NOTE that we intentionally specify the wrong charset here.
+            // Alfresco will detect the encoding (as ISO-8859-1 - given by the ContentStreamImpl with streams)
+            String content = "<html><head><title>aegif Mind Share Leader Generating New Paradigms by aegif corporation</title></head><body><p> Test html</p></body></html></body></html>";
+            byte[] buf = null;
+            try
+            {
+                buf = content.getBytes(isoEncoding); // set the encoding here for the content stream
+            }
+            catch (UnsupportedEncodingException e)
+            {
+                e.printStackTrace();
+            }
+
+            ByteArrayInputStream input = new ByteArrayInputStream(buf);
+
+            final ContentStream contentStreamHTML = new ContentStreamImpl(null, BigInteger.valueOf(buf.length), mimeType, input);
+            withCmisService(new CmisServiceCallback<Void>()
+            {
+                @Override
+                public Void execute(CmisService cmisService)
+                {
+                    Holder<String> latestObjectIdHolder = getHolderOfObjectOfLatestVersion(cmisService, repositoryId,
+                            objectIdHolder);
+                    cmisService.setContentStream(repositoryId, latestObjectIdHolder, true, null, contentStreamHTML, null);
+                    return null;
+                }
+            });
+
+            // check mimetype
+            final ObjectData objectData = withCmisService(new CmisServiceCallback<ObjectData>()
+            {
+                @Override
+                public ObjectData execute(CmisService cmisService)
+                {
+                    ObjectData objectData = cmisService.getObjectByPath(repositoryId, path, null, false,
+                            IncludeRelationships.NONE, null, false, false, null);
+                    return objectData;
+                }
+            });
+            String contentType = withCmisService(new CmisServiceCallback<String>()
+            {
+                @Override
+                public String execute(CmisService cmisService)
+                {
+                    String contentType = cmisService.getObjectInfo(repositoryId, objectData.getId()).getContentType();
+                    return contentType;
+                }
+            });
+            assertEquals("Mimetype is not defined correctly.", MimetypeMap.MIMETYPE_TEXT_PLAIN, contentType);
+
+            // check that the encoding is detected correctly
+            checkEncoding(ffs, authenticationComponent, objectData, isoEncoding);
         }
 
         // checkout/checkin object with mimetype and encoding
@@ -938,9 +1034,50 @@ public class CMISTest
     			}
             });
             assertEquals("Mimetype is not defined correctly.", MimetypeMap.MIMETYPE_HTML, contentType);
+
+            checkEncoding(ffs, authenticationComponent, objectData, utfEncoding);
         }
     }
 
+    protected void checkEncoding(FileFolderService ffs, AuthenticationComponent authenticationComponent,
+            final ObjectData objectData, String expectedEncoding)
+    {
+        // Authenticate as system to check the properties in alfresco
+        authenticationComponent.setSystemUserAsCurrentUser();
+        try
+        {
+            NodeRef doc1NodeRef = cmisIdToNodeRef(objectData.getId());
+            doc1NodeRef.getId();
+
+            FileInfo fileInfo = ffs.getFileInfo(doc1NodeRef);
+            Map<QName, Serializable> properties2 = fileInfo.getProperties();
+
+            ContentDataWithId contentData = (ContentDataWithId) properties2
+                    .get(QName.createQName("{http://www.alfresco.org/model/content/1.0}content"));
+            String encoding = contentData.getEncoding();
+            
+            assertEquals(expectedEncoding, encoding);
+        }
+        finally
+        {
+            authenticationComponent.clearCurrentSecurityContext();
+        }
+    }
+    /**
+     * Turns a CMIS id into a node ref
+     * @param nodeId
+     * @return
+     */
+    private NodeRef cmisIdToNodeRef(String nodeId)
+    {
+        int idx = nodeId.indexOf(";");
+        if(idx != -1)
+        {
+            nodeId = nodeId.substring(0, idx);
+        }
+        NodeRef nodeRef = new NodeRef(nodeId);
+        return nodeRef;
+    }
     private Holder<String> getHolderOfObjectOfLatestVersion(CmisService cmisService, String repositoryId, Holder<String> currentHolder)
     {
         ObjectData oData = cmisService.getObjectOfLatestVersion(repositoryId, currentHolder.getValue(), null, Boolean.FALSE, null, null, null, null, null, null, null);
@@ -2416,32 +2553,33 @@ public class CMISTest
 	{
         TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
         {
-			@Override
-			public Void doWork() throws Exception
-			{
-				M2Model customModel = M2Model.createModel(
-						Thread.currentThread().getContextClassLoader().
-						getResourceAsStream("dictionary/dictionarydaotest_model1.xml"));
-				dictionaryDAO.putModel(customModel);
-				assertNotNull(cmisDictionaryService.findType("P:cm:dublincore"));
-				TypeDefinitionWrapper td = cmisDictionaryService.findType("D:daotest1:type1");
-				assertNotNull(td);
-				return null;
-			}
-		}, "user1", "tenant1");
+            @Override
+            public Void doWork() throws Exception
+            {
+                M2Model customModel = M2Model.createModel(
+                        Thread.currentThread().getContextClassLoader().
+                        getResourceAsStream("dictionary/dictionarydaotest_model1.xml"));
+                dictionaryDAO.putModel(customModel);
+
+                assertNotNull(cmisDictionaryService.findType("P:cm:dublincore"));
+                TypeDefinitionWrapper td = cmisDictionaryService.findType("D:daotest1:type1");
+                assertNotNull(td);
+                return null;
+            }
+        }, "user1", "tenant1");
 
         TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
         {
-			@Override
-			public Void doWork() throws Exception
-			{
-				assertNotNull(cmisDictionaryService.findType("P:cm:dublincore"));
-				TypeDefinitionWrapper td = cmisDictionaryService.findType("D:daotest1:type1");
-				assertNull(td);
-				return null;
-			}
-		}, "user2", "tenant2");
-	}
+            @Override
+            public Void doWork() throws Exception
+            {
+                assertNotNull(cmisDictionaryService.findType("P:cm:dublincore"));
+                TypeDefinitionWrapper td = cmisDictionaryService.findType("D:daotest1:type1");
+                assertNull(td);
+                return null;
+            }
+        }, "user2", "tenant2");
+    }
 
     /**
      * MNT-13529: Just-installed Alfresco does not return a CMIS latestChangeLogToken
@@ -2569,6 +2707,31 @@ public class CMISTest
                         assertFalse("CMISChangeEvent " + changeType + " should store short form of objectId " + objectId, 
                                 objectId.toString().contains(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE.toString()));
                     }
+                    int expectAtLeast = changes.getObjects().size();
+
+                    // We should also be able to query without passing in any limit
+                    changes = cmisService.getContentChanges(repositoryId, new Holder<String>(changeToken), Boolean.TRUE, null, Boolean.FALSE, Boolean.FALSE, null, null);
+                    assertTrue("Expected to still get changes", changes.getObjects().size() >= expectAtLeast);
+                    // and zero
+                    changes = cmisService.getContentChanges(repositoryId, new Holder<String>(changeToken), Boolean.TRUE, null, Boolean.FALSE, Boolean.FALSE, BigInteger.valueOf(0), null);
+                    assertTrue("Expected to still get changes", changes.getObjects().size() >= expectAtLeast);
+                    // and one
+                    changes = cmisService.getContentChanges(repositoryId, new Holder<String>(changeToken), Boolean.TRUE, null, Boolean.FALSE, Boolean.FALSE, BigInteger.valueOf(1), null);
+                    assertEquals("Expected to still get changes", changes.getObjects().size(), 1);
+                    // Integery.MAX_VALUE must be handled
+                    //      This will limit the number to a sane value
+                    changes = cmisService.getContentChanges(repositoryId, new Holder<String>(changeToken), Boolean.TRUE, null, Boolean.FALSE, Boolean.FALSE, BigInteger.valueOf(Integer.MAX_VALUE), null);
+                    assertTrue("Expected to still get changes", changes.getObjects().size() >= expectAtLeast);
+                    // but not negative
+                    try
+                    {
+                        changes = cmisService.getContentChanges(repositoryId, new Holder<String>(changeToken), Boolean.TRUE, null, Boolean.FALSE, Boolean.FALSE, BigInteger.valueOf(-1), null);
+                        fail("Negative maxItems is expected to fail");
+                    }
+                    catch (CmisInvalidArgumentException e)
+                    {
+                        // Expected
+                    }
 
                     return null;
                 }
@@ -2642,7 +2805,7 @@ public class CMISTest
 
             Holder<String> changeLogToken = new Holder<String>();
             changeLogToken.setValue(actualToken);
-            ObjectList changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("0"));
+            ObjectList changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("10"));
             List<ObjectData> events = changeLog.getObjects();
             int count = events.size();
             // it should be 3 entries: 1 for previous folder create, 1 new CREATE (for document create)
@@ -2670,7 +2833,7 @@ public class CMISTest
 
             changeLogToken = new Holder<String>();
             changeLogToken.setValue(actualToken2);
-            changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("0"));
+            changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("10"));
             events = changeLog.getObjects();
             count = events.size();
             assertEquals(2, count);
@@ -2691,7 +2854,7 @@ public class CMISTest
 
             changeLogToken = new Holder<String>();
             changeLogToken.setValue(actualToken3);
-            changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("0"));
+            changeLog = CMISTest.this.cmisConnector.getContentChanges(changeLogToken, new BigInteger("10"));
             events = changeLog.getObjects();
             count = events.size();
             assertEquals(2, count);

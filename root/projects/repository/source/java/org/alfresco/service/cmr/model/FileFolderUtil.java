@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.model;
 
@@ -69,10 +76,8 @@ public class FileFolderUtil
      * 
      * @param service FileFolderService
      * @param parentNodeRef NodeRef
-     * @param pathElements List<String>
      * @param folderTypeQName QName
      * @param behaviourFilter BehaviourFilter
-     * @param parentBehavioursToDisable Set<QName>
      * @return FileInfo
      */
     public static FileInfo makeFolders(FileFolderService service, NodeRef parentNodeRef, List<String> pathElements,
@@ -117,6 +122,38 @@ public class FileFolderUtil
     public static FileInfo makeFolders(FileFolderService service, NodeService nodeService, NodeRef parentNodeRef,
                 List<PathElementDetails> pathElementDetails, QName folderTypeQName, BehaviourFilter behaviourFilter,
                 Set<QName> parentBehavioursToDisable)
+    {
+        return makeFolders(service, nodeService, parentNodeRef, pathElementDetails, folderTypeQName, behaviourFilter, parentBehavioursToDisable, null);
+    }
+
+    /**
+     * Checks for the presence of, and creates as necessary, the folder
+     * structure in the provided paths with the following options:
+     * <ul>
+     * <li>Option to disable parent behaviour(s) when creating sub-folder.</li>
+     * <li>Each folder has the option to have its own set of aspects</li>
+     *</ul>
+     *
+     * @param service the FileFolderService object
+     * @param nodeService the NodeService object
+     * @param parentNodeRef the node under which the path will be created
+     * @param pathElementDetails the list of folder hierarchy where each folder
+     *            can have its own set of aspects - may not be empty
+     * @param folderTypeQName the types of nodes to create. This must be a valid
+     *            subtype of {@link org.alfresco.model.ContentModel#TYPE_FOLDER
+     *            they folder type}
+     * @param behaviourFilter the BehaviourFilter object
+     * @param parentBehavioursToDisable the set of behaviours that must be
+     *            disabled
+     * @param allFoldersRefsInThePath (Optional) if an instance of a Set is provided,
+     *                                then it'd be populated with nodeRefs of all
+     *                                the folders that have been specified in the path
+     *                                elements details.({@code pathElementDetails}).
+     * @return Returns the {@code FileInfo} of the last folder in the path.
+     */
+    public static FileInfo makeFolders(FileFolderService service, NodeService nodeService, NodeRef parentNodeRef,
+                List<PathElementDetails> pathElementDetails, QName folderTypeQName, BehaviourFilter behaviourFilter,
+                Set<QName> parentBehavioursToDisable, Set<NodeRef> allFoldersRefsInThePath)
     {
         validate(pathElementDetails, service, folderTypeQName);
 
@@ -172,6 +209,10 @@ public class FileFolderUtil
             {
                 // it exists
                 currentParentRef = nodeRef;
+            }
+            if (allFoldersRefsInThePath != null)
+            {
+                allFoldersRefsInThePath.add(currentParentRef);
             }
         }
         // done

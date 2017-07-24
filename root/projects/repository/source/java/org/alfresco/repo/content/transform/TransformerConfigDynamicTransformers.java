@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -30,6 +37,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.repo.content.MimetypeMap;
@@ -53,15 +61,17 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
 
     public TransformerConfigDynamicTransformers(TransformerConfig transformerConfig, TransformerProperties transformerProperties,
             MimetypeService mimetypeService, ContentService contentService, ContentTransformerRegistry transformerRegistry,
-            TransformerDebug transformerDebug, ModuleService moduleService, DescriptorService descriptorService)
+            TransformerDebug transformerDebug, ModuleService moduleService, DescriptorService descriptorService,
+            Properties globalProperties)
     {
         createDynamicTransformers(transformerConfig, transformerProperties, mimetypeService, contentService,
-                transformerRegistry, transformerDebug, moduleService, descriptorService);
+                transformerRegistry, transformerDebug, moduleService, descriptorService, globalProperties);
     }
 
     private void createDynamicTransformers(TransformerConfig transformerConfig, TransformerProperties transformerProperties,
             MimetypeService mimetypeService, ContentService contentService, ContentTransformerRegistry transformerRegistry,
-            TransformerDebug transformerDebug, ModuleService moduleService, DescriptorService descriptorService)
+            TransformerDebug transformerDebug, ModuleService moduleService, DescriptorService descriptorService,
+            Properties globalProperties)
     {
         Collection<String> SUFFIXES = Arrays.asList(new String [] {
                 FAILOVER,
@@ -111,9 +121,11 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
                             
                             AbstractContentTransformer2 transformer = property.suffix.equals(PIPELINE)
                                     ? createComplexTransformer(property, transformerConfig, mimetypeService,
-                                            contentService, transformerRegistry, transformerDebug, available)
+                                            contentService, transformerRegistry, transformerDebug, available,
+                                            globalProperties)
                                     : createFailoverTransformer(property, transformerConfig, mimetypeService,
-                                            contentService, transformerRegistry, transformerDebug, available);
+                                            contentService, transformerRegistry, transformerDebug, available,
+                                            globalProperties);
                             transformer.register();
                             processed.add(property);
                             dynamicTransformers.add(transformer);
@@ -161,7 +173,7 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
             TransformerConfig transformerConfig,
             MimetypeService mimetypeService, ContentService contentService,
             ContentTransformerRegistry transformerRegistry, TransformerDebug transformerDebug,
-            boolean available)
+            boolean available, Properties globalProperties)
     {
         List<ContentTransformer> transformers = new ArrayList<ContentTransformer>();
         List<String> intermediateMimetypes = new ArrayList<String>();
@@ -178,7 +190,7 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
             }
         };
         setupContentTransformer2(property, transformerConfig, mimetypeService, contentService,
-                transformerRegistry, transformerDebug, available, transformer, transformers);
+                transformerRegistry, transformerDebug, available, transformer, transformers, globalProperties);
         
         // baseComplexContentTransformer
         transformer.setContentService(contentService);
@@ -194,7 +206,7 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
             TransformerConfig transformerConfig,
             MimetypeService mimetypeService, ContentService contentService,
             ContentTransformerRegistry transformerRegistry, TransformerDebug transformerDebug,
-            boolean available)
+            boolean available, Properties globalProperties)
     {
         List<ContentTransformer> transformers = new ArrayList<ContentTransformer>();
 
@@ -210,7 +222,7 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
             }
         };
         setupContentTransformer2(property, transformerConfig, mimetypeService, contentService,
-                transformerRegistry, transformerDebug, available, transformer, transformers);
+                transformerRegistry, transformerDebug, available, transformer, transformers, globalProperties);
         
         // FailoverContentTransformer
         transformer.setTransformers(transformers);
@@ -279,7 +291,8 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
             TransformerConfig transformerConfig, MimetypeService mimetypeService,
             ContentService contentService, ContentTransformerRegistry transformerRegistry,
             TransformerDebug transformerDebug, boolean available,
-            AbstractContentTransformer2 transformer, List<ContentTransformer> transformers)
+            AbstractContentTransformer2 transformer, List<ContentTransformer> transformers,
+            Properties globalProperties)
     {
         try
         {
@@ -305,6 +318,14 @@ public class TransformerConfigDynamicTransformers extends TransformerPropertyNam
         // AbstractContentTransformer2
         transformer.setBeanName(property.transformerName);
         transformer.setRegisterTransformer(available);
+        transformer.setStrictMimeTypeCheck(getBoolean(globalProperties, "transformer.strict.mimetype.check"));
+        transformer.setRetryTransformOnDifferentMimeType(getBoolean(globalProperties, "content.transformer.retryOn.different.mimetype"));
+    }
+
+    private boolean getBoolean(Properties properties, String name)
+    {
+        String value = properties == null ? null : properties.getProperty(name);
+        return "true".equalsIgnoreCase(value);
     }
 
     private void error(String msg)

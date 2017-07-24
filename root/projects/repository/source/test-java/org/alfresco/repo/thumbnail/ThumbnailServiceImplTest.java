@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.thumbnail;
@@ -23,6 +30,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +46,20 @@ import org.alfresco.repo.content.transform.AbstractContentTransformerTest;
 import org.alfresco.repo.content.transform.ContentTransformer;
 import org.alfresco.repo.content.transform.magick.ImageResizeOptions;
 import org.alfresco.repo.content.transform.magick.ImageTransformationOptions;
+import org.alfresco.repo.domain.hibernate.dialect.AlfrescoOracle9Dialect;
+import org.alfresco.repo.domain.hibernate.dialect.AlfrescoSQLServerDialect;
 import org.alfresco.repo.jscript.ClasspathScriptLocation;
+import org.alfresco.repo.model.Repository;
 import org.alfresco.repo.thumbnail.script.ScriptThumbnailService;
+import org.alfresco.repo.transaction.AlfrescoTransactionSupport;
 import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
+import org.alfresco.repo.transaction.TransactionListenerAdapter;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.action.Action;
 import org.alfresco.service.cmr.action.ActionCondition;
+import org.alfresco.service.cmr.lock.LockService;
+import org.alfresco.service.cmr.lock.LockType;
 import org.alfresco.service.cmr.rendition.RenditionService;
 import org.alfresco.service.cmr.repository.ChildAssociationRef;
 import org.alfresco.service.cmr.repository.ContentData;
@@ -51,6 +67,7 @@ import org.alfresco.service.cmr.repository.ContentIOException;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentServiceTransientException;
 import org.alfresco.service.cmr.repository.ContentWriter;
+import org.alfresco.service.cmr.repository.CopyService;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.PagedSourceOptions;
@@ -59,16 +76,29 @@ import org.alfresco.service.cmr.repository.ScriptService;
 import org.alfresco.service.cmr.repository.TransformationOptions;
 import org.alfresco.service.cmr.rule.Rule;
 import org.alfresco.service.cmr.rule.RuleType;
+import org.alfresco.service.cmr.security.AccessStatus;
+import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.cmr.thumbnail.FailedThumbnailInfo;
 import org.alfresco.service.cmr.thumbnail.ThumbnailParentAssociationDetails;
 import org.alfresco.service.cmr.thumbnail.ThumbnailService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
+import org.alfresco.service.namespace.QNamePattern;
 import org.alfresco.service.namespace.RegexQNamePattern;
+import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.test_category.OwnJVMTestsCategory;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.BaseAlfrescoSpringTest;
+import org.alfresco.util.GUID;
 import org.alfresco.util.TempFileProvider;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
+import org.hibernate.dialect.DB2Dialect;
+import org.hibernate.dialect.Dialect;
 import org.junit.experimental.categories.Category;
 
 /**
@@ -80,16 +110,27 @@ import org.junit.experimental.categories.Category;
 @Category(OwnJVMTestsCategory.class)
 public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
 {
+    private static Log logger = LogFactory.getLog(ThumbnailServiceImplTest.class);
+
     private NodeService secureNodeService;
     private RenditionService renditionService;
     private ThumbnailService thumbnailService;
     private ScriptThumbnailService scriptThumbnailService;
     private ScriptService scriptService;
     private MimetypeMap mimetypeMap;
-    private RetryingTransactionHelper transactionHelper;
+    private TransactionService transactionService;
     private ServiceRegistry services;
+    private FailureHandlingOptions failureHandlingOptions;
+    private Repository repositoryHelper;
+    private PermissionService permissionService;
+    private LockService lockService;
+    private CopyService copyService;
+
     private NodeRef folder;
     private static final String TEST_FAILING_MIME_TYPE = "application/vnd.alfresco.test.transientfailure";
+    private static final String TEST_LONG_RUNNING_MIME_TYPE = "application/vnd.alfresco.test.longrunning";
+    private static final long TEST_LONG_RUNNING_TRANSFORM_TIME = 5000;
+    private static final String TEST_LONG_RUNNING_PROPERTY_VALUE = "NewValue";
 
     /**
      * Called during the transaction setup
@@ -108,7 +149,12 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         this.mimetypeMap = (MimetypeMap) this.applicationContext.getBean("mimetypeService");
         this.scriptService = (ScriptService) this.applicationContext.getBean("ScriptService");
         this.services = (ServiceRegistry) this.applicationContext.getBean("ServiceRegistry");
-        this.transactionHelper = (RetryingTransactionHelper) this.applicationContext.getBean("retryingTransactionHelper");
+        this.transactionService = (TransactionService) this.applicationContext.getBean("transactionService");
+        this.failureHandlingOptions = (FailureHandlingOptions) this.applicationContext.getBean("standardFailureOptions");
+        this.repositoryHelper = (Repository) this.applicationContext.getBean("repositoryHelper");
+        this.permissionService = (PermissionService) applicationContext.getBean("PermissionService");
+        this.lockService = (LockService) applicationContext.getBean("lockService");
+        this.copyService = (CopyService) applicationContext.getBean("CopyService");
 
         // Create a folder and some content
         Map<QName, Serializable> folderProps = new HashMap<QName, Serializable>(1);
@@ -125,7 +171,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         {
             configLocations.add(config);
         }
-        configLocations.add("classpath*:org.alfresco.repo.thumbnail.test-thumbnail-context.xml");
+        configLocations.add("classpath:org/alfresco/repo/thumbnail/test-thumbnail-context.xml");
         
         return configLocations.toArray(new String[0]);
     }
@@ -161,7 +207,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail0 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, details.getTransformationOptions(), "doclib");
         assertNotNull(thumbnail0);
-        checkRenditioned(jpgOrig, "doclib");
+        checkRenditioned(jpgOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "doclib", 1)));
         checkRendition("doclib", thumbnail0);
         outputThumbnailTempContentLocation(thumbnail0, "jpg", "doclib test");
     }
@@ -183,7 +229,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail0 = this.thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, details.getTransformationOptions(), "doclib");
         assertNotNull(thumbnail0);
-        checkRenditioned(pdfOrig, "doclib");
+        checkRenditioned(pdfOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "doclib", 1)));
         checkRendition("doclib", thumbnail0);
         outputThumbnailTempContentLocation(thumbnail0, "jpg", "doclib test");
     }
@@ -206,7 +252,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail0 = this.thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, thumbnailDefinition.getTransformationOptions(), "doclib_2");
         assertNotNull(thumbnail0);
-        checkRenditioned(pdfOrig, "doclib_2");
+        checkRenditioned(pdfOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "doclib_2", 1)));
         checkRendition("doclib_2", thumbnail0);
         
         // Check the length
@@ -241,7 +287,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions, "small");
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, "small");
+        checkRenditioned(jpgOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "small", 1)));
         checkRendition("small", thumbnail1);
         outputThumbnailTempContentLocation(thumbnail1, "jpg", "small - 64x64, marked as thumbnail");
 
@@ -256,7 +302,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         // ThumbnailDetails createOptions2 = new ThumbnailDetails();
         NodeRef thumbnail2 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions2, "small2");
-        checkRenditioned(jpgOrig, "small2");
+        checkRenditioned(jpgOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "small2", 1)));
         checkRendition("small2", thumbnail2);
         outputThumbnailTempContentLocation(thumbnail2, "jpg", "small2 - 64x64, aspect not maintained");
 
@@ -271,7 +317,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         // ThumbnailDetails createOptions3 = new ThumbnailDetails();
         NodeRef thumbnail3 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions3, "half");
-        checkRenditioned(jpgOrig, "half");
+        checkRenditioned(jpgOrig, 
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "half", 1)));
         checkRendition("half", thumbnail3);
         outputThumbnailTempContentLocation(thumbnail3, "jpg", "half - 50%x50%");
 
@@ -286,7 +333,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         // ThumbnailDetails createOptions4 = new ThumbnailDetails();
         NodeRef thumbnail4 = this.thumbnailService.createThumbnail(gifOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions4, "half2");
-        checkRenditioned(gifOrig, "half2");
+        checkRenditioned(gifOrig, Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "half2", 1)));
         checkRendition("half2", thumbnail4);
         outputThumbnailTempContentLocation(thumbnail4, "jpg", "half2 - 50%x50%, from gif");
     }
@@ -306,7 +353,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                     MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions, "small");
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, "small");
+        checkRenditioned(jpgOrig, 
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "small", 1)));
         checkRendition("small", thumbnail1);
 
         // the origional thumbnail is returned if we are attempting to create a duplicate
@@ -314,7 +362,6 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
                         imageTransformationOptions, "small");
         assertNotNull(duplicate);
         assertEquals(duplicate, thumbnail1);
- 
     }
 
     /**
@@ -322,6 +369,13 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
      */
     public void testCreateFailingThumbnail() throws Exception
     {
+        //see REPO-1528
+        if(shouldTestBeSkippedForCurrentDB())
+        {
+            return;
+        }
+        logger.debug("Starting testCreateFailingThumbnail");
+
         final NodeRef corruptNode = this.createCorruptedContent(folder);
         logger.debug("Running failing thumbnail on " + corruptNode);
         
@@ -334,7 +388,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         endTransaction();
 
         // Attempt to perform a thumbnail that we know will fail.
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
             {
                 public Void execute() throws Throwable
                 {
@@ -350,7 +404,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         
         Thread.sleep(3000); // This should be long enough for the compensating action to run.
 
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
         {
             public Void execute() throws Throwable
             {
@@ -378,7 +432,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
 
         // Run the thumbnail again. It should not run because the action condition should prevent it.
         // We can check that it does not run by ensuring the failureCount does not change.
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
                 {
                     public Void execute() throws Throwable
                     {
@@ -391,8 +445,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
                 });
         // Pause to let the async action be considered for running (but not run).
         Thread.sleep(3000);
-        
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
                 {
                     public Void execute() throws Throwable
                     {
@@ -413,7 +467,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
     /**
      * Inbound rule must not be applied on failed thumbnail
      * 
-     * @see https://issues.alfresco.com/jira/browse/MNT-10914
+     * @see MNT-10914
      */
     public void testRuleExecutionOnFailedThumbnailChild() throws Exception
     {
@@ -432,7 +486,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         setComplete();
         endTransaction();
 
-        final NodeRef corruptNode = transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<NodeRef>()
+        final NodeRef corruptNode = transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<NodeRef>()
         {
             public NodeRef execute() throws Throwable
             {
@@ -444,7 +498,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         assertFalse(secureNodeService.hasAspect(corruptNode, ContentModel.ASPECT_FAILED_THUMBNAIL_SOURCE));
 
         // Attempt to perform a thumbnail that we know will fail.
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
         {
             public Void execute() throws Throwable
             {
@@ -459,7 +513,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
 
         Thread.sleep(3000); // This should be long enough for the compensating action to run.
 
-        final NodeRef failedThumbnailNode = transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<NodeRef>()
+        final NodeRef failedThumbnailNode = transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<NodeRef>()
         {
             public NodeRef execute() throws Throwable
             {
@@ -511,7 +565,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         endTransaction();
 
         // Attempt to perform a thumbnail that we know will fail.
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
         {
             public Void execute() throws Throwable
             {
@@ -527,7 +581,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         
         Thread.sleep(3000); // This should be long enough for the compensating action to run - if it has been scheduled, which it shouldn't.
 
-        transactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
         {
             public Void execute() throws Throwable
             {
@@ -594,16 +648,333 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         assertNull("The thumbnail 'anotherone' should have been missing", result3);
     }
 
-    private void checkRenditioned(NodeRef thumbnailed, String assocName)
+    /**
+     * A simple listener which will delete the given node after the transition is completed
+     */
+    private class TestNodeDeleterListener extends TransactionListenerAdapter
     {
-        assertTrue("Renditioned aspect should have been applied", this.secureNodeService.hasAspect(thumbnailed,
-                    RenditionModel.ASPECT_RENDITIONED));
-        if (assocName != null)
+        private final NodeRef nodeRef;
+        private TestNodeDeleterListener(NodeRef nodeRef)
         {
-            List<ChildAssociationRef> assocs = this.secureNodeService.getChildAssocs(thumbnailed, RegexQNamePattern.MATCH_ALL,
-                    QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, assocName));
+            this.nodeRef = nodeRef;
+        }
+
+        @Override
+        public void afterCommit()
+        {
+            transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+            {
+                public Void execute() throws Throwable
+                {
+                    secureNodeService.deleteNode(nodeRef);
+                    return null;
+                }
+            }, false, true);
+        }
+    }
+
+    /**
+     * This is a simple log error appender. You can simply add this appender to the root logger e.g.
+     * Logger.getRootLogger().addAppender(logErrorAppender);
+     *
+     * That is useful if you need to use the log output for your tests.
+     */
+    class LogErrorAppender extends AppenderSkeleton
+    {
+
+        private final List<LoggingEvent> log = new ArrayList<LoggingEvent>();
+
+        @Override
+        public boolean requiresLayout()
+        {
+            return false;
+        }
+
+        @Override
+        protected void append(final LoggingEvent loggingEvent)
+        {
+            if(loggingEvent.getLevel() == Level.ERROR)
+            {
+                log.add(loggingEvent);
+            }
+        }
+
+        @Override
+        public void close()
+        {
+        }
+
+        public List<LoggingEvent> getLog()
+        {
+            return new ArrayList<LoggingEvent>(log);
+        }
+    }
+
+    /**
+     * See REPO-2519, MNT-17113
+     *
+     * @throws IOException
+     */
+    public void testIfNodesExistsAfterCreateThumbnail() throws IOException
+    {
+        // Add the log appender to the root logger
+        LogErrorAppender logErrorAppender = new LogErrorAppender();
+        Logger.getRootLogger().addAppender(logErrorAppender);
+
+        // create content node for thumbnail node
+        NodeRef pdfOrig = createOriginalContent(folder, MimetypeMap.MIMETYPE_PDF);
+
+        QName qname = QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "doclib");
+        ThumbnailDefinition details = thumbnailService.getThumbnailRegistry().getThumbnailDefinition(qname.getLocalName());
+
+        setComplete();
+        endTransaction();
+
+        // create thumbnail
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // Delete the content node (pdfOrig) before the afterCommit code is executed
+                TestNodeDeleterListener testNodeDeleterListener = new TestNodeDeleterListener(pdfOrig);
+                // It needs to have a higher priority as the implemented afterCommit. The priority in order are (0,1,2,3,4)
+                AlfrescoTransactionSupport.bindListener(testNodeDeleterListener, 1);
+
+                thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT, MimetypeMap.MIMETYPE_IMAGE_JPEG, details.getTransformationOptions(), "doclib");
+                return null;
+            }
+        }, false, true);
+
+        assertEquals("There should be no error anymore", 0, logErrorAppender.getLog().size());
+    }
+
+    /**
+     * See REPO-1580, MNT-17113, REPO-1644 (and related)
+     */
+    public void testLastThumbnailModificationDataContentUpdates() throws Exception
+    {
+        final NodeRef pdfOrig = createOriginalContent(this.folder, MimetypeMap.MIMETYPE_PDF);
+        QName qname = QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "doclib");
+
+        ThumbnailDefinition details = thumbnailService.getThumbnailRegistry().getThumbnailDefinition(qname.getLocalName());
+        NodeRef thumbnail = this.thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT, MimetypeMap.MIMETYPE_IMAGE_JPEG,
+                details.getTransformationOptions(), "doclib");
+        assertNotNull(thumbnail);
+
+        setComplete();
+        endTransaction();
+        
+        Thread.sleep(1000);
+
+        // Get initial value of property "Last thumbnail modification data"
+        String lastThumbnailDataV1 = ((List<String>) this.secureNodeService.getProperty(pdfOrig, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA)).get(0);
+        
+        transactionService.getRetryingTransactionHelper().doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        {
+            public Void execute() throws Throwable
+            {
+                // Update file content
+                setNewContent(pdfOrig, "quick-size-limit.", MimetypeMap.MIMETYPE_PDF);
+                return null;
+            }
+        }, false, true);
+        
+        Thread.sleep(1000);
+
+        // Get modified value of property "Last thumbnail modification data"
+        String lastThumbnailDataV2 = ((List<String>) this.secureNodeService.getProperty(pdfOrig, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA)).get(0);
+
+        // Check if property "Last thumbnail modification data" has changed
+        assertFalse("Property 'Last thumbnail modification data' has not changed", lastThumbnailDataV1.equals(lastThumbnailDataV2));
+    }
+
+    /**
+     * See REPO-2257, MNT-17661
+     */
+    public void testLastThumbnailModificationDataContentCopy() throws Exception
+    {
+        final NodeRef pdfOrig = createOriginalContent(this.folder, MimetypeMap.MIMETYPE_PDF);
+        QName qname = QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "doclib");
+
+        ThumbnailDefinition details = thumbnailService.getThumbnailRegistry().getThumbnailDefinition(qname.getLocalName());
+        NodeRef thumbnail = this.thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT, MimetypeMap.MIMETYPE_IMAGE_JPEG,
+                details.getTransformationOptions(), "doclib");
+        assertNotNull(thumbnail);
+
+        setComplete();
+        endTransaction();
+
+        Thread.sleep(1000);
+
+        // Get initial value of property "Last thumbnail modification data"
+        List<String>lastThumbnailData = (List<String>)this.secureNodeService.getProperty(pdfOrig, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA);
+        assertNotNull(lastThumbnailData);
+        assertEquals(1, lastThumbnailData.size());
+        assertTrue(lastThumbnailData.get(0).contains("doclib:"));
+
+        final NodeRef pdfCopy = copyService.copy(pdfOrig, this.folder, ContentModel.ASSOC_CONTAINS, QName.createQName("copyOfOriginal"));
+        List<String> lastThumbnailDataCopy = (List<String>)this.secureNodeService.getProperty(pdfCopy, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA);
+        assertNull(lastThumbnailDataCopy);
+    }
+
+    /**
+     * See REPO-1580, MNT-17113 (and related)
+     */
+    public void testLockedContent() throws Exception
+    {
+        NodeRef sharedHomeNodeRef = repositoryHelper.getSharedHome();
+        
+        String user1 = "bob" + GUID.generate();
+        createUser(user1);
+
+        String user2 = "fred" + GUID.generate();
+        createUser(user2);
+        
+        authenticationComponent.setCurrentUser(user1);
+        
+        NodeRef pdfOrig = createOriginalContent(sharedHomeNodeRef, "testLockedContent-"+GUID.generate(), MimetypeMap.MIMETYPE_PDF);
+        
+        lockService.lock(pdfOrig, LockType.READ_ONLY_LOCK);
+
+        setComplete();
+        endTransaction();
+        
+        startNewTransaction();
+
+        authenticationComponent.setCurrentUser(user2);
+        
+        assertEquals(AccessStatus.ALLOWED, permissionService.hasPermission(pdfOrig, PermissionService.READ));
+        assertEquals(AccessStatus.DENIED, permissionService.hasPermission(pdfOrig, PermissionService.WRITE));
+        
+        QName qname = QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "doclib");
+        
+        assertNull(thumbnailService.getThumbnailByName(pdfOrig, ContentModel.PROP_CONTENT, qname.getLocalName()));
+        assertNull(secureNodeService.getProperty(pdfOrig, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA));
+                
+        ThumbnailDefinition details = thumbnailService.getThumbnailRegistry().getThumbnailDefinition(qname.getLocalName());
+        NodeRef thumbnail = thumbnailService.createThumbnail(pdfOrig, ContentModel.PROP_CONTENT, MimetypeMap.MIMETYPE_IMAGE_JPEG,
+                details.getTransformationOptions(), "doclib");
+        assertNotNull(thumbnail);
+
+        setComplete();
+        endTransaction();
+
+        Thread.sleep(1000);
+
+        startNewTransaction();
+
+        authenticationComponent.setCurrentUser(user1);
+
+        assertNotNull(thumbnailService.getThumbnailByName(pdfOrig, ContentModel.PROP_CONTENT, qname.getLocalName()));
+        assertNotNull(secureNodeService.getProperty(pdfOrig, ContentModel.PROP_LAST_THUMBNAIL_MODIFICATION_DATA));
+        
+        // cleanup
+
+        lockService.unlock(pdfOrig, false);
+        secureNodeService.deleteNode(pdfOrig);
+
+        setComplete();
+        endTransaction();
+
+        startNewTransaction();
+    }
+
+    private void setNewContent(NodeRef noderef, String quickFileName, String mimetype) throws IOException
+    {
+        String ext = this.mimetypeMap.getExtension(mimetype);
+        File origFile = AbstractContentTransformerTest.loadNamedQuickTestFile(quickFileName + ext);
+
+        ContentWriter writer = this.contentService.getWriter(noderef, ContentModel.PROP_CONTENT, true);
+        writer.setMimetype(mimetype);
+        writer.setEncoding("UTF-8");
+        writer.putContent(origFile);
+    }
+    
+    private static class ExpectedAssoc
+    {
+        private QNamePattern assocTypeQName;
+        private String assocName;
+        private int count;
+
+        public ExpectedAssoc(QNamePattern assocTypeQName, String assocName, int count)
+        {
+            super();
+            this.assocTypeQName = assocTypeQName;
+            this.assocName = assocName;
+            this.count = count;
+        }
+
+        public QNamePattern getAssocTypeQName()
+        {
+            return assocTypeQName;
+        }
+
+        public String getAssocName()
+        {
+            return assocName;
+        }
+
+        public int getCount()
+        {
+            return count;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ExpectedAssoc [assocTypeQName=" + assocTypeQName + ", assocName=" + assocName + ", count=" + count
+                    + "]";
+        }
+    }
+
+    private static class ExpectedThumbnail
+    {
+        private String thumbnailName;
+
+        public static ExpectedThumbnail ignoredName()
+        {
+            return new ExpectedThumbnail();
+        }
+
+        public static ExpectedThumbnail withName(String thumbnailName)
+        {
+            return new ExpectedThumbnail(thumbnailName);
+        }
+
+        public ExpectedThumbnail()
+        {
+            super();
+        }
+
+        public ExpectedThumbnail(String thumbnailName)
+        {
+            super();
+            this.thumbnailName = thumbnailName;
+        }
+
+        public String getThumbnailName()
+        {
+            return thumbnailName;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ExpectedThumbnail [thumbnailName=" + thumbnailName + "]";
+        }
+    }
+
+    private void checkRenditioned(NodeRef contentNodeRef, List<ExpectedAssoc> expectedAssocs) {
+        assertTrue("Renditioned aspect should have been applied",
+                this.secureNodeService.hasAspect(contentNodeRef, RenditionModel.ASPECT_RENDITIONED));
+
+        for (ExpectedAssoc expectedAssoc : expectedAssocs) {
+            QNamePattern qNamePattern = expectedAssoc.getAssocName() != null
+                    ? QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, expectedAssoc.getAssocName()) : null;
+            List<ChildAssociationRef> assocs = this.secureNodeService.getChildAssocs(contentNodeRef,
+                    expectedAssoc.getAssocTypeQName(), qNamePattern);
             assertNotNull(assocs);
-            assertEquals(1, assocs.size());
+            assertEquals(expectedAssoc + " association count mismatch", expectedAssoc.getCount(), assocs.size());
         }
     }
 
@@ -629,6 +1000,10 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         
         // Check the thumbnail name property is correctly set on thumbnail.
         assertEquals( thumbnailName, secureNodeService.getProperty(thumbnail, ContentModel.PROP_THUMBNAIL_NAME));
+        
+        ContentData thumbnailData = (ContentData) secureNodeService.getProperty(thumbnail, ContentModel.PROP_CONTENT);
+        assertNotNull("Thumbnail data was null", thumbnailData);
+        assertTrue("Thumbnail data was empty", thumbnailData.getSize() > 0);
     }
 
     private void outputThumbnailTempContentLocation(NodeRef thumbnail, String ext, String message) throws IOException
@@ -642,7 +1017,7 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
     /**
      * This method creates a node under the specified folder whose content is
      * taken from the quick file corresponding to the specified MIME type.
-     * 
+     *
      * @param parentFolder
      * @param mimetype
      * @return
@@ -650,11 +1025,16 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
      */
     private NodeRef createOriginalContent(NodeRef parentFolder, String mimetype) throws IOException
     {
+        return createOriginalContent(parentFolder, "original", mimetype);
+    }
+
+    private NodeRef createOriginalContent(NodeRef parentFolder, String baseName, String mimetype) throws IOException
+    {
         String ext = this.mimetypeMap.getExtension(mimetype);
         File origFile = AbstractContentTransformerTest.loadQuickTestFile(ext);
 
         Map<QName, Serializable> props = new HashMap<QName, Serializable>(1);
-        props.put(ContentModel.PROP_NAME, "origional." + ext);
+        props.put(ContentModel.PROP_NAME, baseName + "." + ext);
         NodeRef node = this.secureNodeService.createNode(parentFolder, ContentModel.ASSOC_CONTAINS,
                     QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "original." + ext),
                     ContentModel.TYPE_CONTENT, props).getChildRef();
@@ -780,7 +1160,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         NodeRef thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                 MimetypeMap.MIMETYPE_IMAGE_JPEG, imageTransformationOptions, "smallJpeg");
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, "smallJpeg");
+        checkRenditioned(jpgOrig, 
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "smallJpeg", 1)));
         checkRendition("smallJpeg", thumbnail1);
         outputThumbnailTempContentLocation(thumbnail1, "jpg", "smallJpeg - 64x64, marked as thumbnail");
 
@@ -788,7 +1169,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                 MimetypeMap.MIMETYPE_IMAGE_PNG, imageTransformationOptions, "smallPng");
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, "smallPng");
+        checkRenditioned(jpgOrig,
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "smallPng", 1)));
         checkRendition("smallPng", thumbnail1);
         outputThumbnailTempContentLocation(thumbnail1, "png", "smallPng - 64x64, marked as thumbnail");
         
@@ -821,7 +1203,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                 MimetypeMap.MIMETYPE_IMAGE_PNG, imageTransformationOptions, "targetDetails", tpad);
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, "targetDetails");
+        checkRenditioned(jpgOrig, 
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "targetDetails", 1)));
         checkRendition("targetDetails", thumbnail1);
         outputThumbnailTempContentLocation(thumbnail1, "png", "targetDetails - 64x64, marked as thumbnail");
 
@@ -831,7 +1214,8 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         thumbnail1 = this.thumbnailService.createThumbnail(jpgOrig, ContentModel.PROP_CONTENT,
                 MimetypeMap.MIMETYPE_IMAGE_PNG, imageTransformationOptions, null);
         assertNotNull(thumbnail1);
-        checkRenditioned(jpgOrig, null);
+        checkRenditioned(jpgOrig, 
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, null, 5)));
         checkRendition(null, thumbnail1);
         outputThumbnailTempContentLocation(thumbnail1, "png", "'null' - 64x64, marked as thumbnail");
     }
@@ -898,6 +1282,209 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
         assertEquals(standardMediumIcon, mediumIcon);
     }
     
+    protected void performLongRunningThumbnailTest(final List<ExpectedThumbnail> expectedThumbnails,
+            final List<ExpectedAssoc> expectedAssocs, final LongRunningConcurrentWork concurrentWork,
+            final Integer retryPeriod, final Integer quietPeriod) throws Exception
+    {
+        long saveRetryPeriod = failureHandlingOptions.getRetryPeriod();
+        long saveQuietPeriod = failureHandlingOptions.getQuietPeriod();
+
+        try
+        {
+            // Reset our transformer count for each test
+            LongRunningTransformer transformer = (LongRunningTransformer) contentService
+                    .getTransformer(TEST_LONG_RUNNING_MIME_TYPE, MimetypeMap.MIMETYPE_IMAGE_JPEG);
+            transformer.setTransformCount(0);
+
+            Map<QName, Serializable> props = new HashMap<QName, Serializable>(1);
+            props.put(ContentModel.PROP_NAME, "original.test");
+            final NodeRef source = secureNodeService.createNode(folder, ContentModel.ASSOC_CONTAINS,
+                    QName.createQName(NamespaceService.CONTENT_MODEL_1_0_URI, "original.test"),
+                    ContentModel.TYPE_CONTENT, props).getChildRef();
+            ContentWriter writer = contentService.getWriter(source, ContentModel.PROP_CONTENT, true);
+            writer.setMimetype(TEST_LONG_RUNNING_MIME_TYPE);
+            writer.setEncoding("UTF-8");
+            writer.putContent("OrigContent");
+            logger.debug("Created source content: " + source);
+
+            long startTime = (new Date()).getTime();
+
+            if (retryPeriod != null) {
+                failureHandlingOptions.setRetryPeriod(retryPeriod);
+            }
+
+            if (quietPeriod != null) {
+                failureHandlingOptions.setQuietPeriod(quietPeriod);
+            }
+
+            // Create our thumbnail(s)
+            for (ExpectedThumbnail expectedThumbnail : expectedThumbnails) {
+                ThumbnailDefinition thumbnailDef = thumbnailService.getThumbnailRegistry()
+                        .getThumbnailDefinition(expectedThumbnail.getThumbnailName());
+
+                Action createThumbnailAction = ThumbnailHelper.createCreateThumbnailAction(thumbnailDef, services);
+
+                logger.debug("Creating thumbnail " + expectedThumbnail.getThumbnailName() + " for " + source);
+                actionService.executeAction(createThumbnailAction, source, true, true);
+            }
+
+            setComplete();
+            endTransaction();
+
+            // Thumbnailing process(es) are running in other threads, do the
+            // concurrent work here
+            if (concurrentWork != null) {
+                logger.debug("Starting concurrent work for " + source);
+                concurrentWork.run(source);
+            }
+
+            // Verify our concurrent work ran successfully
+            if (concurrentWork != null) {
+                logger.debug("Verifying concurrent work for " + source);
+                concurrentWork.verify(source);
+            }
+
+            final int numIterations = 20;
+
+            // Wait for thumbnail(s) to finish
+            long endTime = (new Date()).getTime();
+            for (final ExpectedThumbnail expectedThumbnail : expectedThumbnails) {
+                NodeRef thumbnail = null;
+                while ((endTime - startTime) < (TEST_LONG_RUNNING_TRANSFORM_TIME * numIterations)) {
+                    thumbnail = transactionService.getRetryingTransactionHelper()
+                            .doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<NodeRef>() {
+                                public NodeRef execute() throws Throwable {
+                                    return thumbnailService.getThumbnailByName(source, ContentModel.PROP_CONTENT,
+                                            expectedThumbnail.getThumbnailName());
+                                }
+                            }, false, true);
+                    if (thumbnail == null) {
+                        Thread.sleep(200);
+                        logger.debug("Elapsed " + (endTime - startTime) + " ms of "
+                                + TEST_LONG_RUNNING_TRANSFORM_TIME * numIterations + " ms waiting for "
+                                + expectedThumbnail.getThumbnailName());
+                        endTime = (new Date()).getTime();
+                    } else {
+                        break;
+                    }
+                }
+                assertNotNull("The thumbnail " + expectedThumbnail.getThumbnailName() + " was not generated in time.",
+                        thumbnail);
+            }
+
+            transactionService.getRetryingTransactionHelper()
+                    .doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>() {
+                        public Void execute() throws Throwable {
+                            // Verify that the thumbnail(s) was/were created
+                            for (final ExpectedThumbnail expectedThumbnail : expectedThumbnails) {
+                                String thumbnailName = expectedThumbnail.getThumbnailName();
+                                NodeRef thumbnailNodeRef = thumbnailService.getThumbnailByName(source,
+                                        ContentModel.PROP_CONTENT, thumbnailName);
+                                checkRendition(thumbnailName, thumbnailNodeRef);
+                            }
+
+                            // verify associations
+                            checkRenditioned(source, expectedAssocs);
+
+                            return null;
+	            };
+	        });
+        }
+        finally
+        {
+        	failureHandlingOptions.setRetryPeriod(saveRetryPeriod);
+        	failureHandlingOptions.setQuietPeriod(saveQuietPeriod);
+        }
+    }
+    
+    /**
+     * Verifies that our long-running test setup passes with simple behavior of
+     * a single thumbnail requested with no other concurrent work.
+     * 
+     * @throws Exception
+     */
+    public void testLongRunningThumbnails() throws Exception
+    {
+        logger.debug("Starting testLongRunningThumbnails");
+        performLongRunningThumbnailTest(
+        		Collections.singletonList(ExpectedThumbnail.withName("imgpreview")),
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "imgpreview", 1)),
+        		new EmptyLongRunningConcurrentWork(), 60, null);
+    }
+    
+    /**
+     * Verifies that a property can be updated on the source node during 
+     * a long-running thumbnailing process without affecting the thumbnailing or 
+     * property update.
+     * 
+     * @throws Exception
+     * @see <a href="https://issues.alfresco.com/jira/browse/MNT-15135">MNT-15135</a>
+     */
+    public void testUpdatePropertyDuringLongRunningThumbnail() throws Exception
+    {
+        //see REPO-1528
+        if(shouldTestBeSkippedForCurrentDB())
+        {
+            return;
+        }
+        logger.debug("Starting testUpdatePropertyDuringLongRunningThumbnail");
+        LongRunningConcurrentWork updatePropertyWork = new LongRunningConcurrentWork()
+        {
+            @Override
+            public void run(NodeRef source) throws Exception
+            {
+                Thread.sleep(500);  // Wait for transform(s) to get started
+                logger.debug("Updating description of a node: " + source);
+                secureNodeService.setProperty(source, 
+                        ContentModel.PROP_DESCRIPTION, TEST_LONG_RUNNING_PROPERTY_VALUE);
+            }
+            
+            @Override
+            public void verify(NodeRef source) throws Exception
+            {
+                String description = (String) secureNodeService.getProperty(
+                        source, ContentModel.PROP_DESCRIPTION);
+                assertEquals("The node's property was not updated.", TEST_LONG_RUNNING_PROPERTY_VALUE, description);
+            }
+        };
+
+        performLongRunningThumbnailTest(
+        		Collections.singletonList(ExpectedThumbnail.withName("imgpreview")),
+        		Collections.singletonList(new ExpectedAssoc(RegexQNamePattern.MATCH_ALL, "imgpreview", 1)),
+        		updatePropertyWork, 1, null);
+    }
+    
+    /**
+     * Verifies that multiple thumbnails can be successfully created.
+     * 
+     * Note: the current architecture of the thumbnail and rendition services can't guarantee that there
+     * won't be failed thumbnails for the scenario covered by this test. In particular, given long-running
+     * thumbnails/renditions, the concurrent creation of more than one thumbnail may fail with a primary key constraint 
+     * exception because both transactions try to add the same aspect to the same parent content node. Whilst
+     * the retrying transaction handler correctly handles this scenario, the {@link org.alfresco.service.cmr.action.ActionService} 
+     * incorrectly generates a compensating action (failed thumbnail) when in fact the thumbnail creation is recoverable.
+     * 
+     * @throws Exception
+     */
+    public void testCreateMultipleLongRunningThumbnails() throws Exception
+    {
+        logger.debug("Starting testCreateMultipleLongRunningThumbnails");
+
+        // MNT-15135 note: at least one of the thumbnails will fail due to a deadlock/primary key constraint exception.
+        // This is expected, given the current structure of the thumbnail/rendition/action code and can't be avoided
+        // without major refactoring in the way renditions and thumbnails are architected.
+        List<ExpectedThumbnail> expectedThumbnails = new ArrayList<>(2);
+        expectedThumbnails.add(ExpectedThumbnail.withName("imgpreview"));
+        expectedThumbnails.add(ExpectedThumbnail.withName("avatar"));
+
+        List<ExpectedAssoc> expectedAssocs = new ArrayList<>(5);
+        expectedAssocs.add(new ExpectedAssoc(RenditionModel.ASSOC_RENDITION, "imgpreview", 1));
+        expectedAssocs.add(new ExpectedAssoc(RenditionModel.ASSOC_RENDITION, "avatar", 1));
+//        expectedAssocs.add(new ExpectedAssoc(ContentModel.ASSOC_FAILED_THUMBNAIL, null, 1));
+
+        performLongRunningThumbnailTest(expectedThumbnails, expectedAssocs, new EmptyLongRunningConcurrentWork(), 1, 1);
+    }
+    
     /**
      * Test transformer.
      * 
@@ -915,5 +1502,78 @@ public class ThumbnailServiceImplTest extends BaseAlfrescoSpringTest
             // fail every time.
             throw new ContentServiceTransientException("Transformation intentionally failed for test purposes.");
         }
+    }
+    
+    /**
+     * Bogus transformer that simulates a somewhat longer running transformation
+     */
+    private static class LongRunningTransformer extends AbstractContentTransformer2
+    {
+        private int transformCount = 0;
+
+        @Override
+        public void register()
+        {
+            super.register();
+            setStrictMimeTypeCheck(false);
+        }
+
+        public void setTransformCount(int transformCount)
+        {
+            this.transformCount = transformCount;
+        }
+
+        public int getTransformCount()
+        {
+            return transformCount;
+        }
+        
+        @Override
+        public boolean isTransformable(String sourceMimetype, String targetMimetype, TransformationOptions options)
+        {
+            return sourceMimetype.equals(TEST_LONG_RUNNING_MIME_TYPE) && 
+                    (targetMimetype.equals(MimetypeMap.MIMETYPE_IMAGE_JPEG) ||
+                            targetMimetype.equals(MimetypeMap.MIMETYPE_IMAGE_PNG));
+        }
+
+        @Override
+        protected void transformInternal(ContentReader reader, ContentWriter writer, TransformationOptions options)
+                throws Exception
+        {
+            Thread.sleep(TEST_LONG_RUNNING_TRANSFORM_TIME);
+            writer.putContent("SUCCESS");
+            transformCount++;
+        }
+    }
+    
+    /**
+     * Defines the work to be done while long running transformations are being performed
+     * and the means to verify that work completed successfully.
+     * <p>
+     * Implementations might update a property then verify the updated value for example.
+     */
+    private interface LongRunningConcurrentWork
+    {
+        public void run(NodeRef source) throws Exception;
+        public void verify(NodeRef source) throws Exception;
+    }
+    
+    /**
+     * Implementation of LongRunningConcurrentWork that does nothing
+     */
+    private class EmptyLongRunningConcurrentWork implements LongRunningConcurrentWork
+    {
+        @Override
+        public void run(NodeRef source) throws Exception { }
+        @Override
+        public void verify(NodeRef source) throws Exception { }
+    }
+
+    private boolean shouldTestBeSkippedForCurrentDB()
+    {
+        Dialect dialect = (Dialect) applicationContext.getBean("dialect");
+        return dialect instanceof AlfrescoOracle9Dialect 
+                || dialect instanceof AlfrescoSQLServerDialect 
+                || dialect instanceof DB2Dialect;
     }
 }

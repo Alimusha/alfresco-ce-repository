@@ -1,33 +1,32 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.bulkimport;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,23 +40,23 @@ import java.util.Map;
  */
 public class AnalysedDirectory
 {
-    private List<File> originalListing = null;
-    private Map<File, ImportableItem> importableItems = null;
-    private Map<File, ImportableItem> importableDirectories = null;
+    private List<Path> originalPaths = null;
+    private Map<Path, ImportableItem> importableItems = null;
+    private Map<Path, ImportableItem> importableDirectories = null;
 
-    public AnalysedDirectory(File[] files)
+    public AnalysedDirectory(List<Path> paths)
     {
-        originalListing = Arrays.asList(files);
+        originalPaths = paths;
         // Sort the files/directories so that the *.metadata.properties.xml found later, see ALF-17965 for details.
-        Collections.sort(originalListing);
-        importableItems = new HashMap<File, ImportableItem>();
-        importableDirectories = new HashMap<File, ImportableItem>();    	
+        Collections.sort(originalPaths);
+        importableItems = new HashMap<Path, ImportableItem>();
+        importableDirectories = new HashMap<Path, ImportableItem>();            
     }
     
-    public List<File> getOriginalListing()
-	{
-		return originalListing;
-	}
+    public List<Path> getOriginalPaths()
+    {
+        return originalPaths;
+    }
     
 	public Collection<ImportableItem> getImportableItems()
 	{
@@ -82,7 +81,7 @@ public class AnalysedDirectory
         }
     }
 
-    public ImportableItem findImportableItem(File contentFile)
+    public ImportableItem findImportableItem(Path contentFile)
     {
     	ImportableItem result = null;
     	result = importableItems.get(contentFile);

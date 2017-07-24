@@ -1,41 +1,29 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.bulkimport.impl;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.transaction.NotSupportedException;
-import javax.transaction.SystemException;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.action.evaluator.NoConditionEvaluator;
@@ -53,13 +41,37 @@ import org.alfresco.service.cmr.rule.Rule;
 import org.alfresco.service.cmr.rule.RuleType;
 import org.alfresco.service.cmr.version.Version;
 import org.alfresco.service.cmr.version.VersionHistory;
-import org.alfresco.test_category.BaseSpringTestsCategory;
 import org.alfresco.test_category.OwnJVMTestsCategory;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.springframework.util.ResourceUtils;
+
+import javax.transaction.HeuristicMixedException;
+import javax.transaction.HeuristicRollbackException;
+import javax.transaction.NotSupportedException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.nio.charset.Charset;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @since 4.0
@@ -263,7 +275,7 @@ public class BulkImportTest extends AbstractBulkImportTests
 
         System.out.println(bulkImporter.getStatus());
 
-        assertEquals("", 74, bulkImporter.getStatus().getNumberOfContentNodesCreated());
+        assertEquals(74, bulkImporter.getStatus().getNumberOfContentNodesCreated());
 
         checkFiles(folderNode, null, 2, 9, new ExpectedFile[] {
                 new ExpectedFile("quickImg1.xls", MimetypeMap.MIMETYPE_EXCEL),
@@ -605,6 +617,104 @@ public class BulkImportTest extends AbstractBulkImportTests
         assertNotNull(contentReader);
         assertEquals("This is version 1 of fileWithVersions.txt.", contentReader.getContentString());
 
+    }
+    
+    /**
+     * MNT-15367: Unable to bulk import filenames with Portuguese characters in a Linux environment
+     *
+     * @throws Throwable
+     */
+    @Test
+    public void testImportFilesWithSpecialCharacters() throws Throwable
+    {
+        NodeRef folderNode = topLevelFolder.getNodeRef();
+        NodeImporter nodeImporter = null;
+
+        File source = ResourceUtils.getFile("classpath:bulkimport4");
+        //Simulate the name of the file with an invalid encoding.
+        String fileName = new String("135 CarbonÔÇô13 NMR spectroscopy_DS_NS_final_cau.txt".getBytes(Charset.forName("ISO-8859-1")), 
+                                      Charset.forName("UTF-8"));
+        Path dest = source.toPath().resolve("encoding");
+        try
+        {
+            dest = Files.createDirectory(dest);
+        }
+        catch (FileAlreadyExistsException ex)
+        {
+            //It is fine if the folder already exists, though it should not.
+        }
+        Path destFile = dest.resolve(fileName);
+
+        unpack(source.toPath(), destFile);
+        
+        txn = transactionService.getUserTransaction();
+        txn.begin();
+
+        nodeImporter = streamingNodeImporterFactory.getNodeImporter(ResourceUtils.getFile("classpath:bulkimport4/encoding"));
+
+        BulkImportParameters bulkImportParameters = new BulkImportParameters();
+        bulkImportParameters.setTarget(folderNode);
+        bulkImportParameters.setReplaceExisting(true);
+        bulkImportParameters.setDisableRulesService(true);
+        bulkImportParameters.setBatchSize(40);
+        bulkImporter.bulkImport(bulkImportParameters, nodeImporter);
+
+        assertEquals(1, bulkImporter.getStatus().getNumberOfContentNodesCreated());
+
+        checkFiles(folderNode, null, 0, 1, 
+                   new ExpectedFile[] { new ExpectedFile(fileName, MimetypeMap.MIMETYPE_TEXT_PLAIN)}, 
+                   null);
+
+         Files.deleteIfExists(destFile);
+         Files.deleteIfExists(dest);
+    }
+
+    /**
+     * Simplifies calling {@ResourceUtils.getFile} so that a {@link RuntimeException}
+     * is thrown rather than a checked {@link FileNotFoundException} exception.
+     *
+     * @param resourceName e.g. "classpath:folder/file"
+     * @return File object
+     */
+    private File resourceAsFile(String resourceName)
+    {
+        try
+        {
+            return ResourceUtils.getFile(resourceName);
+        }
+        catch (FileNotFoundException e)
+        {
+            throw new RuntimeException("Resource "+resourceName+" not found", e);
+        }
+    }
+
+    @Test
+    public void canVersionDocsWithoutSpecialInputFileNameExtension()
+            throws HeuristicMixedException, IOException, SystemException,
+            HeuristicRollbackException, NotSupportedException, RollbackException
+    {
+        testCanVersionDocsWithoutSpecialInputFileNameExtension(file ->
+            streamingNodeImporterFactory.getNodeImporter(resourceAsFile("classpath:bulkimport-autoversion/"+file)));
+    }
+
+    private void unpack(Path source, Path destFile)
+    {
+        Path archive = source.resolve("testbulk.gz");
+            
+        try (GZIPInputStream gzis = new GZIPInputStream(Files.newInputStream(archive));
+             OutputStream out = Files.newOutputStream(destFile, StandardOpenOption.CREATE))
+        {
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = gzis.read(buffer)) > 0) 
+            {
+                out.write(buffer, 0, len);
+            }
+        }
+        catch (IOException ex)
+        {
+            ex.printStackTrace();   
+        }
     }
 
 }

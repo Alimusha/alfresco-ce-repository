@@ -1,38 +1,59 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.opencmis;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
+import javax.servlet.Filter;
+import javax.servlet.FilterRegistration;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRegistration;
+import javax.servlet.SessionCookieConfig;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletResponse;
 
@@ -68,6 +89,8 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 	protected String version;
 	protected CmisVersion cmisVersion;
 	protected TenantAdminService tenantAdminService;
+
+    private Set<String> nonAttachContentTypes = Collections.emptySet(); // pre-configured whitelist, eg. images & pdf
 
 	public void setTenantAdminService(TenantAdminService tenantAdminService)
 	{
@@ -112,6 +135,11 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 	public void setCmisVersion(String cmisVersion)
     {
         this.cmisVersion = CmisVersion.fromValue(cmisVersion);
+    }
+
+    public void setNonAttachContentTypes(Set<String> nonAttachWhiteList)
+    {
+        this.nonAttachContentTypes = nonAttachWhiteList;
     }
 
     protected synchronized Descriptor getCurrentDescriptor()
@@ -176,16 +204,22 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
     	return httpReqWrapper;
 	}
 
+	protected CMISHttpServletResponse getHttpResponse(WebScriptResponse res)
+	{
+		CMISHttpServletResponse httpResWrapper = new CMISHttpServletResponse(res, nonAttachContentTypes);
+
+		return httpResWrapper;
+	}
+
 	public void execute(WebScriptRequest req, WebScriptResponse res) throws IOException
 	{
 		try
 		{
-	        HttpServletResponse httpResp = WebScriptServletRuntime.getHttpServletResponse(res);
-
-			// fake a servlet request.
+			// wrap request & response
+			CMISHttpServletResponse httpResWrapper = getHttpResponse(res);
 	    	CMISHttpServletRequest httpReqWrapper = getHttpRequest(req);
 
-	    	servlet.service(httpReqWrapper, httpResp);
+	    	servlet.service(httpReqWrapper, httpResWrapper);
 		}
 		catch(ServletException e)
 		{
@@ -216,7 +250,7 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 		{
 			if(arg0.equals(CmisAtomPubServlet.PARAM_CALL_CONTEXT_HANDLER))
 			{
-				return "org.alfresco.opencmis.PublicApiCallContextHandler";
+				return PublicApiCallContextHandler.class.getName();
 			}
 			else if(arg0.equals(CmisAtomPubServlet.PARAM_CMIS_VERSION))
 			{
@@ -292,6 +326,12 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 				}
 
 				@Override
+				public boolean setInitParameter(String name, String value)
+				{
+					return false;
+				}
+
+				@Override
 				public int getMajorVersion()
 				{
 					return 0;
@@ -305,6 +345,18 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 
 				@Override
 				public int getMinorVersion()
+				{
+					return 0;
+				}
+
+				@Override
+				public int getEffectiveMajorVersion()
+				{
+					return 0;
+				}
+
+				@Override
+				public int getEffectiveMinorVersion()
 				{
 					return 0;
 				}
@@ -361,6 +413,144 @@ public abstract class CMISServletDispatcher implements CMISDispatcher
 				public String getServletContextName()
 				{
 					return null;
+				}
+
+				@Override
+				public ServletRegistration.Dynamic addServlet(String servletName, String className)
+				{
+					return null;
+				}
+
+				@Override
+				public ServletRegistration.Dynamic addServlet(String servletName, Servlet servlet)
+				{
+					return null;
+				}
+
+				@Override
+				public ServletRegistration.Dynamic addServlet(String servletName, Class<? extends Servlet> servletClass)
+				{
+					return null;
+				}
+
+				@Override
+				public <T extends Servlet> T createServlet(Class<T> clazz) throws ServletException
+				{
+					return null;
+				}
+
+				@Override
+				public ServletRegistration getServletRegistration(String servletName)
+				{
+					return null;
+				}
+
+				@Override
+				public Map<String, ? extends ServletRegistration> getServletRegistrations()
+				{
+					return null;
+				}
+
+				@Override
+				public FilterRegistration.Dynamic addFilter(String filterName, String className)
+				{
+					return null;
+				}
+
+				@Override
+				public FilterRegistration.Dynamic addFilter(String filterName, Filter filter)
+				{
+					return null;
+				}
+
+				@Override
+				public FilterRegistration.Dynamic addFilter(String filterName, Class<? extends Filter> filterClass)
+				{
+					return null;
+				}
+
+				@Override
+				public <T extends Filter> T createFilter(Class<T> clazz) throws ServletException
+				{
+					return null;
+				}
+
+				@Override
+				public FilterRegistration getFilterRegistration(String filterName)
+				{
+					return null;
+				}
+
+				@Override
+				public Map<String, ? extends FilterRegistration> getFilterRegistrations()
+				{
+					return null;
+				}
+
+				@Override
+				public SessionCookieConfig getSessionCookieConfig()
+				{
+					return null;
+				}
+
+				@Override
+				public void setSessionTrackingModes(Set<SessionTrackingMode> sessionTrackingModes)
+				{
+
+				}
+
+				@Override
+				public Set<SessionTrackingMode> getDefaultSessionTrackingModes()
+				{
+					return null;
+				}
+
+				@Override
+				public Set<SessionTrackingMode> getEffectiveSessionTrackingModes()
+				{
+					return null;
+				}
+
+				@Override
+				public void addListener(String className)
+				{
+
+				}
+
+				@Override
+				public <T extends EventListener> void addListener(T t)
+				{
+
+				}
+
+				@Override
+				public void addListener(Class<? extends EventListener> listenerClass)
+				{
+
+				}
+
+				@Override
+				public <T extends EventListener> T createListener(Class<T> clazz) throws ServletException
+				{
+					return null;
+				}
+
+				@Override
+				public JspConfigDescriptor getJspConfigDescriptor()
+				{
+					return null;
+				}
+
+				@Override
+				public ClassLoader getClassLoader()
+				{
+					return null;
+				}
+
+				@Override
+				public void declareRoles(String... roleNames)
+				{
+
 				}
 
 				@Override

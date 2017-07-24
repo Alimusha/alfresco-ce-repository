@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.site;
 
@@ -31,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1628,6 +1634,7 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
         //
         // See ALF-7888 for some background on this issue
         this.behaviourFilter.disableBehaviour(siteNodeRef, ContentModel.ASPECT_UNDELETABLE);
+        this.behaviourFilter.disableBehaviour(ContentModel.ASPECT_LOCKABLE);
         
         NodeRef siteParent = getSiteParent(shortName);
         this.behaviourFilter.disableBehaviour(siteParent, ContentModel.ASPECT_AUDITABLE);
@@ -1639,6 +1646,7 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
         finally
         {
             this.behaviourFilter.enableBehaviour(siteNodeRef, ContentModel.ASPECT_UNDELETABLE);
+            this.behaviourFilter.enableBehaviour(ContentModel.ASPECT_LOCKABLE);
             this.behaviourFilter.enableBehaviour(siteParent, ContentModel.ASPECT_AUDITABLE);
         }
         
@@ -2253,10 +2261,11 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
         List<String> groups = getPermissionGroups(shortName, authorityName);
         for (String group : groups)
         {
-            int index = group.indexOf(shortName) + shortName.length();
+            String shortNamePattern = '_' + shortName + '_';
+            int index = group.lastIndexOf(shortNamePattern) + (shortNamePattern).length();
             if (index != -1)
             {
-                result.add(group.substring(index + 1));
+                result.add(group.substring(index));
             }
         }
         return result;
@@ -2414,9 +2423,10 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
                 }
                 else if (authorityType == AuthorityType.GROUP)
                 {
+                    String authorityDisplayName = authorityService.getAuthorityDisplayName(authorityName);
                     activityService.postActivity(
                             ActivityType.SITE_GROUP_REMOVED, shortName,
-                            ACTIVITY_TOOL, getActivityGroupData(authorityName, ""));
+                            ACTIVITY_TOOL, getActivityGroupData(authorityDisplayName, ""));
                 }
             }
             else
@@ -2513,36 +2523,41 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
 
                 }, AuthenticationUtil.SYSTEM_USER_NAME);
 
+                AuthorityType authorityType = AuthorityType.getAuthorityType(authorityName);
+                String authorityDisplayName = authorityName;
+                if (authorityType == AuthorityType.GROUP)
+                {
+                    authorityDisplayName = authorityService.getAuthorityDisplayName(authorityName);
+                }
+
                 if (currentRole == null)
                 {
-                    AuthorityType authorityType = AuthorityType.getAuthorityType(authorityName);
                     if (authorityType == AuthorityType.USER)
                     {
                         activityService.postActivity(
                                 ActivityType.SITE_USER_JOINED, shortName,
-                                ACTIVITY_TOOL, getActivityUserData(authorityName, role), authorityName);
+                                ACTIVITY_TOOL, getActivityUserData(authorityDisplayName, role), authorityName);
                     } 
                     else if (authorityType == AuthorityType.GROUP)
-                    {
+                    { 
                         activityService.postActivity(
                                 ActivityType.SITE_GROUP_ADDED, shortName,
-                                ACTIVITY_TOOL, getActivityGroupData(authorityName, role));                   
+                                ACTIVITY_TOOL, getActivityGroupData(authorityDisplayName, role));                   
                     }
-                } 
+                }
                 else
                 {
-                    AuthorityType authorityType = AuthorityType.getAuthorityType(authorityName);
                     if (authorityType == AuthorityType.USER)
                     {
                         activityService.postActivity(
                                 ActivityType.SITE_USER_ROLE_UPDATE, shortName,
-                                ACTIVITY_TOOL, getActivityUserData(authorityName, role));
+                                ACTIVITY_TOOL, getActivityUserData(authorityDisplayName, role));
                     } 
                     else if (authorityType == AuthorityType.GROUP)
                     {
                         activityService.postActivity(
                                 ActivityType.SITE_GROUP_ROLE_UPDATE, shortName,
-                                ACTIVITY_TOOL, getActivityGroupData(authorityName, role));
+                                ACTIVITY_TOOL, getActivityGroupData(authorityDisplayName, role));
                     }
                 }
             } 
@@ -2566,6 +2581,10 @@ public class SiteServiceImpl extends AbstractLifecycleBean implements SiteServic
     {
         // Check for the component id
         ParameterCheck.mandatoryString("componentId", componentId);
+
+        // use the correct container for doclib
+        // MNT-15743
+        componentId = componentId.toLowerCase().equals(DOCUMENT_LIBRARY.toLowerCase()) ? DOCUMENT_LIBRARY : componentId;
 
         // retrieve site
         NodeRef siteNodeRef = getSiteNodeRef(shortName);

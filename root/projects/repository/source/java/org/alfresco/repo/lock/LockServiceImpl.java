@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2017 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.lock;
 
@@ -313,6 +320,25 @@ public class LockServiceImpl implements LockService,
     }
     
     /**
+     * @see org.alfresco.service.cmr.lock.LockService#lock(org.alfresco.service.cmr.repository.NodeRef, org.alfresco.service.cmr.lock.LockType, int, Lifetime, boolean)
+     */
+    @Override
+    @Extend(traitAPI=LockServiceTrait.class,extensionAPI=LockServiceExtension.class)
+    public void lock(NodeRef nodeRef, LockType lockType, int timeToExpire, Lifetime lifetime, boolean lockChildren)
+    {
+        lock(nodeRef, lockType, timeToExpire, lifetime);
+
+        if (lockChildren)
+        {
+            Collection<ChildAssociationRef> childAssocRefs = this.nodeService.getChildAssocs(nodeRef);
+            for (ChildAssociationRef childAssocRef : childAssocRefs)
+            {
+                lock(childAssocRef.getChildRef(), lockType, timeToExpire, lifetime, lockChildren);
+            }
+        }
+    }
+    
+    /**
      * @see org.alfresco.service.cmr.lock.LockService#lock(org.alfresco.service.cmr.repository.NodeRef, org.alfresco.service.cmr.lock.LockType, int, Lifetime, String)
      */
     @Override
@@ -439,16 +465,7 @@ public class LockServiceImpl implements LockService,
     public void lock(NodeRef nodeRef, LockType lockType, int timeToExpire, boolean lockChildren)
             throws UnableToAquireLockException
     {
-        lock(nodeRef, lockType, timeToExpire);
-
-        if (lockChildren == true)
-        {
-            Collection<ChildAssociationRef> childAssocRefs = this.nodeService.getChildAssocs(nodeRef);
-            for (ChildAssociationRef childAssocRef : childAssocRefs)
-            {
-                lock(childAssocRef.getChildRef(), lockType, timeToExpire, lockChildren);
-            }
-        }
+        lock(nodeRef, lockType, timeToExpire, Lifetime.PERSISTENT, lockChildren);
     }
 
     /**
@@ -523,7 +540,7 @@ public class LockServiceImpl implements LockService,
                 }
                 finally
                 {
-                	behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+                    behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
                     lockableAspectInterceptor.enableForThread();
                     removeFromIgnoreSet(nodeRef);
                 }
@@ -728,7 +745,10 @@ public class LockServiceImpl implements LockService,
      */
     public void beforeDeleteNode(NodeRef nodeRef)
     {
-        checkForLock(nodeRef);
+        if (! nodeService.hasAspect(nodeRef, ContentModel.ASPECT_CHECKED_OUT))
+        {
+            checkForLock(nodeRef);
+        }
     }
 
     /**
@@ -811,6 +831,42 @@ public class LockServiceImpl implements LockService,
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Extend(traitAPI=LockServiceTrait.class,extensionAPI=LockServiceExtension.class)
+    public boolean isLocked(NodeRef nodeRef)
+    {
+        LockStatus lockStatus = getLockStatus(nodeRef);
+        switch (lockStatus)
+        {
+            case LOCKED:
+            case LOCK_OWNER:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Extend(traitAPI=LockServiceTrait.class,extensionAPI=LockServiceExtension.class)
+    public boolean isLockedAndReadOnly(NodeRef nodeRef)
+    {
+        LockStatus lockStatus = getLockStatus(nodeRef);
+        switch (lockStatus)
+        {
+            case NO_LOCK:
+            case LOCK_EXPIRED:
+                return false;
+            case LOCK_OWNER:
+                return getLockType(nodeRef) != LockType.WRITE_LOCK;
+            default:
+                return true;
+        }
+    }
+
+    /**
      * @deprecated Uses search and does not report on ephemeral locks.
      */
     @Deprecated
@@ -863,6 +919,18 @@ public class LockServiceImpl implements LockService,
         nodeRef = tenantService.getName(nodeRef);
         LockState lockState = lockStore.get(nodeRef);
         
+        if (lockState != null)
+        {
+            String lockOwner = lockState.getOwner();
+            Date expiryDate = lockState.getExpires();
+            LockStatus status = LockUtils.lockStatus(lockOwner, lockOwner, expiryDate);
+            // in-memory ephemeral lock which is expired is irrelevant
+            if (status.equals(LockStatus.LOCK_EXPIRED))
+            {
+                lockState = null;
+            }
+        }
+
         //ALF-20361: It is possible that a rollback has resulted in a "non-lock" lock state being added to 
         //the lock store. Because of that, we check both whether the retrieved lockState is null and, if it isn't, 
         //whether it represents a real lock

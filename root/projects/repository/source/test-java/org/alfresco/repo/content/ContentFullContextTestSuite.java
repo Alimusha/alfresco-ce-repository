@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2016 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content;
 
@@ -27,8 +34,6 @@ import org.alfresco.repo.content.filestore.FileContentStoreTest;
 import org.alfresco.repo.content.filestore.NoRandomAccessFileContentStoreTest;
 import org.alfresco.repo.content.filestore.ReadOnlyFileContentStoreTest;
 import org.alfresco.repo.content.filestore.SpoofedTextContentReaderTest;
-import org.alfresco.repo.content.replication.ContentStoreReplicatorTest;
-import org.alfresco.repo.content.replication.ReplicatingContentStoreTest;
 
 /**
  * Suite for content-related tests.
@@ -52,8 +57,6 @@ public class ContentFullContextTestSuite extends TestSuite
         suite.addTest(new JUnit4TestAdapter(FileContentStoreTest.class));
         suite.addTest(new JUnit4TestAdapter(NoRandomAccessFileContentStoreTest.class));
         suite.addTest(new JUnit4TestAdapter(ReadOnlyFileContentStoreTest.class));
-        suite.addTestSuite(ContentStoreReplicatorTest.class);
-        suite.addTest(new JUnit4TestAdapter(ReplicatingContentStoreTest.class));
         suite.addTestSuite(ContentDataTest.class);
         //suite.addTestSuite(MimetypeMapTest.class);
         suite.addTestSuite(RoutingContentServiceTest.class);

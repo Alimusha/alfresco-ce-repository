@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.opencmis;
 
@@ -23,17 +30,26 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.servlet.http.Part;
 
 import org.alfresco.opencmis.CMISDispatcherRegistry.Binding;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
@@ -215,7 +231,7 @@ public class CMISHttpServletRequest implements HttpServletRequest
 	{
 		return httpReq.getLocalPort();
 	}
-
+	
 	@Override
 	public Locale getLocale()
 	{
@@ -457,23 +473,19 @@ public class CMISHttpServletRequest implements HttpServletRequest
 
         if(networkId != null && networkId.length() > 0)
         {
-            if (reqQueryString == null)
+            if (reqQueryString != null)
             {
-                queryString.append("repositoryId=");
-                queryString.append(networkId);
+	            queryString.append(reqQueryString + "&");
             }
-            else
+	        queryString.append("repositoryId=" + networkId);
+            if(operation == null || operation.isEmpty())
             {
-                queryString.append(reqQueryString);
-                queryString.append("&repositoryId=");
-                queryString.append(networkId);
+            	queryString.append("&cmisselector=");
+	            queryString.append(Constants.SELECTOR_REPOSITORY_INFO);
             }
             return queryString.toString();
         }
-        else
-        {
-            return reqQueryString;
-        }
+        return reqQueryString;
 	}
 
 	@Override
@@ -543,7 +555,7 @@ public class CMISHttpServletRequest implements HttpServletRequest
 	{
 		return httpReq.isRequestedSessionIdFromURL();
 	}
-
+	
 	@Override
 	public boolean isRequestedSessionIdValid()
 	{
@@ -555,4 +567,77 @@ public class CMISHttpServletRequest implements HttpServletRequest
 	{
 		return httpReq.isUserInRole(arg0);
 	}
+
+	@Override
+	public boolean authenticate(HttpServletResponse response) throws IOException, ServletException
+	{
+		return httpReq.authenticate(response);
+	}
+
+	@Override
+	public void login(String username, String password) throws ServletException
+	{
+		httpReq.login(username, password);
+	}
+
+	@Override
+	public void logout() throws ServletException
+	{
+		httpReq.logout();
+	}
+
+	@Override
+	public Collection<Part> getParts() throws IOException, ServletException
+	{
+		return httpReq.getParts();
+	}
+
+	@Override
+	public Part getPart(String name) throws IOException, ServletException
+	{
+		return httpReq.getPart(name);
+	}
+
+	@Override
+	public ServletContext getServletContext()
+	{
+		return httpReq.getServletContext();
+	}
+
+	@Override
+	public AsyncContext startAsync() throws IllegalStateException
+	{
+		return httpReq.startAsync();
+	}
+
+	@Override
+	public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException
+	{
+		return httpReq.startAsync(servletRequest, servletResponse);
+	}
+
+	@Override
+	public boolean isAsyncStarted()
+	{
+		return httpReq.isAsyncStarted();
+	}
+
+	@Override
+	public boolean isAsyncSupported()
+	{
+		return httpReq.isAsyncSupported();
+	}
+
+	@Override
+	public AsyncContext getAsyncContext()
+	{
+		return httpReq.getAsyncContext();
+	}
+
+	@Override
+	public DispatcherType getDispatcherType()
+	{
+		return httpReq.getDispatcherType();
+	}
+
 }

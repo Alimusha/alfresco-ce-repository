@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.workflow;
 
@@ -298,7 +305,98 @@ public abstract class AbstractWorkflowRestApiTest extends BaseWebScriptTest
        JSONArray resultArray = json.getJSONArray("data");
        assertEquals(0, resultArray.length());
     }
-    
+
+    public void testTaskInstancesGetWithFiltering() throws Exception
+    {
+        // Check USER2 starts with no tasks.
+        personManager.setUser(USER2);
+        Response response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2)), 200);
+        getJsonArray(response, 0);
+
+        // Start workflow as USER1 and assign the task to GROUP.
+        personManager.setUser(USER1);
+        WorkflowDefinition wfDefinition = workflowService.getDefinitionByName(getReviewPooledWorkflowDefinitionName());
+        Map<QName, Serializable> params = new HashMap<>(3);
+        params.put(WorkflowModel.ASSOC_GROUP_ASSIGNEE, groupManager.get(GROUP));
+        params.put(WorkflowModel.ASSOC_PACKAGE, packageRef);
+        params.put(WorkflowModel.PROP_WORKFLOW_DESCRIPTION, "descTest1");
+
+        WorkflowPath wfPath = workflowService.startWorkflow(wfDefinition.getId(), params);
+        String workflowId = wfPath.getInstance().getId();
+        workflows.add(workflowId);
+
+        WorkflowTask startTask = workflowService.getStartTask(workflowId);
+        workflowService.endTask(startTask.getId(), null);
+
+        // Start another workflow as USER1 and assign the task to GROUP.
+        wfDefinition = workflowService.getDefinitionByName(getReviewPooledWorkflowDefinitionName());
+        params.put(WorkflowModel.ASSOC_GROUP_ASSIGNEE, groupManager.get(GROUP));
+        params.put(WorkflowModel.ASSOC_PACKAGE, workflowService.createPackage(null));
+        params.put(WorkflowModel.PROP_WORKFLOW_DESCRIPTION, "descTest2/withSlash");
+
+        wfPath = workflowService.startWorkflow(wfDefinition.getId(), params);
+        workflowId = wfPath.getInstance().getId();
+        workflows.add(workflowId);
+
+        startTask = workflowService.getStartTask(workflowId);
+        workflowService.endTask(startTask.getId(), null);
+
+        // Check USER2's tasks without filtering. It should return two tasks as USER2 is a member of the GROUP
+        personManager.setUser(USER2);
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2)), 200);
+        getJsonArray(response, 2);
+
+        //Check USER2's tasks With filtering where property bpm:description should match "descTest1"
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=bpm:description/descTest1"), 200);
+        JSONArray results = getJsonArray(response, 1);
+        JSONObject result = results.getJSONObject(0);
+        assertNotNull(result);
+        JSONObject properties = result.getJSONObject("properties");
+        assertNotNull(properties);
+        assertEquals("descTest1", properties.getString("bpm_description"));
+
+        //Check USER2's tasks With filtering where property bpm:description should match "descTest2"
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=bpm:description/descTest2/withSlash"), 200);
+        results = getJsonArray(response, 1);
+        result = results.getJSONObject(0);
+        assertNotNull(result);
+        properties = result.getJSONObject("properties");
+        assertNotNull(properties);
+        assertEquals("descTest2/withSlash", properties.getString("bpm_description"));
+
+        /*
+         * -ve tests
+         */
+        // Mismatched property value - There is no task with the description "somePropValue"
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=bpm:description/somePropValue"), 200);
+        getJsonArray(response, 0);
+
+        //Unregistered namespace prefix (ignores "property" parameter)
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=unknownPrefix:description/test"), 200);
+        getJsonArray(response, 2);
+
+        // Nonexistent property (ignores "property" parameter)
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=bpm:nonexistentProp/test"), 200);
+        getJsonArray(response, 2);
+
+        // Not well-formed parameter
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=bpm:description/"), 200);
+        getJsonArray(response, 2);
+
+        // Not well-formed parameter
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=descTest1"), 200);
+        getJsonArray(response, 2);
+
+        // Not well-formed parameter
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER2) + "&property=/descTest1"), 200);
+        getJsonArray(response, 2);
+
+        // Check USER3's tasks without filtering. It should return 0 task as USER3 is not a member of the GROUP
+        personManager.setUser(USER3);
+        response = sendRequest(new GetRequest(MessageFormat.format(URL_USER_TASKS, USER3)), 200);
+        getJsonArray(response, 0);
+    }
+
     public void testWorkflowPermissions() throws Exception
     {
         // Start workflow as USER1 and assign task to USER1.
@@ -1778,7 +1876,17 @@ public abstract class AbstractWorkflowRestApiTest extends BaseWebScriptTest
         assertEquals(maxItems, paging.getInt("maxItems"));
         assertEquals(skipCount, paging.getInt("skipCount"));
     }
-    
+
+    private JSONArray getJsonArray(Response response, int expectedLength) throws Exception
+    {
+        String jsonStr = response.getContentAsString();
+        JSONObject json = new JSONObject(jsonStr);
+        JSONArray results = json.getJSONArray("data");
+        assertNotNull(results);
+        assertEquals(expectedLength, results.length());
+        return results;
+    }
+
     protected abstract String getEngine();
     
 }

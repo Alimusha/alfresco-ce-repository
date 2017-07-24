@@ -1,33 +1,37 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.bulkimport.impl;
 
-import java.io.File;
-import java.io.FileFilter;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -36,7 +40,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.repo.bulkimport.AnalysedDirectory;
 import org.alfresco.repo.bulkimport.DirectoryAnalyser;
 import org.alfresco.repo.bulkimport.ImportFilter;
@@ -140,21 +143,12 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
     /**
-     * @see org.alfresco.repo.bulkimport.DirectoryAnalyser#analyseDirectory(ImportableItem, FileFilter)
+     * @see org.alfresco.repo.bulkimport.DirectoryAnalyser#analyseDirectory(org.alfresco.repo.bulkimport.ImportableItem, java.nio.file.DirectoryStream.Filter)
      */
-    public AnalysedDirectory analyseDirectory(ImportableItem directory, FileFilter filter)
+    public AnalysedDirectory analyseDirectory(ImportableItem directory, DirectoryStream.Filter<Path> filter)
     {
-    	File directoryFile = directory.getHeadRevision().getContentFile();
-    	AnalysedDirectory result = null;
-
-    	if(filter == null)
-    	{
-    		result = new AnalysedDirectory(directoryFile.listFiles());
-    	}
-    	else
-    	{
-    		result = new AnalysedDirectory(directoryFile.listFiles(filter));
-    	}
+    	Path directoryFile = directory.getHeadRevision().getContentFile();
+    	AnalysedDirectory result = new AnalysedDirectory(listFiles(directoryFile, filter));
         
         if (log.isDebugEnabled())
         {
@@ -162,18 +156,18 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
         }
 
         // Build up the list of ImportableItems from the directory listing
-        for (File file : result.getOriginalListing())
+        for (Path file : result.getOriginalPaths())
         {
             // MNT-9763 bulkimport fails when there is a very large LastModified timestamp.
             String isoDate = null;
             try
             {
-                isoDate = ISO8601DateFormat.format(new Date(file.lastModified()));
+                isoDate = ISO8601DateFormat.format(new Date(Files.getLastModifiedTime(file, LinkOption.NOFOLLOW_LINKS).toMillis()));
                 ISO8601DateFormat.parse(isoDate);
             }
-            catch (PlatformRuntimeException e)
+            catch (PlatformRuntimeException | IOException e)
             {
-                log.warn("Failed to convert date " + isoDate + " to string for " + file.getName(), e);
+                log.warn("Failed to convert date " + isoDate + " to string for " + file.getFileName(), e);
                 importStatus.incrementNumberOfUnreadableEntries();
                 continue;
             }
@@ -183,11 +177,11 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
             	log.trace("Scanning file " + FileUtils.getFileName(file) + "...");
             }
             
-            if (file.canRead())
+            if (Files.isReadable(file))
             {
                 try
                 {
-                    nameChecker.evaluate(file.getName());
+                    nameChecker.evaluate(file.getFileName().toString());
                 }
                 catch (ConstraintException e)
                 {
@@ -268,6 +262,23 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
 
         return result;
     }
+    
+    private List<Path> listFiles(Path sourceDirectory, DirectoryStream.Filter<Path> filter)
+    {
+        List<Path> files = new ArrayList<Path>();
+        try (DirectoryStream<Path> paths = (filter != null) ? Files.newDirectoryStream(sourceDirectory, filter) : Files.newDirectoryStream(sourceDirectory))
+        {
+            for (Iterator<Path> it = paths.iterator(); it.hasNext();) 
+            {
+               files.add(it.next());
+            }
+        }
+        catch (IOException e)
+        {
+            log.error(e.getMessage());
+        }
+        return files;
+    }
 
     private boolean isMetadataValid(ImportableItem importableItem)
     {
@@ -314,29 +325,30 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
         return true;
     }
 
-    private boolean isVersionFile(File file)
+    private boolean isVersionFile(Path file)
     {
-        Matcher matcher = VERSION_SUFFIX_PATTERN.matcher(file.getName());
+        Matcher matcher = VERSION_SUFFIX_PATTERN.matcher(file.getFileName().toString());
 
         return matcher.matches();
     }
 
 
-    private boolean isMetadataFile(File file)
+    private boolean isMetadataFile(Path file)
     {
         boolean result = false;
         
         if (metadataLoader != null)
         {
-            result = file.getName().endsWith(MetadataLoader.METADATA_SUFFIX + metadataLoader.getMetadataFileExtension());
+            String name = file.getFileName().toString();
+            result = name.endsWith(MetadataLoader.METADATA_SUFFIX + metadataLoader.getMetadataFileExtension());
         }
         
         return(result);
     }
 
-    private void addVersionFile(ImportableItem parent, AnalysedDirectory analysedDirectory, File versionFile)
+    private void addVersionFile(ImportableItem parent, AnalysedDirectory analysedDirectory, Path versionFile)
     {
-        File parentContentFile = getParentOfVersionFile(versionFile);
+        Path parentContentFile = getParentOfVersionFile(versionFile);
         boolean isContentVersion  = false;
 
         if (isMetadataFile(parentContentFile))
@@ -364,9 +376,9 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
 
-    private void addMetadataFile(ImportableItem parent, AnalysedDirectory analysedDirectory, File metadataFile)
+    private void addMetadataFile(ImportableItem parent, AnalysedDirectory analysedDirectory, Path metadataFile)
     {
-        File parentContentfile = getParentOfMetadatafile(metadataFile);
+        Path parentContentfile = getParentOfMetadatafile(metadataFile);
 
         ImportableItem importableItem = findOrCreateImportableItem(parent, analysedDirectory, parentContentfile);
 
@@ -374,7 +386,7 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
 
-    private boolean addParentFile(ImportableItem parent, AnalysedDirectory analysedDirectory, File contentFile)
+    private boolean addParentFile(ImportableItem parent, AnalysedDirectory analysedDirectory, Path contentFile)
     {
         ImportableItem importableItem = findOrCreateImportableItem(parent, analysedDirectory, contentFile);
 
@@ -383,7 +395,7 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
         return(importableItem.getHeadRevision().getContentFileType() == FileType.DIRECTORY);
     }
 
-    private ImportableItem findOrCreateImportableItem(ImportableItem parent, AnalysedDirectory analysedDirectory, File contentFile)
+    private ImportableItem findOrCreateImportableItem(ImportableItem parent, AnalysedDirectory analysedDirectory, Path contentFile)
     {
         ImportableItem result = findImportableItem(analysedDirectory, contentFile);
 
@@ -403,7 +415,7 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
 
-    private ImportableItem findImportableItem(AnalysedDirectory analysedDirectory, File contentFile)
+    private ImportableItem findImportableItem(AnalysedDirectory analysedDirectory, Path contentFile)
     {
         ImportableItem result = null;
 
@@ -453,7 +465,7 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
 
-    private int getVersionNumber(File versionFile)
+    private int getVersionNumber(Path versionFile)
     {
         int result = -1;
 
@@ -462,7 +474,7 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
             throw new IllegalStateException(FileUtils.getFileName(versionFile) + " is not a version file.");
         }
 
-        Matcher matcher = VERSION_SUFFIX_PATTERN.matcher(versionFile.getName());
+        Matcher matcher = VERSION_SUFFIX_PATTERN.matcher(versionFile.getFileName().toString());
         String versionStr = null;
 
         if (matcher.matches())
@@ -480,36 +492,36 @@ public class DirectoryAnalyserImpl implements DirectoryAnalyser
     }
 
 
-    private File getParentOfVersionFile(File versionFile)
+    private Path getParentOfVersionFile(Path versionFile)
     {
-        File result = null;
+        Path result = null;
 
         if (!isVersionFile(versionFile))
         {
             throw new IllegalStateException(FileUtils.getFileName(versionFile) + " is not a version file.");
         }
 
-        String parentFilename = versionFile.getName().replaceFirst(VERSION_SUFFIX_REGEX, "");
+        String parentFilename = versionFile.getFileName().toString().replaceFirst(VERSION_SUFFIX_REGEX, "");
 
-        result = new File(versionFile.getParent(), parentFilename);
+        result = versionFile.getParent().resolve(parentFilename);
         
         return(result);
     }
 
 
-    private File getParentOfMetadatafile(File metadataFile)
+    private Path getParentOfMetadatafile(Path metadataFile)
     {
-        File result = null;
+        Path result = null;
 
         if (!isMetadataFile(metadataFile))
         {
             throw new IllegalStateException(FileUtils.getFileName(metadataFile) + " is not a metadata file.");
         }
 
-        String name = metadataFile.getName();
+        String name = metadataFile.getFileName().toString();
         String contentName = name.substring(0, name.length() - (MetadataLoader.METADATA_SUFFIX + metadataLoader.getMetadataFileExtension()).length());
 
-        result = new File(metadataFile.getParent(), contentName);
+        result = metadataFile.getParent().resolve(contentName);
 
         return(result);
     }

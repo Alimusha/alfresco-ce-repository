@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.invitation;
 
@@ -33,12 +40,10 @@ public interface WorkflowModelModeratedInvitation
     public static final QName WF_PROCESS_INVITATION_MODERATED = QName.createQName(NAMESPACE_URI, "invitation-moderated");
 
     // workflow definition name
-    public static final String WORKFLOW_DEFINITION_NAME = "jbpm$imwf:invitation-moderated";
     public static final String WORKFLOW_DEFINITION_NAME_ACTIVITI = "activiti$activitiInvitationModerated";
     
     // tasks
     public static final QName WF_START_TASK = QName.createQName(NAMESPACE_URI, "moderatedInvitationSubmitTask");
-    public static final QName WF_REVIEW_TASK =  QName.createQName(NAMESPACE_URI,"moderatedInvitationReviewTask");
     public static final QName WF_ACTIVITI_REVIEW_TASK =  QName.createQName(NAMESPACE_URI,"activitiModeratedInvitationReviewTask");
     
     // associations
@@ -69,4 +74,5 @@ public interface WorkflowModelModeratedInvitation
     public static final String wfVarResourceType = "imwf_resourceType";
     public static final String wfVarReviewer = "imwf_reviewer";
     public static final String wfVarReviewComments = "imwf_reviewComments";
+    public static final String bpmGroupAssignee = "bpm_groupAssignee";
 }

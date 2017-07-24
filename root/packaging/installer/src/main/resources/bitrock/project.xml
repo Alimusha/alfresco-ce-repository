@@ -36,18 +36,17 @@
         <platformOptions>
             <platform>osx</platform>
             <height>430</height>
-        </platformOptions>
-        <platformOptions>
-            <platform>linux</platform>
-            <height>430</height>
+            <width>600</width>
         </platformOptions>
         <platformOptions>
             <platform>linux-x64</platform>
             <height>430</height>
+            <width>800</width>
         </platformOptions>
         <platformOptions>
-            <platform>linux-ia64</platform>
+            <platform>windows</platform>
             <height>430</height>
+            <width>600</width>
         </platformOptions>
     </platformOptionsList>
 
@@ -192,7 +191,7 @@
         <include file="base-unix-service.xml" />
 
         <include file="imagemagick.xml"/>
-        <include file="ghostscript.xml"/>
+        <include file="alfresco-pdf-renderer.xml"/>
         <include file="alfresco-customstack-postgres-settings.xml" />
         <include file="alfresco-customstack-shortcuts.xml" />
         <include file="alfresco-customstack-validations.xml"/>
@@ -264,7 +263,7 @@
                 </substitution>
             </substitutionList>
             <ruleList>
-                <compareText text="${product_fullname}" logic="equals" value="Alfresco One Share"/>
+                <compareText text="${product_fullname}" logic="equals" value="Alfresco Content Services Share"/>
             </ruleList>
         </substitute>
 
@@ -287,14 +286,14 @@
                     <ruleList>
                         <ruleGroup>
                             <ruleList>
-                                <compareText logic="equals" text="${project.fullName}" value="Alfresco One Platform"/>
+                                <compareText logic="equals" text="${project.fullName}" value="Alfresco Content Services Platform"/>
                                 <isFalse value="${component(alfrescosolr4).selected}"/>
                             </ruleList>
                         </ruleGroup>
                         <ruleGroup>
                             <ruleList>
-                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco One Platform"/>
-                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco One Share"/>
+                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco Content Services Platform"/>
+                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco Content Services Share"/>
                                 <compareText logic="equals" text="${alfresco_edition}" value="enterprise"/>
                                 <isFalse value="${component(alfrescosolr4).selected}"/>
                                 <isFalse value="${component(alfrescosolr).selected}"/>
@@ -318,14 +317,14 @@
                     <ruleList>
                         <ruleGroup>
                             <ruleList>
-                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco One Share"/>
+                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco Content Services Share"/>
                                 <isTrue value="${component(alfrescosolr4).selected}"/>
                             </ruleList>
                         </ruleGroup>
                         <ruleGroup>
                             <ruleList>
-                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco One Platform"/>
-                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco One Share"/>
+                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco Content Services Platform"/>
+                                <compareText logic="does_not_equal" text="${project.fullName}" value="Alfresco Content Services Share"/>
                                 <isTrue value="${component(alfrescosolr).selected}"/>
                             </ruleList>
                         </ruleGroup>
@@ -344,6 +343,13 @@
             <ruleList>
                 <compareText text="${sharded_solr}" logic="equals" value="yes"/>
             </ruleList>
+        </actionGroup>
+        
+        <!-- Remove unnecessary license agreement files  -->
+        <actionGroup>
+            <actionList>
+                <deleteFile path="${installdir}/licenses/alfresco.trial.agreement*.txt"/>
+            </actionList>
         </actionGroup>
         
     </postInstallationActionList>
@@ -407,7 +413,7 @@
                 </ruleList>
             </findFile>
             <logMessage text="Tomcat log file ${windowsTomcatLogFile}" />
-            <foreach values="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20" variables="iteration" progressText="Deploying Alfresco... This can take up to five minutes.">
+            <foreach values="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20" variables="iteration" progressText="Deploying Alfresco Content Services... This can take up to five minutes.">
                 <actionList>
                 <actionGroup>
                     <actionList>
@@ -474,6 +480,10 @@
     </showInfo>
     </finalPageActionList>
     
+    <readyToInstallActionList>
+        <setInstallerVariable name="validInstallDir" value="1" />
+    </readyToInstallActionList>
+    
     <installationAbortedActionList>
         <actionGroup>
             <actionList>
@@ -489,6 +499,7 @@
                 <deleteFile path="${installdir}" />
             </actionList>
             <ruleList>
+                <compareText text="${validInstallDir}" logic="equals" value="1" />
                 <compareText text="${installation_aborted_by_user}" logic="equals" value="1" />
             </ruleList>
         </actionGroup>

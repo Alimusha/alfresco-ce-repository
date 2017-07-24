@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.domain.contentdata;
 
@@ -190,8 +197,9 @@ public abstract class AbstractContentDataDAOImpl implements ContentDataDAO
     /**
      * Internally update a URL or create a new one if it does not exist
      */
-    private void updateContentUrl(ContentUrlEntity contentUrl)
+    private boolean updateContentUrl(ContentUrlEntity contentUrl)
     {
+        int result = 0;
         if (contentUrl == null)
         {
             throw new IllegalArgumentException("Cannot look up ContentData by null ID.");
@@ -199,13 +207,14 @@ public abstract class AbstractContentDataDAOImpl implements ContentDataDAO
         Pair<Long, ContentUrlEntity> pair = contentUrlCache.getByValue(contentUrl);
         if(pair != null)
         {
-            contentUrlCache.updateValue(pair.getFirst(), contentUrl);
+            result = contentUrlCache.updateValue(pair.getFirst(), contentUrl);
         }
         else
         {
             pair = contentUrlCache.getOrCreateByValue(contentUrl);
-            contentUrlCache.updateValue(pair.getFirst(), contentUrl);
+            result = contentUrlCache.updateValue(pair.getFirst(), contentUrl);
         }
+        return result == 1 ? true : false;
     }
 
     @Override
@@ -551,24 +560,13 @@ public abstract class AbstractContentDataDAOImpl implements ContentDataDAO
     @Override
     public boolean updateContentUrlKey(String contentUrl, ContentUrlKeyEntity contentUrlKey)
     {
-        boolean success = true;
-
         ContentUrlEntity existing = getContentUrl(contentUrl);
-        if(existing != null)
+        if (existing == null)
         {
-            ContentUrlEntity entity = ContentUrlEntity.setContentUrlKey(existing, contentUrlKey);
-            updateContentUrl(entity);
+            existing = getOrCreateContentUrl(contentUrl, contentUrlKey.getUnencryptedFileSize());
         }
-        else
-        {
-            if (logger.isDebugEnabled())
-            {
-                logger.debug("No content url, not updating symmetric key");
-            }
-            success = false;
-        }
-
-        return success;
+        ContentUrlEntity entity = ContentUrlEntity.setContentUrlKey(existing, contentUrlKey);
+        return updateContentUrl(entity);
     }
 
     @Override
@@ -599,6 +597,19 @@ public abstract class AbstractContentDataDAOImpl implements ContentDataDAO
     {
         ContentUrlEntity contentUrlEntity = new ContentUrlEntity();
         contentUrlEntity.setContentUrl(contentUrl);
+        Pair<Long, ContentUrlEntity> pair = contentUrlCache.getOrCreateByValue(contentUrlEntity);
+        Long newContentUrlId = pair.getFirst();
+        contentUrlEntity.setId(newContentUrlId);
+        // Done
+        return contentUrlEntity;
+    }
+
+    @Override
+    public ContentUrlEntity getOrCreateContentUrl(String contentUrl, long size)
+    {
+        ContentUrlEntity contentUrlEntity = new ContentUrlEntity();
+        contentUrlEntity.setContentUrl(contentUrl);
+        contentUrlEntity.setSize(size);
         Pair<Long, ContentUrlEntity> pair = contentUrlCache.getOrCreateByValue(contentUrlEntity);
         Long newContentUrlId = pair.getFirst();
         contentUrlEntity.setId(newContentUrlId);
@@ -638,7 +649,7 @@ public abstract class AbstractContentDataDAOImpl implements ContentDataDAO
     protected abstract int updateContentUrlOrphanTime(Long id, Long orphanTime, Long oldOrphanTime);
     
     /**
-     * Create the row for the <b>alf_content_data<b>
+     * Create the row for the <b>alf_content_data</b>
      */
     protected abstract ContentDataEntity createContentDataEntity(
             Long contentUrlId,

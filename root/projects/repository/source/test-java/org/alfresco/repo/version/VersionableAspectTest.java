@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.version;
 
@@ -235,9 +242,9 @@ public class VersionableAspectTest extends TestCase
                 lockService.lock(document, LockType.WRITE_LOCK);
 
                 LockStatus lockStatus = lockService.getLockStatus(document);
-                assertFalse(
-                        ("Node with NodeRef = '" + document.toString() + "' must not be locked for " + AuthenticationUtil.getFullyAuthenticatedUser() + " user! The user is lock owner"),
-                        isLocked(document));
+                assertTrue(
+                        ("Node with NodeRef = '" + document.toString() + "' should be locked for " + AuthenticationUtil.getFullyAuthenticatedUser() + " user! The user is lock owner"),
+                        lockService.isLocked(document));
                 assertEquals(LockStatus.LOCK_OWNER, lockService.getLockStatus(document));
 
                 nodeService.setProperty(document, ContentModel.PROP_NAME, name);
@@ -249,14 +256,6 @@ public class VersionableAspectTest extends TestCase
         assertDocumentVersionAndName("0.2", name);
     }
     
-    // Copy of code from VersionableAspect which really should be in LockService
-    private boolean isLocked(NodeRef nodeRef)
-    {
-        LockStatus lockStatus = lockService.getLockStatus(nodeRef);
-
-        return (LockStatus.NO_LOCK != lockStatus) && (LockStatus.LOCK_OWNER != lockStatus);
-    }
-
     private void assertDocumentVersionAndName(final String versionLabel, final String name)
     {
         assertDocumentVersionAndName(versionLabel, name, null);

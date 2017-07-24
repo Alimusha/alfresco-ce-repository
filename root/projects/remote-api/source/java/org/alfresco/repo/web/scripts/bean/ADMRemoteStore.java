@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.bean;
 
@@ -31,9 +38,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
@@ -56,6 +65,7 @@ import org.alfresco.repo.policy.BehaviourFilter;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.security.authentication.AuthenticationUtil.RunAsWork;
 import org.alfresco.repo.security.permissions.AccessDeniedException;
+import org.alfresco.repo.site.SiteModel;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.model.FileFolderUtil;
@@ -68,6 +78,8 @@ import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
+import org.alfresco.service.cmr.security.OwnableService;
+import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.cmr.site.SiteInfo;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.namespace.NamespaceService;
@@ -124,6 +136,8 @@ public class ADMRemoteStore extends BaseRemoteStore
     protected SiteService siteService;
     protected ContentService contentService;
     protected HiddenAspect hiddenAspect;
+    protected PermissionService permissionService;
+    protected OwnableService ownableService;
     private BehaviourFilter behaviourFilter;
     
     /**
@@ -190,7 +204,17 @@ public class ADMRemoteStore extends BaseRemoteStore
     {
         this.behaviourFilter = behaviourFilter;
     }
-    
+
+    public void setPermissionService(PermissionService permissionService)
+    {
+        this.permissionService = permissionService;
+    }
+
+    public void setOwnableService(OwnableService ownableService)
+    {
+        this.ownableService = ownableService;
+    }
+
     /**
      * Gets the last modified timestamp for the document.
      * <p>
@@ -477,11 +501,14 @@ public class ADMRemoteStore extends BaseRemoteStore
                         {
                             FileInfo fileInfo = fileFolderService.create(
                                     parentFolderRef, name, ContentModel.TYPE_CONTENT);
+                            final NodeRef nodeRef = fileInfo.getNodeRef();
+                            // MNT-16371: Revoke ownership privileges for surf-config folder contents, to tighten access for former SiteManagers.
+                            ownableService.setOwner(nodeRef, AuthenticationUtil.getAdminUserName());
+
                             Map<QName, Serializable> aspectProperties = new HashMap<QName, Serializable>(1, 1.0f);
                             aspectProperties.put(ContentModel.PROP_IS_INDEXED, false);
-                            unprotNodeService.addAspect(fileInfo.getNodeRef(), ContentModel.ASPECT_INDEX_CONTROL, aspectProperties);
-                            ContentWriter writer = contentService.getWriter(
-                                    fileInfo.getNodeRef(), ContentModel.PROP_CONTENT, true);
+                            unprotNodeService.addAspect(nodeRef, ContentModel.ASPECT_INDEX_CONTROL, aspectProperties);
+                            ContentWriter writer = contentService.getWriter(nodeRef, ContentModel.PROP_CONTENT, true);
                             writer.guessMimetype(fileInfo.getName());
                             writer.putContent(content);
                             if (logger.isDebugEnabled())
@@ -599,32 +626,42 @@ public class ADMRemoteStore extends BaseRemoteStore
             return;
         }
         
-        try
+        final String runAsUser = getPathRunAsUser(path);
+        AuthenticationUtil.runAs(new RunAsWork<Void>()
         {
-            final NodeRef fileRef = fileInfo.getNodeRef();
-            this.nodeService.addAspect(fileRef, ContentModel.ASPECT_TEMPORARY, null);
-            
-            // ALF-17729
-            NodeRef parentFolderRef = unprotNodeService.getPrimaryParent(fileRef).getParentRef();
-            behaviourFilter.disableBehaviour(parentFolderRef, ContentModel.ASPECT_AUDITABLE);
-            
-            try
+            @SuppressWarnings("synthetic-access")
+            public Void doWork() throws Exception
             {
-                this.nodeService.deleteNode(fileRef);
+                try
+                {
+                    final NodeRef fileRef = fileInfo.getNodeRef();
+                    // MNT-16371: Revoke ownership privileges for surf-config folder contents, to tighten access for former SiteManagers.
+                    nodeService.addAspect(fileRef, ContentModel.ASPECT_TEMPORARY, null);
+
+                    // ALF-17729
+                    NodeRef parentFolderRef = unprotNodeService.getPrimaryParent(fileRef).getParentRef();
+                    behaviourFilter.disableBehaviour(parentFolderRef, ContentModel.ASPECT_AUDITABLE);
+
+                    try
+                    {
+                        nodeService.deleteNode(fileRef);
+                    }
+                    finally
+                    {
+                        behaviourFilter.enableBehaviour(parentFolderRef, ContentModel.ASPECT_AUDITABLE);
+                    }
+
+                    if (logger.isDebugEnabled())
+                        logger.debug("deleteDocument: " + fileInfo.toString());
+                }
+                catch (AccessDeniedException ae)
+                {
+                    res.setStatus(Status.STATUS_UNAUTHORIZED);
+                    throw ae;
+                }
+                return null;
             }
-            finally
-            {
-                behaviourFilter.enableBehaviour(parentFolderRef, ContentModel.ASPECT_AUDITABLE);
-            }
-            
-            if (logger.isDebugEnabled())
-                logger.debug("deleteDocument: " + fileInfo.toString());
-        }
-        catch (AccessDeniedException ae)
-        {
-            res.setStatus(Status.STATUS_UNAUTHORIZED);
-            throw ae;
-        }
+        }, runAsUser);
     }
 
     /**
@@ -797,7 +834,9 @@ public class ADMRemoteStore extends BaseRemoteStore
     {
         if (logger.isDebugEnabled())
             logger.debug("Resolving path: " + path);
-        
+
+        final String adminUserName = AuthenticationUtil.getAdminUserName();
+
         FileInfo result = null;
         if (path != null)
         {
@@ -835,13 +874,20 @@ public class ADMRemoteStore extends BaseRemoteStore
                             }
                             // ensure folders exist down to the specified parent
                             // ALF-17729 / ALF-17796 - disable auditable on parent folders
+                            Set<NodeRef> allCreatedFolders = new LinkedHashSet<>();
                             result = FileFolderUtil.makeFolders(
                                     this.fileFolderService,nodeService,
                                     surfConfigRef,
                                     folderDetails,
                                     ContentModel.TYPE_FOLDER,
                                     behaviourFilter,
-                                    new HashSet<QName>(Arrays.asList(new QName[]{ContentModel.ASPECT_AUDITABLE})));
+                                    new HashSet<QName>(Arrays.asList(new QName[]{ContentModel.ASPECT_AUDITABLE})), allCreatedFolders);
+
+                            // MNT-16371: Revoke ownership privileges for surf-config folder, to tighten access for former SiteManagers.
+                            for(NodeRef nodeRef : allCreatedFolders)
+                            {
+                                ownableService.setOwner(nodeRef, adminUserName);
+                            }
                         }
                         else
                         {
@@ -978,6 +1024,18 @@ public class ADMRemoteStore extends BaseRemoteStore
             surfConfigRef = ref.getChildRef();
             // surf-config needs to be hidden - applies index control aspect as part of the hidden aspect
             hiddenAspect.hideNode(ref.getChildRef(), false, false, false);
+
+            // MNT-16371: Revoke inherited permission
+            permissionService.setInheritParentPermissions(surfConfigRef, false);
+            String siteName = siteService.getSiteShortName(rootRef);
+            if (siteName != null)
+            {
+                // Revoke ownership privileges for surf-config folder, to tighten access for former SiteManagers.
+                ownableService.setOwner(surfConfigRef, AuthenticationUtil.getAdminUserName());
+                // Set site manager group permission
+                String siteManagerGroup = siteService.getSiteRoleGroup(siteName, SiteModel.SITE_MANAGER);
+                permissionService.setPermission(surfConfigRef, siteManagerGroup, SiteModel.SITE_MANAGER, true);
+            }
         }
         return surfConfigRef;
     }

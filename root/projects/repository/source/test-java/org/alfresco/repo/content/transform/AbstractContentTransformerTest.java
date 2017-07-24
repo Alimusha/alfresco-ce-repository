@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -36,12 +43,14 @@ import org.alfresco.repo.content.ContentMinimalContextTestSuite;
 import org.alfresco.repo.content.MimetypeMap;
 import org.alfresco.repo.content.filestore.FileContentReader;
 import org.alfresco.repo.content.filestore.FileContentWriter;
+import org.alfresco.repo.management.subsystems.ChildApplicationContextFactory;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.MimetypeService;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.TempFileProvider;
+import org.alfresco.util.exec.RuntimeExec;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationContext;
@@ -249,11 +258,15 @@ public abstract class AbstractContentTransformerTest extends TestCase
                // attempt to convert to every other mimetype
                for (String targetMimetype : mimetypes)
                {
-               	if (sourceMimetype.equals(targetMimetype))
-               	{
-               		// Don't test like-to-like transformations
-               		continue;
-               	}
+               	   if (sourceMimetype.equals(targetMimetype))
+               	   {
+               		   // Don't test like-to-like transformations
+               		   continue;
+               	   }
+               	   if (!doTestTransformation(quickFile, sourceMimetype, targetMimetype))
+               	   {
+               		   continue;
+               	   }
                    ContentWriter targetWriter = null;
                    // construct a reader onto the source file
                    String targetExtension = mimetypeService.getExtension(targetMimetype);
@@ -366,7 +379,19 @@ public abstract class AbstractContentTransformerTest extends TestCase
         outputWriter.setEncoding("UTF8");
         outputWriter.putContent(sb.toString());
     }
-    
+
+    /**
+     * Allows a subclass to skip selected transformations.
+     * @param quickFile name
+     * @param sourceMimetype of the quickFile
+     * @param targetMimetype of the transformation
+     * @return false to skip the transformation.
+     */
+    protected boolean doTestTransformation(String quickFile, String sourceMimetype, String targetMimetype)
+    {
+        return false;
+    }
+
     /**
      * Allows implementations to do some extra checks on the 
      *  results of the content as found by 
@@ -411,5 +436,45 @@ public abstract class AbstractContentTransformerTest extends TestCase
     protected boolean isTransformationExcluded(String sourceExtension, String targetExtension)
     {
     	return false;
+    }
+
+    // TODO externalise ? Review as part of "fast & reliable tests" (and also testing a "reference deployment" that includes LibreOffice/OpenOffice)
+    private boolean failTestIfOOWorkerUnavailable = false;
+
+    /**
+     * This method is currently used to skip certain tests if LibreOffice/OpenOffice is not available (eg. on build machines).
+     * 
+     * @return
+     * @throws InterruptedException
+     */
+    protected boolean isOpenOfficeWorkerAvailable() throws InterruptedException
+    {
+        // workaround for build machines (originally taken from OpenOfficeContentTransformerTest)
+        ContentTransformerWorker ooWorker = (ContentTransformerWorker) ctx.getBean("transformer.worker.OpenOffice");
+
+        if (!ooWorker.isAvailable())
+        {
+            // TODO - temporarily attempt to start LibreOffice/OpenOffice (eg. when locally running individual test class &/or method)
+            // TODO - can we remove this once we have fixed repo startup issue (where LO/OO may not start first time) ?
+            ChildApplicationContextFactory oooDirectSubsystem = (ChildApplicationContextFactory) ctx.getBean("OOoDirect");
+            oooDirectSubsystem.start();
+
+            Thread.sleep(5000);
+
+            RuntimeExec runtimeExec = (RuntimeExec) oooDirectSubsystem.getApplicationContext().getBean("openOfficeStartupCommand");
+            runtimeExec.execute();
+
+            Thread.sleep(5000);
+
+            if (!ooWorker.isAvailable())
+            {
+                if (failTestIfOOWorkerUnavailable)
+                {
+                    fail("Failed to run test - ooWorker not available");
+                }
+                return false;
+            }
+        }
+        return true;
     }
 }

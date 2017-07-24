@@ -343,6 +343,34 @@
          </properties>
       </aspect>
 
+      <!--archived properties used to restore locked nodes-->
+      <aspect name="sys:archivedLockable">
+         <title>Archived Lockable</title>
+         <properties>
+            <property name="sys:archivedLockOwner">
+               <type>d:text</type>
+               <protected>true</protected>
+            </property>
+            <property name="sys:archivedLockType">
+               <type>d:text</type>
+               <protected>true</protected>
+            </property>
+            <property name="sys:archivedLockLifetime">
+               <type>d:text</type>
+               <protected>true</protected>
+            </property>
+            <property name="sys:archivedExpiryDate">
+               <type>d:date</type>
+               <protected>true</protected>
+               <mandatory>false</mandatory>
+            </property>
+            <property name="sys:archivedLockAdditionalInfo">
+               <type>d:text</type>
+               <protected>true</protected>
+            </property>
+         </properties>
+      </aspect>
+      
       <!--
          Localization:
          If you add this aspect to a node, then the server will assume that all non-multilingual
@@ -393,6 +421,26 @@
                <type>d:long</type>
                <mandatory>false</mandatory>
                <multiple>false</multiple>
+            </property>
+         </properties>
+      </aspect>
+
+      <aspect name="sys:pendingFixAcl">
+         <title>Pending fix ACL</title>
+         <properties>
+            <property name="sys:sharedAclToReplace">
+               <title>Shared Acl To Replace</title>
+               <type>d:long</type>
+               <mandatory enforced="true">true</mandatory>
+               <multiple>false</multiple>
+               <index enabled="false"></index>
+            </property>
+            <property name="sys:inheritFromAcl">
+               <title>Inherit From</title>
+               <type>d:long</type>
+               <mandatory enforced="true">true</mandatory>
+               <multiple>false</multiple>
+               <index enabled="false"></index>
             </property>
          </properties>
       </aspect>

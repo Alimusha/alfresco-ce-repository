@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2016 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.jscript;
 
@@ -75,7 +82,6 @@ import org.alfresco.service.cmr.action.Action;
 import org.alfresco.service.cmr.dictionary.DataTypeDefinition;
 import org.alfresco.service.cmr.dictionary.DictionaryService;
 import org.alfresco.service.cmr.dictionary.PropertyDefinition;
-import org.alfresco.service.cmr.lock.LockStatus;
 import org.alfresco.service.cmr.model.FileExistsException;
 import org.alfresco.service.cmr.model.FileFolderService;
 import org.alfresco.service.cmr.model.FileInfo;
@@ -1209,7 +1215,12 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
                             prefix = prefixes.size() != 0 ? prefixes.iterator().next() : "";
                             cache.put(qname.getNamespaceURI(), prefix);
                         }
-                        buf.append('/').append(prefix).append(':').append(ISO9075.encode(qname.getLocalName()));
+                        buf.append('/');
+                        if(prefix.length() > 0)
+                        {
+                        	  buf.append(prefix).append(':');
+                        }
+                        buf.append(ISO9075.encode(qname.getLocalName()));
                     }
                 }
                 else
@@ -1262,11 +1273,7 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
         
         if (getAspectsSet().contains(ContentModel.ASPECT_LOCKABLE))
         {
-            LockStatus status = this.services.getLockService().getLockStatus(this.nodeRef);
-            if (status == LockStatus.LOCKED || status == LockStatus.LOCK_OWNER)
-            {
-                locked = true;
-            }
+            locked = this.services.getLockService().isLocked(this.nodeRef);
         }
         
         return locked;
@@ -1629,6 +1636,18 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
     }
     
     /**
+     * Set whether this node should inherit permissions from the parent node. If the operation takes 
+     * too long and asyncCall parameter set accordingly, fixed ACLs method will be asynchronously called.
+     * 
+     * @param inherit True to inherit parent permissions, false otherwise.
+     * @param asyncCall True if fixed ACLs should be asynchronously set when operation execution takes too long, false otherwise.
+     */
+    public void setInheritsPermissions(boolean inherit, boolean asyncCall)
+    {
+        this.services.getPermissionService().setInheritParentPermissions(this.nodeRef, inherit, asyncCall);
+    }
+    
+    /**
      * Apply a permission for ALL users to the node.
      * 
      * @param permission Permission to apply
@@ -1853,6 +1872,64 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
         reset();
         
         return newInstance(fileInfo.getNodeRef(), this.services, this.scope);
+    }
+    
+    /**
+     * Create a path of folder (cm:folder) nodes as a child of this node.
+     * <p>
+     * This method operates like a unix 'mkdir -p' no error if existing, make parent directories as needed.
+     * <p>
+     * Beware: Any unsaved property changes will be lost when this is called.  To preserve property changes call {@link #save()} first.
+     *    
+     * @param path Folder path to create - of the form "One/Two/Three". Leading and trailing slashes are not expected
+     * to be present in the supplied path.
+     * 
+     * @return reference to the last child of the newly created folder node(s) or null if failed to create.
+     */
+    public ScriptNode createFolderPath(String path)
+    {
+        ParameterCheck.mandatoryString("Folder path", path);
+        
+        List<String> pathElements = Arrays.asList(path.split("/"));
+        
+        NodeRef currentParentRef = this.nodeRef;
+        // just loop and create if necessary
+        for (final String element : pathElements)
+        {
+            final NodeRef contextNodeRef = currentParentRef;
+            // does it exist?
+            // Navigation should not check permissions
+            NodeRef nodeRef = AuthenticationUtil.runAs(new RunAsWork<NodeRef>()
+            {
+                @Override
+                public NodeRef doWork() throws Exception
+                {
+                    return nodeService.getChildByName(contextNodeRef, ContentModel.ASSOC_CONTAINS, element);
+                }
+            }, AuthenticationUtil.getSystemUserName());
+
+            if (nodeRef == null)
+            {
+                // Checks for create permissions as the fileFolderService is a public service.
+                FileInfo createdFileInfo = services.getFileFolderService().create(
+                        currentParentRef, element, ContentModel.TYPE_FOLDER);
+                currentParentRef = createdFileInfo.getNodeRef();
+            }
+            else if (!services.getDictionaryService().isSubClass(nodeService.getType(nodeRef), ContentModel.TYPE_FOLDER))
+            {
+                String parentName = (String) nodeService.getProperty(contextNodeRef, ContentModel.PROP_NAME);
+                throw new ScriptException("Name [" + element + "] already exists in the target parent: " + parentName);
+            }
+            else
+            {
+                // it exists
+                currentParentRef = nodeRef;
+            }
+        }
+        
+        reset();
+        
+        return newInstance(currentParentRef, this.services, this.scope);
     }
 
     /**
@@ -2656,45 +2733,14 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
         final NodeRef sourceNodeRef = nodeRef;
         
         // the delegate definition for transforming a document
-        Transformer transformer = new Transformer()
+        Transformer transformer = new AbstractTransformer()
         {
-            public ScriptNode transform(ContentService contentService, NodeRef nodeRef, ContentReader reader,
-                    ContentWriter writer)
+            protected void doTransform(ContentService contentService,
+                ContentReader reader, ContentWriter writer)
             {
-                ScriptNode transformedNode = null;
                 TransformationOptions options = new TransformationOptions();
                 options.setSourceNodeRef(sourceNodeRef);
-
-                try
-                {
-                    contentService.transform(reader, writer, options);
-                    transformedNode = newInstance(nodeRef, services, scope);
-                }
-                catch (NoTransformerException e)
-                {
-                    // ignore
-                }
-                catch (AlfrescoRuntimeException e)
-                {
-                    Throwable rootCause = ((AlfrescoRuntimeException)e).getRootCause();
-                    String message = rootCause.getMessage();
-                    message = message == null ? "" : message;
-                    if (rootCause instanceof UnimportantTransformException)
-                    {
-                        logger.debug(message);
-                        // ignore
-                    }
-                    else if (rootCause instanceof UnsupportedTransformationException)
-                    {
-                        logger.error(message);
-                        // ignore
-                    }
-                    else
-                    {
-                        throw e;
-                    }
-                }
-                return transformedNode;
+                contentService.transform(reader, writer, options);
             }
         };
         
@@ -2809,10 +2855,10 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
         final NodeRef sourceNodeRef = nodeRef;
         
         // the delegate definition for transforming an image
-        Transformer transformer = new Transformer()
+        Transformer transformer = new AbstractTransformer()
         {
-            public ScriptNode transform(ContentService contentService, NodeRef nodeRef, ContentReader reader,
-                    ContentWriter writer)
+            protected void doTransform(ContentService contentService,
+                ContentReader reader, ContentWriter writer)
             {
                 ImageTransformationOptions imageOptions = new ImageTransformationOptions();
                 imageOptions.setSourceNodeRef(sourceNodeRef);
@@ -2822,8 +2868,6 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
                     imageOptions.setCommandOptions(options);
                 }
                 contentService.getImageTransformer().transform(reader, writer, imageOptions);
-
-                return newInstance(nodeRef, services, scope);
             }
         };
         
@@ -3412,8 +3456,7 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
             if (this.services.getPermissionService().hasPermission(nodeRef, PermissionService.READ_PROPERTIES) == AccessStatus.ALLOWED)
             {
                 // TODO: DC: Allow debug output of property values - for now it's disabled as this could potentially
-                // follow a large network of nodes. Unfortunately, JBPM issues unprotected debug statements
-                // where node.toString is used - will request this is fixed in next release of JBPM.
+                // follow a large network of nodes.
                 return "Node Type: " + getType() + ", Node Aspects: " + getAspectsSet().toString();
             }
             else
@@ -3885,7 +3928,7 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
             InputStream is = null;
             if (applyMimetype)
             {
-                writer.setMimetype(content.getMimetype());
+                writer.setMimetype(content.getMimetype().toLowerCase());
             }
             if (guessEncoding)
             {
@@ -4095,10 +4138,53 @@ public class ScriptNode implements Scopeable, NamespacePrefixResolverProvider
          * 
          * @return Node representing the transformed entity
          */
-        ScriptNode transform(ContentService contentService, NodeRef noderef, ContentReader reader, ContentWriter writer);
+        ScriptNode transform(ContentService contentService, NodeRef noderef,
+            ContentReader reader, ContentWriter writer);
     }
     
-    
+    private abstract class AbstractTransformer implements Transformer
+    {
+        public ScriptNode transform(ContentService contentService, NodeRef nodeRef,
+            ContentReader reader, ContentWriter writer)
+        {
+            ScriptNode transformedNode = null;
+
+            try
+            {
+                doTransform(contentService, reader, writer);
+                transformedNode = newInstance(nodeRef, services, scope);
+            }
+            catch (NoTransformerException e)
+            {
+                // ignore
+            }
+            catch (AlfrescoRuntimeException e)
+            {
+                Throwable rootCause = ((AlfrescoRuntimeException)e).getRootCause();
+                String message = rootCause.getMessage();
+                message = message == null ? "" : message;
+                if (rootCause instanceof UnimportantTransformException)
+                {
+                    logger.debug(message);
+                    // ignore
+                }
+                else if (rootCause instanceof UnsupportedTransformationException)
+                {
+                    logger.error(message);
+                    // ignore
+                }
+                else
+                {
+                    throw e;
+                }
+            }
+            return transformedNode;
+        }
+
+        protected abstract void doTransform(ContentService contentService,
+            ContentReader reader, ContentWriter writer);
+    };
+
     /**
      * NamespacePrefixResolverProvider getter implementation
      */

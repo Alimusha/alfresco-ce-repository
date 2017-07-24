@@ -1,4 +1,29 @@
 /*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
+/*
  * Copyright (C) 2005 Jesper Steen Møller
  *
  * This file is part of Alfresco
@@ -292,35 +317,12 @@ public interface MetadataExtracter extends ContentWorker
     };
     
     /**
-     * Get an estimate of the extracter's reliability on a scale from 0.0 to 1.0.
-     * 
-     * @param mimetype      the mimetype to check
-     * @return              Returns a reliability indicator from 0.0 to 1.0
-     * 
-     * @deprecated  This method is replaced by {@link #isSupported(String)}
-     */
-    public double getReliability(String mimetype);
-    
-    /**
      * Determines if the extracter works against the given mimetype.
      * 
      * @param mimetype      the document mimetype
      * @return Returns      <tt>true</tt> if the mimetype is supported, otherwise <tt>false</tt>.
      */
     public boolean isSupported(String mimetype);
-
-    /**
-     * Provides an estimate, usually a worst case guess, of how long an
-     * extraction will take.
-     * <p>
-     * This method is used to determine, up front, which of a set of equally
-     * reliant transformers will be used for a specific extraction.
-     * 
-     * @return Returns the approximate number of milliseconds per transformation
-     * 
-     * @deprecated          Generally not useful or used.  Extraction is normally specifically configured.
-     */
-    public long getExtractionTime();
 
     /**
      * Extracts the metadata values from the content provided by the reader and source

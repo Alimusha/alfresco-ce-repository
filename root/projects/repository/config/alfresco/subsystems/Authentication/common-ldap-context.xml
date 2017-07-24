@@ -93,6 +93,21 @@
       <property name="sysAdminParams">
          <ref bean="sysAdminParams" />
       </property>
+      <property name="personService">
+         <ref bean="PersonService" />
+      </property>
+      <property name="protectedUsersCache">
+         <ref bean="protectedUsersCache" />
+      </property>
+      <property name="protectionEnabled">
+         <value>${authentication.protection.enabled}</value>
+      </property>
+      <property name="protectionLimit">
+         <value>${authentication.protection.limit}</value>
+      </property>
+      <property name="protectionPeriodSeconds">
+         <value>${authentication.protection.periodSeconds}</value>
+      </property>
    </bean>
 
    <!--
@@ -146,9 +161,10 @@
                <value>${ldap.authentication.java.naming.read.timeout}</value>
             </entry>
 
-            <!-- Automatically follow referrals -->
+            <!-- Follow referrals, can be: ignore, follow, throw -->
+            <!-- the default one is "follow" -->
             <entry key="java.naming.referral">
-               <value>follow</value>
+               <value>${ldap.authentication.java.naming.referral}</value>
             </entry>
 
             <!-- Set to 'ssl' to enable LDAPS configuration via subsystem's properties -->
@@ -207,12 +223,13 @@
                <value>${ldap.authentication.java.naming.read.timeout}</value>
             </entry>
 
-            <!-- Automatically follow referrals -->
+            <!-- Follow referrals, can be: ignore, follow, throw -->
+            <!-- the default one is "follow" -->
             <entry key="java.naming.referral">
-               <value>follow</value>
+               <value>${ldap.authentication.java.naming.referral}</value>
             </entry>
 
-           <!-- Set to 'ssl' to enable LDAPS configuration via subsystem's properties -->
+            <!-- Set to 'ssl' to enable LDAPS configuration via subsystem's properties -->
             <entry key="java.naming.security.protocol">
                <value>${ldap.authentication.java.naming.security.protocol}</value>
             </entry>
@@ -366,6 +383,13 @@
         </property>
 
         <!--
+        The user account status property interpreter. Unfortunately, this varies between directory servers.
+        -->
+        <property name="userAccountStatusInterpreter">
+            <ref bean="${ldap.synchronization.userAccountStatusInterpreter}" />
+        </property>
+
+        <!--
         An attribute that is a unique identifier for each group found. 
         This is also the name of the group with the current group implementation.
         This is mandatory for any groups found.
@@ -450,6 +474,12 @@
                 <!-- Always use the default -->
                 <entry key="cm:homeFolderProvider">
                     <null/>
+                </entry>
+                <entry key="cm:userAccountStatusProperty">
+                    <!-- Oracle / Red Hat / 389 DS:  "nsAccountLock"-->
+                    <!-- OpenLDAP: "pwdAccountLockedTime" -->
+                    <!-- Active Directory: "userAccountControl" -->
+                    <value>${ldap.synchronization.userAccountStatusProperty}</value>
                 </entry>
             </map>
         </property>

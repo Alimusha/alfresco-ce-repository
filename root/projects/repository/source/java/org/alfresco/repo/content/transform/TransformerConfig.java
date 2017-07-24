@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -253,6 +260,12 @@ public interface TransformerConfig
     public static final String LOG_ENTRIES = TRANSFORMER+"log."+ENTRIES;
 
     /**
+     * A white list of declared and detected mimetypes, that don't match, but should still be transformed.
+     */
+    // Has ".mimetypes" on the end as we might one day wish to use extensions too (to simplify the entry).
+    static final String STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES = TRANSFORMER+"strict.mimetype.check.whitelist"+MIMETYPES.substring(0, MIMETYPES.length()-1);
+    
+    /**
      * Returns a transformer property value. 
      * @param name of the property.
      * @return a transformer property or {@code null} if not set.
@@ -347,6 +360,20 @@ public interface TransformerConfig
      */
     List<NodeRef> getBlacklist(ContentTransformer transformer, String sourceMimetype,
             String targetMimetype);
+    
+    /**
+     * When strict mimetype checking is performed before a transformation, this method is called.
+     * There are a few issues with the Tika mimetype detection. As a result we still allow some
+     * transformations to take place even if there is a discrepancy between the detected and
+     * declared mimetypes.
+     * @param declaredMimetype the mimetype on the source node
+     * @param detectedMimetype returned by Tika having looked at the content.
+     * @return true if the transformation should take place. This includes the case where the
+     *         detectedMimetype is null (returned by Tika when the mimetypes are the same), or
+     *         the supplied pair of mimetypes have been added to the
+     *         {@code}transformer.strict.mimetype.check.whitelist{@code}.
+     */
+    boolean strictMimetypeCheck(String declaredMimetype, String detectedMimetype);
     
     /**
      * Returns the threshold of the transformer. It is only after this number of transformation attempts

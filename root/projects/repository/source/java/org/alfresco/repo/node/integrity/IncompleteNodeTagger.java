@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.node.integrity;
 
@@ -30,6 +37,7 @@ import java.util.Set;
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.node.NodeServicePolicies;
+import org.alfresco.repo.policy.BehaviourFilter;
 import org.alfresco.repo.policy.JavaBehaviour;
 import org.alfresco.repo.policy.PolicyComponent;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
@@ -78,6 +86,7 @@ public class IncompleteNodeTagger
     private NodeService nodeService;
     private List<String> storesToIgnore = new ArrayList<String>(0);
     private Set<QName> propertiesToIgnore = new HashSet<QName>();
+    private BehaviourFilter behaviourFilter;
     
     public IncompleteNodeTagger()
     {
@@ -129,6 +138,11 @@ public class IncompleteNodeTagger
         }
     }
 
+    public void setBehaviourFilter(BehaviourFilter behaviourFilter)
+    {
+        this.behaviourFilter = behaviourFilter;
+    }
+
     /**
      * Registers the system-level policy behaviours
      */
@@ -138,6 +152,7 @@ public class IncompleteNodeTagger
         PropertyCheck.mandatory("IncompleteNodeTagger", "dictionaryService", dictionaryService);
         PropertyCheck.mandatory("IncompleteNodeTagger", "nodeService", nodeService);
         PropertyCheck.mandatory("IncompleteNodeTagger", "policyComponent", policyComponent);
+        PropertyCheck.mandatory("IncompleteNodeTagger", "behaviourFilter", behaviourFilter);
 
         // register behaviour
         policyComponent.bindClassBehaviour(
@@ -584,7 +599,19 @@ public class IncompleteNodeTagger
     {
         if (addTag && !isTagged)
         {
-            nodeService.addAspect(nodeRef, ContentModel.ASPECT_INCOMPLETE, null);
+            // MNT-17239: Unexpected changes of cm:modified and cm:modifier
+            behaviourFilter.disableBehaviour(nodeRef, ContentModel.ASPECT_AUDITABLE);
+            behaviourFilter.disableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+            try
+            {
+                nodeService.addAspect(nodeRef, ContentModel.ASPECT_INCOMPLETE, null);
+            }
+            finally
+            {
+                behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+                behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_AUDITABLE);
+            }
+
             // done
             if (logger.isDebugEnabled())
             {
@@ -593,7 +620,19 @@ public class IncompleteNodeTagger
         }
         else if (!addTag && isTagged)
         {
-            nodeService.removeAspect(nodeRef, ContentModel.ASPECT_INCOMPLETE);
+            // MNT-17239: Unexpected changes of cm:modified and cm:modifier
+            behaviourFilter.disableBehaviour(nodeRef, ContentModel.ASPECT_AUDITABLE);
+            behaviourFilter.disableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+            try
+            {
+                nodeService.removeAspect(nodeRef, ContentModel.ASPECT_INCOMPLETE);
+            }
+            finally
+            {
+                behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+                behaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_AUDITABLE);
+            }
+
             // done
             if (logger.isDebugEnabled())
             {

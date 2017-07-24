@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.search.impl.solr;
@@ -50,7 +57,7 @@ public class SpellCheckDecisionManagerTest
     private static final String SEARCH_REQUEST_URL = "/solr4/alfresco/afts?wt=json&fl=DBID%2Cscore&rows=251&df=keywords&start=0&locale=en&alternativeDic=DEFAULT_DICTIONARY&fq=%7B%21afts%7DAUTHORITY_FILTER_FROM_JSON&fq=%7B%21afts%7DTENANT_FILTER_FROM_JSON";
 
     /**
-     * Test Collation. The {@code isCollate} method returns true, when the original query contains one or
+     * Test Collation Solr4. The {@code isCollate} method returns true, when the original query contains one or
      * more misspelled terms leading to 0 hit and if spell-suggestion is available
      * and collation's hits are greater than 0, the class should modify the
      * original search query to replace the misspelled term with the suggested term.
@@ -88,7 +95,45 @@ public class SpellCheckDecisionManagerTest
     }
 
     /**
-     * Test didYouMean. If the original query resulting in a few hits;
+     * Test Collation Solr6. The {@code isCollate} method returns true, when the original query contains one or
+     * more misspelled terms leading to 0 hit and if spell-suggestion is available
+     * and collation's hits are greater than 0, the class should modify the
+     * original search query to replace the misspelled term with the suggested term.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testCollation2() throws Exception
+    {
+        final String searchTerm = "alfrezco";
+
+        JSONObject resultJson = getSearchResponseAsJson("searchInsteadFor2.json");
+
+        JSONObject requestBody = createJsonSearchRequest(searchTerm);
+        String spellCheckParam = getSpellCheckParam(searchTerm);
+
+        SpellCheckDecisionManager manager = new SpellCheckDecisionManager(resultJson, SEARCH_REQUEST_URL
+                + spellCheckParam, requestBody, spellCheckParam);
+
+        assertTrue(manager.isCollate());
+        assertEquals(SEARCH_REQUEST_URL, manager.getUrl());
+
+        JSONObject searchedForJsonObject = manager.getSpellCheckJsonValue();
+        assertEquals("alfresco", searchedForJsonObject.getString("searchInsteadFor"));
+
+        // Check that the request query has been modified with the suggested term
+        assertEquals(createJsonSearchRequest("alfresco").getString("query"), requestBody.getString("query"));
+
+        // Check that the number of found docs (original query) is 0 and the collation hits are greater than 0
+        long numberFound = getOrigQueryHit(resultJson);
+        assertEquals(0L, numberFound);
+
+        long collationHit = getCollationHit2(resultJson);
+        assertTrue(collationHit > 0L);
+    }
+
+    /**
+     * Test didYouMean Solr4. If the original query resulting in a few hits;
      * suggestions are available and have more hits, the class should only
      * return the suggested terms, without modifying the query or setting the
      * collation flag to true.
@@ -131,6 +176,52 @@ public class SpellCheckDecisionManagerTest
         assertTrue(collationHit > numberFound);
     }
 
+
+    /**
+     * Test didYouMean Solr6. If the original query resulting in a few hits;
+     * suggestions are available and have more hits, the class should only
+     * return the suggested terms, without modifying the query or setting the
+     * collation flag to true.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testDidYouMean2() throws Exception
+    {
+        final String searchTerm = "londn";
+
+        JSONObject resultJson = getSearchResponseAsJson("didYouMean2.json");
+
+        JSONObject requestBody = createJsonSearchRequest(searchTerm);
+        String spellCheckParam = getSpellCheckParam(searchTerm);
+
+        SpellCheckDecisionManager manager = new SpellCheckDecisionManager(resultJson, SEARCH_REQUEST_URL
+                + spellCheckParam, requestBody, spellCheckParam);
+
+        assertFalse(manager.isCollate());
+        assertEquals(SEARCH_REQUEST_URL + spellCheckParam, manager.getUrl());
+
+        JSONObject didYouMeanJsonObject = manager.getSpellCheckJsonValue();
+        JSONArray jsonArray = didYouMeanJsonObject.getJSONArray("didYouMean");
+        assertEquals(2, jsonArray.length());
+
+        String[] suggestedTerms = { jsonArray.getString(0), jsonArray.getString(1) };
+        Arrays.sort(suggestedTerms);
+
+        assertEquals("login", suggestedTerms[0]);
+        assertEquals("london", suggestedTerms[1]);
+
+        // Check that the request query has NOT been modified with the suggested term
+        assertEquals(createJsonSearchRequest(searchTerm).getString("query"), requestBody.getString("query"));
+
+        // Check that the number of found docs (original query) is less than collation hits
+        System.out.println("###jsonResult:"+resultJson);
+        long numberFound = getOrigQueryHit(resultJson);
+        long collationHit = getCollationHit2(resultJson);
+
+        assertTrue(collationHit > numberFound);
+    }
+
     /**
      * Test no suggestions. Query contains a term that does not exist in the
      * index and also no suggestions are available. In this case, the class can't do anything.
@@ -167,7 +258,7 @@ public class SpellCheckDecisionManagerTest
     }
 
     /**
-     * Query contains a correctly spelled term; suggestions are available, but
+     * Solr4 Query contains a correctly spelled term; suggestions are available, but
      * the collation's hits are less than or equal to the original query term hits. In this
      * case, the class should not do anything
      *
@@ -202,6 +293,44 @@ public class SpellCheckDecisionManagerTest
         
         assertTrue(numberFound >= collationHit);
     }
+
+    /**
+     * Solr6 Query contains a correctly spelled term; suggestions are available, but
+     * the collation's hits are less than or equal to the original query term hits. In this
+     * case, the class should not do anything
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testCorrectlySpelledTerm2() throws Exception
+    {
+        final String searchTerm = "london";
+
+        JSONObject resultJson = getSearchResponseAsJson("correctlySpelledTermQuery2.json");
+
+        JSONObject requestBody = createJsonSearchRequest(searchTerm);
+        String spellCheckParam = getSpellCheckParam(searchTerm);
+
+        SpellCheckDecisionManager manager = new SpellCheckDecisionManager(resultJson, SEARCH_REQUEST_URL
+                + spellCheckParam, requestBody, spellCheckParam);
+
+        assertFalse(manager.isCollate());
+        assertEquals(SEARCH_REQUEST_URL + spellCheckParam, manager.getUrl());
+
+        JSONObject noSuggestionsJsonObject = manager.getSpellCheckJsonValue();
+        assertEquals(0, noSuggestionsJsonObject.length());
+
+        // Check that the request query has NOT been modified with the suggested term
+        assertEquals(createJsonSearchRequest(searchTerm).getString("query"), requestBody.getString("query"));
+
+        // Check that the number of found docs (original query) is greater than or equal to the collation hits
+        long numberFound = getOrigQueryHit(resultJson);
+        long collationHit = getCollationHit2(resultJson);
+
+        assertTrue(collationHit == 1);
+        assertTrue(numberFound >= collationHit);
+    }
+
 
     public JSONObject getSearchResponseAsJson(String jsonResponse) throws FileNotFoundException, JSONException
     {
@@ -267,6 +396,26 @@ public class SpellCheckDecisionManagerTest
             if ("collation".equals(jsonName))
             {
                 JSONObject valueJsonObject = suggestions.getJSONObject(value);
+                long collationHit = valueJsonObject.getLong("hits");
+                return collationHit;
+            }
+        }
+
+        return 0;
+    }
+
+    private long getCollationHit2(JSONObject resultJson) throws JSONException
+    {
+        JSONObject spellcheck = resultJson.getJSONObject("spellcheck");
+        JSONArray collations = spellcheck.getJSONArray("collations");
+
+        for (int key = 0, value = 1, length = collations.length(); value < length; key += 2, value += 2)
+        {
+            String jsonName = collations.getString(key);
+
+            if ("collation".equals(jsonName))
+            {
+                JSONObject valueJsonObject = collations.getJSONObject(value);
                 long collationHit = valueJsonObject.getLong("hits");
                 return collationHit;
             }

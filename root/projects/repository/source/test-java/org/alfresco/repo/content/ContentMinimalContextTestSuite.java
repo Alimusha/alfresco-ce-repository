@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content;
 
@@ -22,20 +29,10 @@ import junit.framework.JUnit4TestAdapter;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 
-import org.alfresco.repo.content.metadata.DWGMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.HtmlMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.MP3MetadataExtracterTest;
-import org.alfresco.repo.content.metadata.MailMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.MetadataExtracterLimitsTest;
-import org.alfresco.repo.content.metadata.OfficeMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.OpenDocumentMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.OpenOfficeMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.PdfBoxMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.PoiMetadataExtracterTest;
-import org.alfresco.repo.content.metadata.RFC822MetadataExtracterTest;
-import org.alfresco.repo.content.metadata.TikaAutoMetadataExtracterTest;
+import org.alfresco.repo.content.metadata.*;
 import org.alfresco.repo.content.transform.AbstractContentTransformerLimitsTest;
 import org.alfresco.repo.content.transform.AppleIWorksContentTransformerTest;
+import org.alfresco.repo.content.transform.ArchiveContentTransformerTest;
 import org.alfresco.repo.content.transform.BinaryPassThroughContentTransformerTest;
 import org.alfresco.repo.content.transform.ComplexContentTransformerTest;
 import org.alfresco.repo.content.transform.ContentTransformerRegistryTest;
@@ -89,42 +86,28 @@ public class ContentMinimalContextTestSuite extends TestSuite
    {
        // Setup the context
        getContext();
-      
+
        // Off we go
        TestSuite suite = new TestSuite();
-       
+
        // Limits
        suite.addTest(new JUnit4TestAdapter(AbstractContentTransformerLimitsTest.class));
        suite.addTest(new JUnit4TestAdapter(TransformationOptionLimitsTest.class));
        suite.addTest(new JUnit4TestAdapter(TransformationOptionPairTest.class));
-       
+
        // Transformer Config
        suite.addTest(new JUnit4TestAdapter(TransformerConfigTestSuite.class));
-       
+
        // Source options
        suite.addTest(new JUnit4TestAdapter(TemporalSourceOptionsTest.class));
-       
-       // Metadata tests
-       suite.addTest(new JUnit4TestAdapter(MetadataExtracterLimitsTest.class));
-       suite.addTestSuite( DWGMetadataExtracterTest.class );
-       suite.addTestSuite( HtmlMetadataExtracterTest.class );
-       suite.addTestSuite( MailMetadataExtracterTest.class );
-       suite.addTestSuite( MP3MetadataExtracterTest.class );
-       suite.addTestSuite( OfficeMetadataExtracterTest.class );
-       suite.addTestSuite( OpenDocumentMetadataExtracterTest.class );
-       suite.addTestSuite( OpenOfficeMetadataExtracterTest.class );
-       suite.addTestSuite( PdfBoxMetadataExtracterTest.class );
-       suite.addTestSuite( PoiMetadataExtracterTest.class );
-       suite.addTestSuite( RFC822MetadataExtracterTest.class );
-       suite.addTestSuite( TikaAutoMetadataExtracterTest.class );
-       
+
        // Transform tests
        suite.addTestSuite(BinaryPassThroughContentTransformerTest.class);
        suite.addTestSuite(ComplexContentTransformerTest.class);
        suite.addTestSuite(ContentTransformerRegistryTest.class);
        suite.addTestSuite(HtmlParserContentTransformerTest.class);
        suite.addTestSuite(MailContentTransformerTest.class);
-       suite.addTest(new JUnit4TestAdapter(EMLTransformerTest.class));
+       suite.addTestSuite(EMLTransformerTest.class);
        suite.addTestSuite(MediaWikiContentTransformerTest.class);
        suite.addTestSuite(OpenOfficeContentTransformerTest.class);
        suite.addTestSuite(PdfBoxContentTransformerTest.class);
@@ -138,7 +121,23 @@ public class ContentMinimalContextTestSuite extends TestSuite
        suite.addTestSuite(TikaAutoContentTransformerTest.class);
        suite.addTestSuite(ImageMagickContentTransformerTest.class);
        suite.addTestSuite(AppleIWorksContentTransformerTest.class);
-       
+       suite.addTestSuite(ArchiveContentTransformerTest.class);
+
+       // Metadata tests
+       suite.addTest(new JUnit4TestAdapter(MetadataExtracterLimitsTest.class));
+       suite.addTestSuite( DWGMetadataExtracterTest.class );
+       suite.addTestSuite( HtmlMetadataExtracterTest.class );
+       suite.addTestSuite( MailMetadataExtracterTest.class );
+       suite.addTestSuite( MP3MetadataExtracterTest.class );
+       suite.addTestSuite( OfficeMetadataExtracterTest.class );
+       suite.addTestSuite( OpenDocumentMetadataExtracterTest.class );
+       suite.addTestSuite( OpenOfficeMetadataExtracterTest.class );
+       suite.addTestSuite( PdfBoxMetadataExtracterTest.class );
+       suite.addTestSuite( ConcurrencyPdfBoxMetadataExtracterTest.class );
+       suite.addTestSuite( PoiMetadataExtracterTest.class );
+       suite.addTestSuite( RFC822MetadataExtracterTest.class );
+       suite.addTestSuite( TikaAutoMetadataExtracterTest.class );
+
        return suite;
    }
 }

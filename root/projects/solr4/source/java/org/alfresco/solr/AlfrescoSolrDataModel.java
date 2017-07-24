@@ -1,33 +1,38 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -63,7 +68,6 @@ import org.alfresco.repo.search.impl.QueryParserUtils;
 import org.alfresco.repo.search.impl.parsers.AlfrescoFunctionEvaluationContext;
 import org.alfresco.repo.search.impl.parsers.FTSParser;
 import org.alfresco.repo.search.impl.parsers.FTSQueryParser;
-import org.alfresco.repo.search.impl.parsers.FTSQueryParser.RerankPhase;
 import org.alfresco.repo.search.impl.querymodel.Constraint;
 import org.alfresco.repo.search.impl.querymodel.Ordering;
 import org.alfresco.repo.search.impl.querymodel.QueryModelFactory;
@@ -111,7 +115,6 @@ import org.apache.lucene.util.Version;
 import org.apache.solr.core.CoreDescriptorDecorator;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.request.SolrQueryRequest;
-import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.search.SyntaxError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,8 +188,13 @@ public class AlfrescoSolrDataModel implements QueryConstants
     private HashSet<QName> crossLocaleSearchProperties = new HashSet<QName>();
     
     private HashSet<QName> identifierProperties = new HashSet<QName>();
+    private ThreadPoolExecutor threadPool;
 
     
+    public void close() {
+        threadPool.shutdown();
+    }
+
     public AlfrescoSolrDataModel()
     {
         tenantService = new SingleTServiceImpl();
@@ -201,7 +209,7 @@ public class AlfrescoSolrDataModel implements QueryConstants
            compiledModelsCache.setTenantService(tenantService);
            compiledModelsCache.setRegistry(new DefaultAsynchronouslyRefreshedCacheRegistry());
            TrackerPoolFactory trackerPoolFactory = new DefaultTrackerPoolFactory(new Properties(), "_dictionary_", "_internal_");
-           ThreadPoolExecutor threadPool = trackerPoolFactory.create();
+            threadPool = trackerPoolFactory.create();
            compiledModelsCache.setThreadPoolExecutor(threadPool);
            
            dictionaryDAO.setDictionaryRegistryCache(compiledModelsCache);
@@ -754,7 +762,7 @@ public class AlfrescoSolrDataModel implements QueryConstants
                addCompletionFields(propertyDefinition, indexedField);
                break;
            case HIGHLIGHT:
-               addSuggestSearchFields(propertyDefinition, indexedField);
+               addHighlightSearchFields(propertyDefinition, indexedField);
                break;
            }
         }
@@ -822,7 +830,7 @@ public class AlfrescoSolrDataModel implements QueryConstants
         }        
     }
     
-    private void addSuggestSearchFields( PropertyDefinition propertyDefinition , IndexedField indexedField)
+    private void addHighlightSearchFields( PropertyDefinition propertyDefinition , IndexedField indexedField)
     {
         if ((propertyDefinition.getIndexTokenisationMode() == IndexTokenisationMode.TRUE)
                 || (propertyDefinition.getIndexTokenisationMode() == IndexTokenisationMode.BOTH))
@@ -830,6 +838,7 @@ public class AlfrescoSolrDataModel implements QueryConstants
         	if(crossLocaleSearchDataTypes.contains(propertyDefinition.getDataType().getName()) || crossLocaleSearchProperties.contains(propertyDefinition.getName()))
         	{
                 indexedField.addField(getFieldForText(false, true, false, propertyDefinition), false, false);
+                indexedField.addField(getFieldForText(true, true, false, propertyDefinition), false, false);
         	}
         	else
         	{
@@ -1465,6 +1474,11 @@ public class AlfrescoSolrDataModel implements QueryConstants
         options.setLocales(searchParameters.getLocales());
         options.setMlAnalaysisMode(searchParameters.getMlAnalaysisMode());
         options.setQueryParameterDefinitions(searchParameters.getQueryParameterDefinitions());
+        for(String name : searchParameters.getQueryTemplates().keySet())
+        {
+        	String template = searchParameters.getQueryTemplates().get(name);
+        	options.addQueryTemplate(name, template);
+        }
 
         // parse cmis syntax
         CapabilityJoin joinSupport = (mode == CMISQueryMode.CMS_STRICT) ? CapabilityJoin.NONE : CapabilityJoin.INNERONLY;
@@ -1812,7 +1826,6 @@ public class AlfrescoSolrDataModel implements QueryConstants
 
     /**
      *
-     * @return List<AlfrescoModel>
      */
     public List<AlfrescoModel> getAlfrescoModels()
     {
@@ -1828,7 +1841,6 @@ public class AlfrescoSolrDataModel implements QueryConstants
     }
 
     /**
-     * @return Map<String, Set<String>>
      */
     public Map<String, Set<String>> getModelErrors()
     {
@@ -2202,7 +2214,6 @@ public class AlfrescoSolrDataModel implements QueryConstants
     /**
      *
      * @param mode CMISQueryMode
-     * @param searchParametersAndFilter Pair<SearchParameters, Boolean>
      * @param req SolrQueryRequest
      * @param queryModelQuery Query
      * @param cmisVersion CmisVersion
@@ -2266,7 +2277,6 @@ public class AlfrescoSolrDataModel implements QueryConstants
      }
 
     /**
-     * @param searchParametersAndFilter Pair<SearchParameters, Boolean>
      * @param req SolrQueryRequest
      * @return Query
      * @throws ParseException
@@ -2334,6 +2344,12 @@ public class AlfrescoSolrDataModel implements QueryConstants
      */
      public String  mapProperty(String  potentialProperty,  FieldUse fieldUse, SolrQueryRequest req)
      {
+    	 return mapProperty(potentialProperty, fieldUse, req, 0);
+     }
+     
+     
+     public String  mapProperty(String  potentialProperty,  FieldUse fieldUse, SolrQueryRequest req, int position)
+     {
          if(potentialProperty.equals("asc") || potentialProperty.equals("desc") || potentialProperty.equals("_docid_"))
          {
              return potentialProperty;
@@ -2364,7 +2380,14 @@ public class AlfrescoSolrDataModel implements QueryConstants
              IndexedField fields = AlfrescoSolrDataModel.getInstance().getQueryableFields(propertyDef.getName(), getTextField(fieldNameAndEnding.getSecond()), fieldUse);
              if(fields.getFields().size() > 0)
              {
-                 solrSortField = fields.getFields().get(0).getField();
+            	 if(fields.getFields().size() > position)
+            	 {
+            		 solrSortField = fields.getFields().get(position).getField();
+            	 }
+            	 else
+            	 {
+                     solrSortField = fields.getFields().get(0).getField();
+            	 }
              }
              else
              {
@@ -2426,6 +2449,8 @@ public class AlfrescoSolrDataModel implements QueryConstants
      {
          if(getNamespaceDAO().getURIs().contains(NamespaceService.CONTENT_MODEL_1_0_URI))
          {
+             // Remove the prefix before adding, as we do not allow overwriting.
+             getNamespaceDAO().removePrefix("");
              getNamespaceDAO().addPrefix("", NamespaceService.CONTENT_MODEL_1_0_URI);
          }
      }

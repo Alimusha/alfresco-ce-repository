@@ -1,28 +1,38 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.alfresco.repo.management.subsystems.ChildApplicationContextFactory;
-import org.alfresco.service.cmr.module.ModuleDetails;
 import org.alfresco.service.cmr.module.ModuleService;
 import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.MalformedNodeRefException;
@@ -31,6 +41,8 @@ import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.TransformationOptionLimits;
 import org.alfresco.service.cmr.repository.TransformationOptions;
 import org.alfresco.service.descriptor.DescriptorService;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.extensions.surf.util.AbstractLifecycleBean;
 
@@ -41,6 +53,8 @@ import org.springframework.extensions.surf.util.AbstractLifecycleBean;
  */
 public class TransformerConfigImpl extends AbstractLifecycleBean implements TransformerConfig
 {
+    private static final Log logger = LogFactory.getLog(TransformerConfigImpl.class);
+
     private MimetypeService mimetypeService;
     
     private ContentService contentService;
@@ -102,6 +116,8 @@ public class TransformerConfigImpl extends AbstractLifecycleBean implements Tran
     
     private TransformerConfigDynamicTransformers dynamicTransformers;
 
+    private Map<String, Set<String>> strictMimetypeExceptions;
+
     /**
      * Sets of the mimetype service.
      * 
@@ -161,7 +177,7 @@ public class TransformerConfigImpl extends AbstractLifecycleBean implements Tran
         transformerProperties = new TransformerProperties(subsystem, globalProperties);
         
         dynamicTransformers = new TransformerConfigDynamicTransformers(this, transformerProperties, mimetypeService,
-                contentService, transformerRegistry, transformerDebug, moduleService, descriptorService);
+                contentService, transformerRegistry, transformerDebug, moduleService, descriptorService, globalProperties);
         statistics= new TransformerConfigStatistics(this, mimetypeService);
         limits = new TransformerConfigLimits(transformerProperties, mimetypeService);
         supported = new TransformerConfigSupported(transformerProperties, mimetypeService);
@@ -172,6 +188,7 @@ public class TransformerConfigImpl extends AbstractLifecycleBean implements Tran
         initialAverageTimes = new TransformerConfigProperty(transformerProperties, mimetypeService, INITIAL_TIME, "0");
         initialCounts = new TransformerConfigProperty(transformerProperties, mimetypeService, INITIAL_COUNT, "100000");
         propertySetter = new TransformerPropertySetter(transformerProperties, mimetypeService, transformerRegistry);
+        strictMimetypeExceptions = getStrictMimetypeExceptions(transformerProperties);
     }
     
     /**
@@ -303,6 +320,70 @@ public class TransformerConfigImpl extends AbstractLifecycleBean implements Tran
         }
     }
     
+    // Build up a Map keyed on declared source node mimetype to a Set of detected mimetypes that should allow
+    // the transformation to take place. i.e. The cases that Tika gets wrong.
+    private Map<String, Set<String>> getStrictMimetypeExceptions(TransformerProperties transformerProperties2)
+    {
+        Map<String, Set<String>> strictMimetypeExceptions = new HashMap<>();
+        
+        String whitelist = getProperty(STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES);
+        whitelist = whitelist == null ? "" : whitelist.trim();
+        if (whitelist.length() > 0)
+        {
+            String[] mimetypes = whitelist.split(";");
+            
+            if (mimetypes.length % 2 != 0)
+            {
+                logger.error(STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES+" should have an even number of mimetypes as a ; separated list.");
+            }
+            else
+            {
+                Set<String> detectedMimetypes = null;
+                for (String mimetype: mimetypes)
+                {
+                    mimetype = mimetype.trim();
+                    if (mimetype.isEmpty())
+                    {
+                        logger.error(STRICT_MIMETYPE_CHECK_WHITELIST_MIMETYPES+" contains a blank mimetype.");
+                        // Still okay to use it in the map though, but it will be ignored.
+                    }
+
+                    if (detectedMimetypes == null)
+                    {
+                        detectedMimetypes = strictMimetypeExceptions.get(mimetype);
+                        if (detectedMimetypes == null)
+                        {
+                            detectedMimetypes = new HashSet<>();
+                            strictMimetypeExceptions.put(mimetype, detectedMimetypes);
+                        }
+                    }
+                    else
+                    {
+                        detectedMimetypes.add(mimetype);
+                        detectedMimetypes = null;
+                    }
+                }
+            }
+        }
+
+        return strictMimetypeExceptions;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean strictMimetypeCheck(String declaredMimetype, String detectedMimetype)
+    {
+        if (detectedMimetype == null)
+        {
+            return true;
+        }
+        
+        Set<String> detectedMimetypes = strictMimetypeExceptions.get(declaredMimetype);
+        return detectedMimetypes != null && detectedMimetypes.contains(detectedMimetype);
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.content;
 
@@ -421,14 +428,30 @@ public class StreamContent extends AbstractWebScript
         {
             this.ref = new NodeRef(nodeRef);
         }
-        
+
         ObjectReference(StoreRef ref, String id)
         {
-            if (id.indexOf('/') != -1)
+            String[] relativePath = id.split("/");
+
+            // bug fix MNT-16380
+            // for using a relative path to a node id eg. 18cc-.../folder1/.../folderN/fileA.txt
+            // if only one slash we don't have a relative path
+            if (relativePath.length <= 2)
             {
-                id = id.substring(0, id.indexOf('/'));
+                if (id.indexOf('/') != -1)
+                {
+                    id = id.substring(0, id.indexOf('/'));
+                }
+                this.ref = new NodeRef(ref, id);
             }
-            this.ref = new NodeRef(ref, id);
+            else
+            {
+                String[] reference = new String[relativePath.length + 2];
+                reference[0] = ref.getProtocol();
+                reference[1] = ref.getIdentifier();
+                System.arraycopy(relativePath, 0, reference, 2, relativePath.length);
+                this.ref = repository.findNodeRef("node", reference);
+            }
         }
         
         ObjectReference(StoreRef ref, String[] path)

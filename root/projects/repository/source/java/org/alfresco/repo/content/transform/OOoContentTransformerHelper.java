@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -27,7 +34,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
-import java.util.Date;
 
 import com.sun.star.task.ErrorCodeIOException;
 import net.sf.jooreports.converter.DocumentFamily;
@@ -43,7 +49,6 @@ import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.MimetypeService;
 import org.alfresco.service.cmr.repository.TransformationOptions;
-import org.alfresco.util.GUID;
 import org.alfresco.util.TempFileProvider;
 import org.apache.commons.logging.Log;
 import org.apache.pdfbox.exceptions.COSVisitorException;
@@ -338,27 +343,13 @@ public abstract class OOoContentTransformerHelper extends ContentTransformerHelp
                     "   writer: " + writer);
         }
 
-        // MNT-11279 fix. Because of the creating temp files for transformations the document's header with file name field
-        // could be changed to temporary file's name.
-        // Get the original file name which was on upload.
-        String origFileName = getOriginalFileName(options);
-        if (origFileName == null)
-        {
-           origFileName = "TemporaryFile-" + GUID.generate(); 
-        }
-        // Create a temp folder and put source and target files into it. (i.e. tempFromFile and tempToFile will be placed
-        // into such folder)
-        File tempSubfolder = new File(TempFileProvider.getTempDir() + File.separator +
-                                              origFileName + "-" + getTempFilePrefix() + "-"
-                                              + getTempFilePrefix() + "-" + new Date().getTime());
-        tempSubfolder.mkdir();
-
         // create temporary files to convert from and to
-        // The source file should have the name which was on upload
-        File tempFromFile = new File(tempSubfolder, origFileName );
+        File tempFromFile = TempFileProvider.createTempFile(
+                getTempFilePrefix()+"-source-",
+                "." + sourceExtension);
         File tempToFile = TempFileProvider.createTempFile(
-                origFileName + "-" + getTempFilePrefix()+"-target-",
-                "." + targetExtension, tempSubfolder);
+                getTempFilePrefix()+"-target-",
+                "." + targetExtension);
         
         // There is a bug (reported in ALF-219) whereby JooConverter (the Alfresco Community Edition's 3rd party
         // OpenOffice connector library) struggles to handle zero-size files being transformed to pdf.
@@ -431,12 +422,7 @@ public abstract class OOoContentTransformerHelper extends ContentTransformerHelp
             getLogger().debug("transformation successful");
         }
     }
-
-    private String getOriginalFileName(TransformationOptions options)
-    {
-        return transformerDebug == null ? null : transformerDebug.getFileName(options, true, -1);
-    }
-
+    
     private boolean temporaryMsFile(TransformationOptions options)
     {
         String fileName = transformerDebug == null ? null : transformerDebug.getFileName(options, true, -1);

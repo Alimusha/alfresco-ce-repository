@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.permissions.impl;
 
@@ -37,7 +44,6 @@ public interface ModelDAO
      * Get the permissions that can be set for the given type.
      * 
      * @param type - the type in the data dictionary.
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getAllPermissions(QName type);
     
@@ -45,8 +51,6 @@ public interface ModelDAO
      * Get the permissions that can be set for the given type.
      * 
      * @param type - the type in the data dictionary.
-     * @param aspects Set<QName>
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getAllPermissions(QName type, Set<QName> aspects);
 
@@ -55,7 +59,6 @@ public interface ModelDAO
      * This is determined by the node type.
      * 
      * @param nodeRef NodeRef
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getAllPermissions(NodeRef nodeRef);
     
@@ -63,7 +66,6 @@ public interface ModelDAO
      *Get the permissions that are exposed to be set for the given type.
      * 
      * @param type - the type in the data dictionary.
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getExposedPermissions(QName type);
 
@@ -72,7 +74,6 @@ public interface ModelDAO
      * This is determined by the node type.
      * 
      * @param nodeRef NodeRef
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getExposedPermissions(NodeRef nodeRef);
 
@@ -80,7 +81,6 @@ public interface ModelDAO
      * Get all the permissions that grant this permission.
      * 
      * @param perm PermissionReference
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getGrantingPermissions(PermissionReference perm);
 
@@ -89,9 +89,7 @@ public interface ModelDAO
      *  
      * @param required PermissionReference
      * @param qName QName
-     * @param aspectQNames Set<QName>
      * @param on RequiredPermission.On
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getRequiredPermissions(PermissionReference required, QName qName, Set<QName> aspectQNames, RequiredPermission.On on);
 
@@ -101,7 +99,6 @@ public interface ModelDAO
      * Get the permissions which are granted by the supplied permission.
      * 
      * @param permissionReference PermissionReference
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getGranteePermissions(PermissionReference permissionReference);
     
@@ -109,7 +106,6 @@ public interface ModelDAO
      * Get the permissions which are granted by the supplied permission.
      * 
      * @param permissionReference PermissionReference
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getImmediateGranteePermissions(PermissionReference permissionReference);
 
@@ -150,13 +146,11 @@ public interface ModelDAO
 
     /**
      * Get all exposed permissions (regardless of type exposure)
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getAllExposedPermissions();
     
     /**
      * Get all exposed permissions (regardless of type exposure)
-     * @return Set<PermissionReference>
      */
     public Set<PermissionReference> getAllPermissions();
     

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.forms.processor.workflow;
@@ -117,7 +124,7 @@ public abstract class FormProcessorTest extends TestCase
         wikiHamlet.append("Hamlet is one of the hardest parts for an actor to perform. It is one of the largest roles written by Shakespeare.");
         wikiHamlet.append("Many people disagree about what Hamlet is really thinking. For many actors, playing Hamlet is one of the most important parts of their career.");
 
-        // Get max length of jbpm_comment property from repository.properties
+        // Get max length of workflow comment property from repository.properties
         String maxLength = "4000";
 
         String dir = System.getProperty("user.dir");
@@ -132,7 +139,7 @@ public abstract class FormProcessorTest extends TestCase
                 Properties properties = new Properties();
                 properties.load(propStream);
 
-                maxLength = properties.getProperty("system.workflow.jbpm.comment.property.max.length");
+                maxLength = properties.getProperty("system.workflow.comment.property.max.length");
             }
             finally
             {

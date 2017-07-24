@@ -376,6 +376,7 @@
                 <prop key="spaces.solr_facets.root.childname">${spaces.solr_facets.root.childname}</prop>
                 <prop key="spaces.smartfolders.childname">${spaces.smartfolders.childname}</prop>
                 <prop key="spaces.smartdownloads.childname">${spaces.smartdownloads.childname}</prop>
+                <prop key="spaces.quickshare.link_expiry_actions.childname">${spaces.quickshare.link_expiry_actions.childname}</prop>
             </props>
         </property>
     </bean>
@@ -650,6 +651,12 @@
                <props>
                     <prop key="path">/${spaces.company_home.childname}/${spaces.dictionary.childname}/${spaces.templates.email.childname}/${spaces.templates.email.invite.childname}</prop>
                     <prop key="location">alfresco/templates/invite-add-direct-email-templates.xml</prop>
+                    <prop key="messages">alfresco/messages/bootstrap-spaces</prop>
+               </props>
+               
+               <props>
+                    <prop key="path">/${spaces.company_home.childname}/${spaces.dictionary.childname}/${spaces.templates.email.childname}/${spaces.templates.email.invite.childname}</prop>
+                    <prop key="location">alfresco/templates/invite-moderated-email-templates.xml</prop>
                     <prop key="messages">alfresco/messages/bootstrap-spaces</prop>
                </props>
 

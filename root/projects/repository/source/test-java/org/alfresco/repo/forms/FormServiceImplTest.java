@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.forms;
 
@@ -1633,7 +1640,7 @@ public class FormServiceImplTest extends BaseAlfrescoSpringTest
             data.addFieldData("assoc_bpm_assignee_added", 
                         this.personManager.get(USER_ONE).toString());
             data.addFieldData("assoc_packageItems_added", this.document.toString());
-            this.formService.saveForm(new Item(WORKFLOW_FORM_ITEM_KIND, "jbpm$wf_adhoc"), data);
+            this.formService.saveForm(new Item(WORKFLOW_FORM_ITEM_KIND, "activiti$activiti_Adhoc"), data); // correct name would be "activiti$activitiAdhoc"
             fail("Expecting saveForm for a 'workflow' item kind containing an underscore to fail");
         }
         catch (Exception e)

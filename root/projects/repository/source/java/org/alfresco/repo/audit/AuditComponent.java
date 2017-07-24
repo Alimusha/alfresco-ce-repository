@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.audit;
 
@@ -86,9 +93,9 @@ public interface AuditComponent
     public boolean areAuditValuesRequired();
     
     /**
-     * Determine whether there are any audit applications registered to record data for the given
-     * path.  This helper method gives data producers a shortcut in the event that nothing would
-     * be recorded in any event.
+     * Determines if audit values are required based on whether there are any audit applications
+     * registered to record data for the given path. This helper method gives data producers a 
+     * shortcut in the event that nothing would be recorded in any event.
      * 
      * @param path              the audit path
      * @return                  Returns <tt>true</tt> if there is at least one audit application
@@ -214,7 +221,7 @@ public interface AuditComponent
      *                          '/' ({@link AuditApplication#AUDIT_PATH_SEPARATOR})
      * @param values            the values to audit mapped by {@link AuditPath} key relative to root path
      *                          (may be <tt>null</tt>)
-     * @param useUserFilter     if <tt>false<tt> the user filter is disabled.
+     * @param useUserFilter     if <tt>false</tt> the user filter is disabled.
      * @return                  Returns the values that were actually persisted, keyed by their full path.
      * @throws IllegalStateException if the transaction state could not be determined
      */
@@ -225,7 +232,9 @@ public interface AuditComponent
      * 
      * @param callback          the data callback per entry
      * @param parameters        the parameters for the query (may not be <tt>null</tt>)
-     * @param maxResults        the maximum number of results to retrieve (zero or negative to ignore)
+     * @param maxResults        the maximum number of results to retrieve (must be greater than 0)
+     * 
+     * @throws IllegalArgumentException if maxResults less or equal to zero
      * 
      * @since 3.2
      */

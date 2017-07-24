@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.opencmis;
 
@@ -23,6 +30,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -33,17 +42,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import junit.framework.TestCase;
 
 import org.alfresco.events.types.ContentEventImpl;
-import org.alfresco.events.types.ContentReadRangeEvent;
 import org.alfresco.repo.content.MimetypeMap;
 import org.alfresco.repo.content.filestore.FileContentWriter;
+import org.alfresco.repo.domain.node.ContentDataWithId;
 import org.alfresco.repo.events.EventPublisherForTestingOnly;
 import org.alfresco.repo.security.authentication.AuthenticationComponent;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.coci.CheckOutCheckInService;
+import org.alfresco.service.cmr.model.FileFolderService;
+import org.alfresco.service.cmr.model.FileInfo;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
+import org.alfresco.service.namespace.QName;
 import org.alfresco.test_category.OwnJVMTestsCategory;
 import org.alfresco.util.ApplicationContextHelper;
 import org.alfresco.util.FileFilterMode.Client;
@@ -68,8 +80,8 @@ import org.apache.chemistry.opencmis.commons.impl.dataobjects.ContentStreamImpl;
 import org.apache.chemistry.opencmis.commons.impl.server.AbstractServiceFactory;
 import org.apache.chemistry.opencmis.commons.server.CallContext;
 import org.apache.chemistry.opencmis.commons.server.CmisService;
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStream;
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
+import org.apache.chemistry.opencmis.commons.server.TempStoreOutputStream;
+import org.apache.chemistry.opencmis.server.shared.TempStoreOutputStreamFactory;
 import org.junit.experimental.categories.Category;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.context.ApplicationContext;
@@ -90,7 +102,7 @@ public class OpenCmisLocalTest extends TestCase
     private static ApplicationContext ctx = ApplicationContextHelper.getApplicationContext(CONFIG_LOCATIONS);
     private static final String BEAN_NAME_AUTHENTICATION_COMPONENT = "authenticationComponent";
     private static final String MIME_PLAIN_TEXT = "text/plain";
-    private ThresholdOutputStreamFactory streamFactory;
+    private TempStoreOutputStreamFactory streamFactory;
     private EventPublisherForTestingOnly eventPublisher;
     
     /**
@@ -143,7 +155,7 @@ public class OpenCmisLocalTest extends TestCase
     public void setUp() throws Exception
     {
         File tempDir = new File(TempFileProvider.getTempDir(), GUID.generate());
-        this.streamFactory = ThresholdOutputStreamFactory.newInstance(tempDir, 1024, 1024, false);
+        this.streamFactory = TempStoreOutputStreamFactory.newInstance(tempDir, 1024, 1024, false);
         this.eventPublisher = (EventPublisherForTestingOnly) ctx.getBean("eventPublisher");
     }
     
@@ -300,10 +312,10 @@ public class OpenCmisLocalTest extends TestCase
 
     private ContentStreamImpl makeContentStream(String filename, String mimetype, String content) throws IOException
     {
-        ThresholdOutputStream tos = streamFactory.newOutputStream();
+        TempStoreOutputStream tos = streamFactory.newOutputStream();
         OutputStreamWriter writer = new OutputStreamWriter(tos);
         writer.write(content);
-        ContentStreamImpl contentStream = new ContentStreamImpl(filename, BigInteger.valueOf(tos.getSize()), MimetypeMap.MIMETYPE_TEXT_PLAIN, tos.getInputStream());
+        ContentStreamImpl contentStream = new ContentStreamImpl(filename, BigInteger.valueOf(tos.getLength()), MimetypeMap.MIMETYPE_TEXT_PLAIN, tos.getInputStream());
         return contentStream;
     }
 
@@ -425,8 +437,8 @@ public class OpenCmisLocalTest extends TestCase
         TestStreamTarget proxy = (TestStreamTarget) proxyFactory.getProxy();
 
         File tempDir = new File(TempFileProvider.getTempDir(), GUID.generate());
-        ThresholdOutputStreamFactory streamFactory = ThresholdOutputStreamFactory.newInstance(tempDir, 1024, 1024, false);
-        ThresholdOutputStream tos = streamFactory.newOutputStream();
+        TempStoreOutputStreamFactory streamFactory = TempStoreOutputStreamFactory.newInstance(tempDir, 1024, 1024, false);
+        TempStoreOutputStream tos = streamFactory.newOutputStream();
         OutputStreamWriter writer = new OutputStreamWriter(tos);
         writer.write("The cat sat on the mat");
 
@@ -490,5 +502,67 @@ public class OpenCmisLocalTest extends TestCase
         NodeService nodeService = serviceRegistry.getNodeService();
         assertFalse(nodeService.exists(doc1NodeRef));
         assertFalse(nodeService.exists(doc1WorkingCopy));
+    }
+
+    public void testEncodingForCreateContentStream()
+    {
+        ServiceRegistry serviceRegistry = (ServiceRegistry) ctx.getBean(ServiceRegistry.SERVICE_REGISTRY);
+        FileFolderService ffs = serviceRegistry.getFileFolderService();
+        // Authenticate as system
+        AuthenticationComponent authenticationComponent = (AuthenticationComponent) ctx
+                .getBean(BEAN_NAME_AUTHENTICATION_COMPONENT);
+        authenticationComponent.setSystemUserAsCurrentUser();
+        try
+        {
+            /* Create the document using openCmis services */
+            Repository repository = getRepository("admin", "admin");
+            Session session = repository.createSession();
+            Folder rootFolder = session.getRootFolder();
+            Document document = createDocument(rootFolder, "test_file_" + GUID.generate() + ".txt", session);
+
+            ContentStream content = document.getContentStream();
+            assertNotNull(content);
+
+            content = document.getContentStream(BigInteger.valueOf(2), BigInteger.valueOf(4));
+            assertNotNull(content);
+
+            NodeRef doc1NodeRef = cmisIdToNodeRef(document.getId());
+            FileInfo fileInfo = ffs.getFileInfo(doc1NodeRef);
+            Map<QName, Serializable> properties = fileInfo.getProperties();
+            ContentDataWithId contentData = (ContentDataWithId) properties
+                    .get(QName.createQName("{http://www.alfresco.org/model/content/1.0}content"));
+            String encoding = contentData.getEncoding();
+
+            assertEquals("ISO-8859-1", encoding);
+        }
+        finally
+        {
+            authenticationComponent.clearCurrentSecurityContext();
+        }
+    }
+
+    private static Document createDocument(Folder target, String newDocName, Session session)
+    {
+        Map<String, String> props = new HashMap<String, String>();
+        props.put(PropertyIds.OBJECT_TYPE_ID, "cmis:document");
+        props.put(PropertyIds.NAME, newDocName);
+        String content = "aegif Mind Share Leader Generating New Paradigms by aegif corporation.";
+        byte[] buf = null;
+        try
+        {
+            buf = content.getBytes("ISO-8859-1"); // set the encoding here for the content stream
+        }
+        catch (UnsupportedEncodingException e)
+        {
+            e.printStackTrace();
+        }
+
+        ByteArrayInputStream input = new ByteArrayInputStream(buf);
+
+        ContentStream contentStream = session.getObjectFactory().createContentStream(newDocName, buf.length,
+                "text/plain; charset=UTF-8", input); // additionally set the charset here
+        // NOTE that we intentionally specified the wrong charset here (as UTF-8)
+        // because Alfresco does automatic charset detection, so we will ignore this explicit request
+        return target.createDocument(props, contentStream, VersioningState.MAJOR);
     }
 }

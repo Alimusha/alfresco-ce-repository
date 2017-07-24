@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.domain.node;
 
@@ -48,6 +55,7 @@ public class NodeEntity implements Node, PermissionCheckValue, Serializable, Clo
     private Long aclId;
     private TransactionEntity transaction;
     private AuditablePropertiesEntity auditableProperties;
+    private String shardKey;
     
     /**
      * Required default constructor
@@ -83,6 +91,7 @@ public class NodeEntity implements Node, PermissionCheckValue, Serializable, Clo
         this.aclId = node.getAclId();
         this.transaction = node.getTransaction();
         this.auditableProperties = node.getAuditableProperties();
+        this.shardKey = node.getShardKey();
     }
       
     @Override
@@ -131,6 +140,7 @@ public class NodeEntity implements Node, PermissionCheckValue, Serializable, Clo
           .append(", aclId=").append(aclId)
           .append(", transaction=").append(transaction)
           .append(", auditProps=").append(auditableProperties)
+          .append(", shardKey=").append(shardKey)
           .append("]");
         return sb.toString();
     }
@@ -325,4 +335,17 @@ public class NodeEntity implements Node, PermissionCheckValue, Serializable, Clo
         checkLock();
         this.auditableProperties = auditableProperties;
     }
+
+    @Override
+    public String getShardKey()
+    {
+        return this.shardKey;
+    }
+
+    public synchronized void setShardKey(String shardKey)
+    {
+        this.shardKey = shardKey;
+    }
+    
+    
 }

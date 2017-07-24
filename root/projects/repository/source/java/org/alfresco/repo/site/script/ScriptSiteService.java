@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.site.script;
 
@@ -284,7 +291,6 @@ public class ScriptSiteService extends BaseScopableProcessorExtension
      * Converts the given List of SiteInfo objects to a JavaScript friendly array
      * of Site objects.
      * 
-     * @param siteInfos List<SiteInfo>
      * @return Array of Site objects
      */
     protected Site[] makeSitesArray(List<SiteInfo> siteInfos)
@@ -354,6 +360,35 @@ public class ScriptSiteService extends BaseScopableProcessorExtension
             siteInfo = this.siteService.getSite(shortName);
         }
 
+        if (siteInfo != null)
+        {
+            site = new Site(siteInfo, this.serviceRegistry, this.siteService, getScope());
+        }
+        return site;
+    }
+    
+    /**
+     * Get a site for a provided site short name. If the current user does not have permission to view the site content, the info
+     * will still be returned, but none of the operations that would modify site information on save() will work. As usual ACLs
+     * will apply on any attempt to modify the Site object.
+     * <p>
+     * Returns null if the site does not exist.
+     * 
+     * @param shortName short name of the site
+     * @return Site the site, null if does not exist
+     */
+    public Site getSiteInfo(final String shortName)
+    {
+        Site site = null;
+        
+        SiteInfo siteInfo = AuthenticationUtil.runAs(new AuthenticationUtil.RunAsWork<SiteInfo>()
+        {
+            public SiteInfo doWork() throws Exception
+            {
+                return siteService.getSite(shortName);
+            }
+        }, AuthenticationUtil.getAdminUserName());
+        
         if (siteInfo != null)
         {
             site = new Site(siteInfo, this.serviceRegistry, this.siteService, getScope());

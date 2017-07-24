@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.rest.api.tests;
@@ -57,10 +64,13 @@ public class TestPersonSites extends EnterpriseTestApi
 {
     private TestNetwork network1;
     private TestNetwork network2;
+    private TestNetwork network4;
 
     private TestPerson person11;
     private TestPerson person12;
     private TestPerson person21;
+    private TestPerson person41;
+    private TestPerson person42;
 
     private List<TestSite> sites = new ArrayList<>(10);
 
@@ -70,75 +80,28 @@ public class TestPersonSites extends EnterpriseTestApi
     private TestSite site1;
     private TestSite site2;
     private TestSite site3;
-    private String site1_name = "a_" + GUID.generate();
+    private String site1_id = "a_" + GUID.generate();
     private String site1_title = "c_" + GUID.generate();
     private SiteRole site1_role = SiteRole.SiteContributor;
-    private String site2_name = "b_" + GUID.generate();
+    private String site2_id = "b_" + GUID.generate();
     private String site2_title = "a_" + GUID.generate();
     private SiteRole site2_role = SiteRole.SiteManager;
-    private String site3_name = "c_" + GUID.generate();
+    private String site3_id = "c_" + GUID.generate();
     private String site3_title = "b_" + GUID.generate();
     private SiteRole site3_role = SiteRole.SiteConsumer;
 
+    private TestSite site41;
+    private TestSite site42;
+    private TestSite site43;
+    private TestSite site44;
 
-    public void initializeSites() throws Exception
-    {
-        /*
-         * Create data for testing the site sorting. We create the sites as
-         * person31 and assign roles to person32. The list requests will be
-         * performed as person32.
-         */
-        TenantUtil.runAsSystemTenant(new TenantRunAsWork<Void>()
-        {
-            @Override
-            public Void doWork() throws Exception
-            {
-                person31 = network1.createUser();
-                person32 = network1.createUser();
-                return null;
-            }
-        }, network1.getId());
-
-        this.site1 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
-        {
-            @Override
-            public TestSite doWork() throws Exception
-            {
-                SiteInformation siteInfo = new SiteInformation(site1_name, site1_title, site1_title, SiteVisibility.PRIVATE);
-                TestSite site = network1.createSite(siteInfo);
-                site.inviteToSite(person32.getId(), site1_role);
-                return site;
-            }
-        }, person31.getId(), network1.getId());
-
-        this.site2 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
-        {
-            @Override
-            public TestSite doWork() throws Exception
-            {
-                SiteInformation siteInfo = new SiteInformation(site2_name, site2_title, site2_title, SiteVisibility.PRIVATE);
-                TestSite site = network1.createSite(siteInfo);
-                site.inviteToSite(person32.getId(), site2_role);
-                return site;
-            }
-        }, person31.getId(), network1.getId());
-
-        this.site3 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
-        {
-            @Override
-            public TestSite doWork() throws Exception
-            {
-                SiteInformation siteInfo = new SiteInformation(site3_name, site3_title, site3_title, SiteVisibility.PRIVATE);
-                TestSite site = network1.createSite(siteInfo);
-                site.inviteToSite(person32.getId(), site3_role);
-                return site;
-            }
-        }, person31.getId(), network1.getId());
-    }
-
+    @Override
     @Before
     public void setup() throws Exception
     {
+        // init networks
+        super.setup();
+
         Iterator<TestNetwork> networksIt = getTestFixture().getNetworksIt();
 
         assertTrue(networksIt.hasNext());
@@ -215,6 +178,104 @@ public class TestPersonSites extends EnterpriseTestApi
                 return null;
             }
         }, person12.getId(), network1.getId());
+    }
+
+    // TODO switch to use V1 createSite (instead of RepoService) 
+    private void initializeSites() throws Exception
+    {
+        /*
+         * Create data for testing the site sorting. We create the sites as
+         * person31 and assign roles to person32. The list requests will be
+         * performed as person32.
+         */
+        TenantUtil.runAsSystemTenant(new TenantRunAsWork<Void>()
+        {
+            @Override
+            public Void doWork() throws Exception
+            {
+                person31 = network1.createUser();
+                person32 = network1.createUser();
+                return null;
+            }
+        }, network1.getId());
+
+        this.site1 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
+        {
+            @Override
+            public TestSite doWork() throws Exception
+            {
+                SiteInformation siteInfo = new SiteInformation(site1_id, site1_title, site1_title, SiteVisibility.PRIVATE);
+                TestSite site = network1.createSite(siteInfo);
+                site.inviteToSite(person32.getId(), site1_role);
+                return site;
+            }
+        }, person31.getId(), network1.getId());
+
+        this.site2 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
+        {
+            @Override
+            public TestSite doWork() throws Exception
+            {
+                SiteInformation siteInfo = new SiteInformation(site2_id, site2_title, site2_title, SiteVisibility.PRIVATE);
+                TestSite site = network1.createSite(siteInfo);
+                site.inviteToSite(person32.getId(), site2_role);
+                return site;
+            }
+        }, person31.getId(), network1.getId());
+
+        this.site3 = TenantUtil.runAsUserTenant(new TenantRunAsWork<TestSite>()
+        {
+            @Override
+            public TestSite doWork() throws Exception
+            {
+                SiteInformation siteInfo = new SiteInformation(site3_id, site3_title, site3_title, SiteVisibility.PRIVATE);
+                TestSite site = network1.createSite(siteInfo);
+                site.inviteToSite(person32.getId(), site3_role);
+                return site;
+            }
+        }, person31.getId(), network1.getId());
+    }
+
+    private void initializePersonAndNetwork4WithSites() throws Exception
+    {
+        if (network4 == null)
+        {
+            network4 = getRepoService().createNetwork(this.getClass().getSimpleName().toLowerCase() + "-3-" + GUID.generate(), true);
+            network4.create();
+
+            // Create some users
+            TenantUtil.runAsSystemTenant(new TenantRunAsWork<Void>()
+            {
+                @Override
+                public Void doWork() throws Exception
+                {
+                    person41 = network4.createUser();
+                    person42 = network4.createUser();
+                    return null;
+                }
+            }, network4.getId());
+
+            // ...and some sites
+            TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
+            {
+                @Override
+                public Void doWork() throws Exception
+                {
+                    site41 = network4.createSite("A", SiteVisibility.PRIVATE);
+                    site41.inviteToSite(person41.getId(), SiteRole.SiteContributor);
+
+                    site42 = network4.createSite("B", SiteVisibility.PUBLIC);
+                    site42.inviteToSite(person41.getId(), SiteRole.SiteContributor);
+
+                    site43 = network4.createSite("C", SiteVisibility.PUBLIC);
+                    site43.inviteToSite(person41.getId(), SiteRole.SiteContributor);
+
+                    site44 = network4.createSite("D", SiteVisibility.MODERATED);
+                    site44.inviteToSite(person41.getId(), SiteRole.SiteContributor);
+                    return null;
+                }
+            }, person42.getId(), network4.getId());
+        }
     }
 
     @Test
@@ -296,7 +357,7 @@ public class TestPersonSites extends EnterpriseTestApi
         {
             int skipCount = 0;
             int maxItems = 2;
-            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), null);
+            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), expectedSites.size());
             publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
             ListResponse<MemberOfSite> resp = sitesProxy.getPersonSites(person11.getId(), createParams(paging, null));
             checkList(expectedSites.subList(skipCount, skipCount + paging.getExpectedPaging().getCount()), paging.getExpectedPaging(), resp);
@@ -305,7 +366,7 @@ public class TestPersonSites extends EnterpriseTestApi
         {
             int skipCount = 2;
             int maxItems = 8;
-            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), null);
+            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), expectedSites.size());
             publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
             ListResponse<MemberOfSite> resp = sitesProxy.getPersonSites(person11.getId(), createParams(paging, null));
             checkList(expectedSites.subList(skipCount, skipCount + paging.getExpectedPaging().getCount()), paging.getExpectedPaging(), resp);
@@ -315,7 +376,7 @@ public class TestPersonSites extends EnterpriseTestApi
         {
             int skipCount = 0;
             int maxItems = 2;
-            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), null);
+            Paging paging = getPaging(skipCount, maxItems, expectedSites.size(), expectedSites.size());
             publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
             ListResponse<MemberOfSite> resp = sitesProxy.getPersonSites(org.alfresco.rest.api.People.DEFAULT_USER, createParams(paging, null));
             checkList(expectedSites.subList(skipCount, skipCount + paging.getExpectedPaging().getCount()), paging.getExpectedPaging(), resp);
@@ -512,7 +573,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Title ASC skip = 1, count = 2
+     * to a user orderBy = title ASC skip = 1, count = 2
      *
      * @throws Exception
      */
@@ -522,10 +583,10 @@ public class TestPersonSites extends EnterpriseTestApi
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "SiteTitle", true);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "title", true);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -538,7 +599,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Title DESC skip = 1, count = 2
+     * to a user orderBy = title DESC skip = 1, count = 2
      *
      * @throws Exception
      */
@@ -548,10 +609,10 @@ public class TestPersonSites extends EnterpriseTestApi
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "SiteTitle", false);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "title", false);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -563,7 +624,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Role ASC skip = 1, count = 2
+     * to a user orderBy = role ASC skip = 1, count = 2
      *
      * @throws Exception
      */
@@ -573,10 +634,10 @@ public class TestPersonSites extends EnterpriseTestApi
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "Role", true);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "role", true);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -588,7 +649,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Role DESC skip = 1, count = 2
+     * to a user orderBy = role DESC skip = 1, count = 2
      *
      * @throws Exception
      */
@@ -598,10 +659,10 @@ public class TestPersonSites extends EnterpriseTestApi
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "Role", false);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "role", false);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -613,20 +674,20 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Site Name ASC skip = 1, count = 2
+     * to a user orderBy = id ASC skip = 1, count = 2
      *
      * @throws Exception
      */
-    public void testSortingAndPagingBySiteNameAsc() throws Exception
+    public void testSortingAndPagingBySiteIdAsc() throws Exception
     {
         // paging
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "SiteShortName", true);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "id", true);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -638,20 +699,20 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * to a user order = Site Name DESC skip = 1, count = 2
+     * to a user orderBy = id DESC skip = 1, count = 2
      *
      * @throws Exception
      */
-    public void testSortingAndPagingBySiteNameDesc() throws Exception
+    public void testSortingAndPagingBySiteIdDesc() throws Exception
     {
         // paging
         int skipCount = 1;
         int maxItems = 2;
         int totalResults = 3;
-        Paging paging = getPaging(skipCount, maxItems, totalResults, null);
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
 
         // get memberships
-        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "SiteShortName", false);
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(paging, "id", false);
 
         // check results
         List<MemberOfSite> expectedList = new LinkedList<>();
@@ -663,7 +724,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     /**
      * Tests the capability to sort and paginate the site memberships associated
-     * default sorting, all results
+     * default sorting (title asc), all results
      *
      * @throws Exception
      */
@@ -671,7 +732,7 @@ public class TestPersonSites extends EnterpriseTestApi
     {
         // paging
         int totalResults = 3;
-        Paging paging = getPaging(null, null, totalResults, null);
+        Paging paging = getPaging(null, null, totalResults, totalResults);
 
         // get memberships
         ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(null, null, false);
@@ -686,6 +747,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
     }
 
+    // see also TestSites.testSortingAndPaging
     @Test
     public void testSortingAndPaging() throws Exception
     {
@@ -695,8 +757,8 @@ public class TestPersonSites extends EnterpriseTestApi
         testSortingAndPagingByTitleDesc();
         testSortingAndPagingByRoleAsc();
         testSortingAndPagingByRoleDesc();
-        testSortingAndPagingBySiteNameAsc();
-        testSortingAndPagingBySiteNameDesc();
+        testSortingAndPagingBySiteIdAsc();
+        testSortingAndPagingBySiteIdDesc();
         testSortingAndPagingDefault();
     }
 
@@ -726,7 +788,7 @@ public class TestPersonSites extends EnterpriseTestApi
 
         // paging
         int totalResults = 4;
-        Paging paging = getPaging(null, null, totalResults, null);
+        Paging paging = getPaging(null, null, totalResults, totalResults);
 
         // get memberships
         ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson32(null, null, false);
@@ -751,4 +813,192 @@ public class TestPersonSites extends EnterpriseTestApi
             checkList(expectedList, paging.getExpectedPaging(), resp);
         }
     }
+
+    /**
+     * Retrieves the site memberships associated to a user.
+     *
+     * @param paging
+     *            The paging object
+     * @param params
+     *            Public api parameters map.
+     * @param person
+     *            The test person.
+     * @param network
+     *            The test network.
+     * @return The site memberships associated to the give user.
+     * @throws Exception
+     */
+    private ListResponse<MemberOfSite> getSiteMembershipsForPersonAndNetwork(final Paging paging, Map<String, String> params, TestPerson person, TestNetwork network, boolean runAsUserTenant)
+            throws Exception
+    {
+        final Sites sitesProxy = publicApiClient.sites();
+        publicApiClient.setRequestContext(new RequestContext(network.getId(), person.getId()));
+
+        ListResponse<MemberOfSite> resp;
+        if (runAsUserTenant)
+        {
+            // get memberships
+            resp = TenantUtil.runAsUserTenant(new TenantRunAsWork<ListResponse<MemberOfSite>>()
+            {
+                @Override
+                public ListResponse<MemberOfSite> doWork() throws Exception
+                {
+                    ListResponse<MemberOfSite> resp = sitesProxy.getPersonSites(person.getId(), createParams(paging, params));
+                    return resp;
+                }
+            }, person.getId(), network.getId());
+        }
+        else
+        {
+            resp = sitesProxy.getPersonSites(person.getId(), createParams(paging, params));
+        }
+
+        return resp;
+    }
+
+    private List<MemberOfSite> getPersonSites(TestPerson person, TestSite... sites) throws PublicApiException
+    {
+        Sites sitesProxy = publicApiClient.sites();
+
+        List<MemberOfSite> memberOfSiteList = new ArrayList<>();
+        for (TestSite site : sites)
+        {
+            memberOfSiteList.add(sitesProxy.getPersonSite(person.getId(), site.getSiteId()));
+        }
+
+        return memberOfSiteList;
+    }
+
+    private ListResponse<MemberOfSite> getSiteMembershipsForPerson41(final Paging paging, String siteVisibility, boolean runAsUserTenant) throws Exception
+    {
+        final Map<String, String> params = new HashMap<>();
+        params.put("orderBy", "title" + " " + "ASC");
+
+        if (siteVisibility != null)
+        {
+            params.put("where", "(visibility=" + siteVisibility + ")");
+        }
+
+        return getSiteMembershipsForPersonAndNetwork(paging, params, person41, network4, runAsUserTenant);
+    }
+    private ListResponse<MemberOfSite> getSiteMembershipsForPerson41NOTWhere(final Paging paging, String siteVisibility, boolean runAsUserTenant) throws Exception
+    {
+        final Map<String, String> params = new HashMap<>();
+        params.put("orderBy", "title" + " " + "ASC");
+
+        if (siteVisibility != null)
+        {
+            params.put("where", "(NOT visibility=" + siteVisibility + ")");
+        }
+
+        return getSiteMembershipsForPersonAndNetwork(paging, params, person41, network4, runAsUserTenant);
+    }
+    
+    private ListResponse<MemberOfSite> getSiteMembershipsForPerson41(final Paging paging, String siteVisibility) throws Exception
+    {
+        return getSiteMembershipsForPerson41(paging, siteVisibility, true);
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityPrivate() throws Exception
+    {
+        // paging
+        int totalResults = 1;
+        Paging paging = getPaging(null, null, totalResults, totalResults);
+
+        // list sites
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson41(null, SiteVisibility.PRIVATE.name());
+
+        // check results
+        List<MemberOfSite> expectedList = getPersonSites(person41, site41);
+
+        checkList(expectedList, paging.getExpectedPaging(), resp);
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityPublic() throws Exception
+    {
+        // paging
+        int totalResults = 2;
+        Paging paging = getPaging(null, null, totalResults, totalResults);
+
+        // list sites
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson41(null, SiteVisibility.PUBLIC.name());
+
+        // check results
+        List<MemberOfSite> expectedList = getPersonSites(person41, site42, site43);
+
+        checkList(expectedList, paging.getExpectedPaging(), resp);
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityPublicAndSkipCount() throws Exception
+    {
+        // paging
+        Integer skipCount = 1;
+        int maxItems = 2;
+        int totalResults = 2;
+        Paging paging = getPaging(skipCount, maxItems, totalResults, totalResults);
+
+        // list sites
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson41(paging, SiteVisibility.PUBLIC.name());
+
+        // check results
+        List<MemberOfSite> expectedList = getPersonSites(person41, site43);
+
+        checkList(expectedList, paging.getExpectedPaging(), resp);
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityModerated() throws Exception
+    {
+        // paging
+        int totalResults = 1;
+        Paging paging = getPaging(null, null, totalResults, totalResults);
+
+        // list sites
+        ListResponse<MemberOfSite> resp = getSiteMembershipsForPerson41(null, SiteVisibility.MODERATED.name());
+
+        // check results
+        List<MemberOfSite> expectedList = getPersonSites(person41, site44);
+
+        checkList(expectedList, paging.getExpectedPaging(), resp);
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityInvalid() throws Exception
+    {
+        try
+        {
+            getSiteMembershipsForPerson41(null, "invalidVisibility", false);
+            fail("");
+        }
+        catch (PublicApiException e)
+        {
+            assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+        }
+    }
+
+    public void testGetSiteMembershipsWhereSiteVisibilityNOTIncluded() throws Exception
+    {
+        try
+        {
+        	getSiteMembershipsForPerson41NOTWhere(null, SiteVisibility.MODERATED.name(), false);
+            fail("");
+        }
+        catch (PublicApiException e)
+        {
+            assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+        }
+    }
+    
+    @Test
+    public void testGetSiteMembershipsWithWhereClause() throws Exception
+    {
+        initializePersonAndNetwork4WithSites();
+        publicApiClient.setRequestContext(new RequestContext(network4.getId(), person41.getId()));
+
+        testGetSiteMembershipsWhereSiteVisibilityPrivate();
+        testGetSiteMembershipsWhereSiteVisibilityPublic();
+        testGetSiteMembershipsWhereSiteVisibilityPublicAndSkipCount();
+        testGetSiteMembershipsWhereSiteVisibilityModerated();
+        testGetSiteMembershipsWhereSiteVisibilityInvalid();
+        testGetSiteMembershipsWhereSiteVisibilityNOTIncluded();
+    }
+
 }

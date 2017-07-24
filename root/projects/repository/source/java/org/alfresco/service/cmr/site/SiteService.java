@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.site;
 
@@ -177,7 +184,7 @@ public interface SiteService
      * @param filter                filter (sites whose cm:name, cm:title or cm:description START WITH filter)
      * @param sitePresetFilter      site preset filter (sites whose preset EQUALS sitePresetFilter)
      * @param size                  list maximum size or zero for all
-     * @return List<SiteInfo>       list of site information
+     * @return list of site information
      */
     @NotAuditable
     List<SiteInfo> listSites(String filter, String sitePresetFilter, int size);
@@ -193,7 +200,7 @@ public interface SiteService
      * 
      * @param filter                filter
      * @param sitePresetFilter      site preset filter
-     * @return List<SiteInfo>       list of site information
+     * @return list of site information
      */
     @NotAuditable
     List<SiteInfo> listSites(String filter, String sitePresetFilter);
@@ -202,7 +209,7 @@ public interface SiteService
      * List all the sites that the specified user has a explicit membership to.
      *
      * @param userName          user name
-     * @return List<SiteInfo>   list of site information
+     * @return list of site information
      */
     @NotAuditable
     List<SiteInfo> listSites(String userName);
@@ -237,7 +244,7 @@ public interface SiteService
      *
      * @param userName          user name
      * @param size              list maximum size or zero for all
-     * @return List<SiteInfo>   list of site information
+     * @return list of site information
      */
     @NotAuditable
     List<SiteInfo> listSites(String userName, int size);
@@ -465,7 +472,7 @@ public interface SiteService
      * Gets a list of all the currently available roles that a user can perform on 
      *  all sites
      * 
-     * @return  List<String>    list of available roles
+     * @return list of available roles
      */
     @NotAuditable
     List<String> getSiteRoles();
@@ -475,7 +482,7 @@ public interface SiteService
      *  a specific site. This will generally only differ from {@link #getSiteRoles()}
      *  if your site is of a custom type.
      * 
-     * @return  List<String>    list of available roles
+     * @return list of available roles
      */
     @NotAuditable
     List<String> getSiteRoles(String shortName);
@@ -523,7 +530,7 @@ public interface SiteService
      * List all the sites that the specified user has a explicit membership to.
      *
      * @param userName          		 user name
-     * @return PagingResults<SiteInfo>   paged list of site information
+     * @return paged list of site information
      */
     @NotAuditable
 	PagingResults<SiteMembership> listSitesPaged(final String userName, List<Pair<SiteService.SortFields, Boolean>> sortProps, final PagingRequest pagingRequest);

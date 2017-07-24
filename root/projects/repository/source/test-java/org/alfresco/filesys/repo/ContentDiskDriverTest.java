@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.filesys.repo;
 
@@ -59,6 +66,7 @@ import org.alfresco.jlan.server.filesys.TreeConnection;
 import org.alfresco.model.ContentModel;
 import org.alfresco.model.ForumModel;
 import org.alfresco.repo.action.evaluator.NoConditionEvaluator;
+import org.alfresco.repo.content.MimetypeMap;
 import org.alfresco.repo.management.subsystems.ApplicationContextFactory;
 import org.alfresco.repo.model.Repository;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
@@ -7941,15 +7949,15 @@ public class ContentDiskDriverTest extends TestCase
     
     
     /**
-     * Guess mimetype with insufficient data for ACE-4523
+     * Guess mimetype with sufficient data - originally related to ACE-4523
      * Simulate creating a plain text document via Alfresco Share
      * then updating it via CIFS/FTP
      * 
-     * 1. create a document called "foo" with just a little data with an explicit mimetype set.
+     * 1. create a document called "foo" with just a little data with an explicit (incorrect) mimetype set.
      * 2. update the document with different text
-     * 3. check the mimetype of the test doc has not changed
+     * 3. check the mimetype of the test doc has changed (since it can be guessed)
      */
-    public void testMimetypeWithInsufficiantData() throws Exception
+    public void testMimetypeWithSufficientData() throws Exception
     {
         logger.debug("testMimetypeWithInsufficiantData");
 
@@ -7963,7 +7971,7 @@ public class ContentDiskDriverTest extends TestCase
         };
         final TestContext testContext = new TestContext();
 
-        final String TEST_DIR = TEST_ROOT_DOS_PATH + "\\testMimetypeWithInsufficiantData";
+        final String TEST_DIR = TEST_ROOT_DOS_PATH + "\\testMimetypeWithSufficientData";
         
         // this is a made up mimetype - so there is no way that it could be guessed.
         final String TEST_MIMETYPE = "text\bar";
@@ -8068,17 +8076,17 @@ public class ContentDiskDriverTest extends TestCase
               
                
                /**
-                * Validate mimetype has not changed
+                * Validate mimetype has changed - we can guess that it is text !
                 */
-               assertEquals("mimeType is wrong", TEST_MIMETYPE, data.getMimetype());
+               assertEquals("mimeType is wrong", MimetypeMap.MIMETYPE_TEXT_PLAIN, data.getMimetype());
     
            
                return null;
             }
         };
         tran.doInTransaction(validateCB, true, true);
-        logger.debug("end testMimetypeWithInsufficiantData");
-    } // testMimetypeWithInsufficiantData"
+        logger.debug("end testMimetypeWithSufficientData");
+    } // testMimetypeWithSufficientData"
     
     
     

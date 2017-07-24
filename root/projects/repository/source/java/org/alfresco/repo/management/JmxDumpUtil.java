@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.management;
 
@@ -59,8 +66,8 @@ public class JmxDumpUtil
     /** Place holder for nulls. */
     private static final String NULL_VALUE = "<null>";
 
-    /** Place holder for unreadable values. */
-    public static final String UNREADABLE_VALUE = "<not readable>";
+    /** Place holder for protected values (generally passwords). */
+    public static final String PROTECTED_VALUE = "********";
 
     private static final String OS_NAME = "os.name";
 
@@ -140,12 +147,12 @@ public class JmxDumpUtil
                 }
                 catch (Exception e)
                 {
-                    value = JmxDumpUtil.UNREADABLE_VALUE;
+                    value = JmxDumpUtil.PROTECTED_VALUE;
                 }
             }
             else
             {
-                value = JmxDumpUtil.UNREADABLE_VALUE;
+                value = JmxDumpUtil.PROTECTED_VALUE;
             }
             attributes.put(element.getName(), value);
         }
@@ -219,7 +226,7 @@ public class JmxDumpUtil
             }
             catch (Exception e)
             {
-                value = JmxDumpUtil.UNREADABLE_VALUE;
+                value = JmxDumpUtil.PROTECTED_VALUE;
             }
             attributes.put(key, value);
         }

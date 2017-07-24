@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.action.executer;
 
@@ -342,11 +349,11 @@ public abstract class AbstractMailActionExecuterTest
     @Test
     public void testPrepareEmailForDisabledUsers() throws MessagingException
     {
-    	String groupName = null;
+        String groupName = null;
         final String USER1 = "test_user1";
         final String USER2 = "test_user2";
-    	try
-    	{
+        try
+        {
             createUser(USER1, null);
             NodeRef userNode = createUser(USER2, null);
             groupName = AUTHORITY_SERVICE.createAuthority(AuthorityType.GROUP, "testgroup1");
@@ -374,16 +381,16 @@ public abstract class AbstractMailActionExecuterTest
             Address[] addresses = mm.getRecipients(Message.RecipientType.TO);
             Assert.assertEquals(1, addresses.length);
             Assert.assertEquals(USER1 + "@email.com", addresses[0].toString());
-    	}
-    	finally
-    	{
-    		if (groupName != null)
-    		{
+        }
+        finally
+        {
+            if (groupName != null)
+            {
                 AUTHORITY_SERVICE.deleteAuthority(groupName, true);
-    		}
+            }
             PERSON_SERVICE.deletePerson(USER1);
             PERSON_SERVICE.deletePerson(USER2);
-    	}
+        }
     }
 
     @Test

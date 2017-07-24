@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.rest.api.tests;
 
 import static org.junit.Assert.assertEquals;
@@ -30,7 +55,9 @@ import org.alfresco.rest.api.tests.client.PublicApiException;
 import org.alfresco.rest.api.tests.client.RequestContext;
 import org.alfresco.rest.api.tests.client.data.Activity;
 import org.alfresco.rest.api.tests.client.data.Comment;
+import org.alfresco.rest.api.tests.client.data.SiteRole;
 import org.alfresco.rest.api.tests.client.data.Tag;
+import org.alfresco.service.cmr.lock.LockType;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.site.SiteVisibility;
 import org.alfresco.util.GUID;
@@ -38,6 +65,10 @@ import org.apache.commons.httpclient.HttpStatus;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * V1 REST API tests for Node Comments
+ *
+ */
 public class TestNodeComments extends EnterpriseTestApi
 {
 	private TestNetwork network1;
@@ -45,9 +76,12 @@ public class TestNodeComments extends EnterpriseTestApi
 
 	private List<TestPerson> people = new ArrayList<TestPerson>();
 	private List<TestSite> sites = new ArrayList<TestSite>();
-	
+
 	private TestPerson person11;
 	private TestPerson person12;
+	private TestPerson person13;
+	private TestPerson person14;
+
 	private TestPerson person21;
 	private TestPerson person22;
 	
@@ -58,10 +92,15 @@ public class TestNodeComments extends EnterpriseTestApi
 	private NodeRef nodeRef4;
 	private NodeRef cmObjectNodeRef;
 	private NodeRef customTypeObject;
+	private NodeRef nodeRef5;
 	
+	@Override
 	@Before
 	public void setup() throws Exception
 	{
+		// init networks
+		super.setup();
+		
 		Iterator<TestNetwork> accountsIt = getTestFixture().getNetworksIt();
 		this.network1 = accountsIt.next();
 		this.network2 = accountsIt.next();
@@ -76,11 +115,20 @@ public class TestNodeComments extends EnterpriseTestApi
 				people.add(person);
 				person = network1.createUser();
 				people.add(person);
+				person = network1.createUser();
+				people.add(person);
+				person = network1.createUser();
+				people.add(person);
 
 				return null;
 			}
 		}, network1.getId());
-		
+
+		this.person11 = people.get(0);
+		this.person12 = people.get(1);
+		this.person13 = people.get(2);
+		this.person14 = people.get(3);
+
 		TenantUtil.runAsSystemTenant(new TenantRunAsWork<Void>()
 		{
 			@Override
@@ -94,11 +142,9 @@ public class TestNodeComments extends EnterpriseTestApi
 				return null;
 			}
 		}, network2.getId());
-		
-		this.person11 = people.get(0);
-		this.person12 = people.get(1);
-		this.person21 = people.get(2);
-		this.person22 = people.get(3);
+
+		this.person21 = people.get(4);
+		this.person22 = people.get(5);
 
 		TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
 		{
@@ -107,6 +153,9 @@ public class TestNodeComments extends EnterpriseTestApi
 			{
 				TestSite site = network1.createSite(SiteVisibility.PRIVATE);
 				sites.add(site);
+
+				site.updateMember(person13.getId(), SiteRole.SiteCollaborator);
+				site.updateMember(person14.getId(), SiteRole.SiteCollaborator);
 				
 				return null;
 			}
@@ -123,7 +172,8 @@ public class TestNodeComments extends EnterpriseTestApi
 			{
 				NodeRef nodeRef = repoService.createDocument(site1.getContainerNodeRef("documentLibrary"), "Test Doc", "Test Content");
 				nodes.add(nodeRef);
-				nodeRef = repoService.createFolder(site1.getContainerNodeRef("documentLibrary"), "Test Folder");
+				NodeRef folderNodeRef = repoService.createFolder(site1.getContainerNodeRef("documentLibrary"), "Test Folder");
+				nodeRef = folderNodeRef;
 				nodes.add(nodeRef);
 				nodeRef = repoService.createDocument(site1.getContainerNodeRef("documentLibrary"), "Test Doc 1", "Test Content 1");
 				nodes.add(nodeRef);
@@ -134,6 +184,8 @@ public class TestNodeComments extends EnterpriseTestApi
 				nodeRef = repoService.createCmObject(site1.getContainerNodeRef("documentLibrary"), "CM Object");
 				nodes.add(nodeRef);
 				nodeRef = repoService.createObjectOfCustomType(site1.getContainerNodeRef("documentLibrary"), "Custom type object", "{custom.model}sop");
+				nodes.add(nodeRef);
+				nodeRef = repoService.createDocument(folderNodeRef, "Test Doc 4", "Test Content 4 - in Test Folder");
 				nodes.add(nodeRef);
 
 				return null;
@@ -147,6 +199,7 @@ public class TestNodeComments extends EnterpriseTestApi
 		this.nodeRef4 = nodes.get(4);
 		this.cmObjectNodeRef = nodes.get(5);
 		this.customTypeObject = nodes.get(6);
+		this.nodeRef5 = nodes.get(7);
 	}
 
 	@Test
@@ -714,23 +767,9 @@ public class TestNodeComments extends EnterpriseTestApi
 			comment.setContent("my comment");
 			Comment createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
 
-			{
-				TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
-				{
-					@Override
-					public Void doWork() throws Exception
-					{
-						repoService.lockNode(nodeRef1);
-						return null;
-					}
-				}, person11.getId(), network1.getId());
-	
-				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
-
-				Comment updatedComment = new Comment();
-				updatedComment.setContent(null);
-				commentsProxy.updateNodeComment(nodeRef1.getId(), createdComment.getId(), updatedComment);
-			}
+			Comment updatedComment = new Comment();
+			updatedComment.setContent(null);
+			commentsProxy.updateNodeComment(nodeRef1.getId(), createdComment.getId(), updatedComment);
 			
 			fail();
 		}
@@ -738,10 +777,40 @@ public class TestNodeComments extends EnterpriseTestApi
 		{
 			assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
 		}
+		
+        // ACE-5463
+        testSkipCountHighValue(expectedComments, commentsProxy);
+	}
+	
+	@Test
+	public void testNodeCommentsAndLocking() throws Exception
+	{
+		Comments commentsProxy = publicApiClient.comments();
 
-		// locked node comments
+		// locked node - cannot add/edit/delete comments (MNT-14945, MNT-16446)
+		// only the lock owner can (ALF-21907)
+
 		try
 		{
+			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
+
+            TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
+            {
+                @Override
+                public Void doWork() throws Exception
+                {
+                    TestSite site = sites.get(0);
+                    site.updateMember(person13.getId(), SiteRole.SiteManager);
+                    site.updateMember(person14.getId(), SiteRole.SiteManager);
+
+                    return null;
+                }
+            }, person11.getId(), network1.getId());
+
+			Comment comment = new Comment();
+			comment.setContent("my comment");
+			Comment createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
+
 			TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
 			{
 				@Override
@@ -750,44 +819,122 @@ public class TestNodeComments extends EnterpriseTestApi
 					repoService.lockNode(nodeRef1);
 					return null;
 				}
-			}, person11.getId(), network1.getId());
+			}, person13.getId(), network1.getId());
 
-			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
+			// change to not lock owner and not node owner
+			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person14.getId()));
 
 			// test GET for a locked node
-
-			int skipCount = 0;
-			int maxItems = Integer.MAX_VALUE;
-			Paging paging = getPaging(skipCount, maxItems, expectedComments.size(), expectedComments.size());
+            int skipCount = 0;
+            int maxItems = Integer.MAX_VALUE;
+            Paging paging = getPaging(skipCount, maxItems);
 			commentsProxy.getNodeComments(nodeRef1.getId(), createParams(paging, null));
 
 			// test POST for a locked node
+			try
+			{
+				comment = new Comment();
+				comment.setContent("my other comment");
+				createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
 
-			Comment comment = new Comment();
-			comment.setContent("my comment");
-			Comment createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
+				fail("");
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+			}
 
 			// test PUT for a locked node
+			try
 			{
-				TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
-				{
-					@Override
-					public Void doWork() throws Exception
-					{
-						repoService.lockNode(nodeRef1);
-						return null;
-					}
-				}, person11.getId(), network1.getId());
-	
-				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
-
 				Comment updatedComment = new Comment();
 				updatedComment.setContent("my comment");
 				commentsProxy.updateNodeComment(nodeRef1.getId(), createdComment.getId(), updatedComment);
+
+				fail("");
 			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+			}
+
+			// test DELETE for a locked node
+			try
+			{
+				commentsProxy.removeNodeComment(nodeRef1.getId(), createdComment.getId());
+
+				fail("");
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+			}
+
+            // change to node creator
+            publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
+
+            // test POST for a locked node
+            try
+            {
+                comment = new Comment();
+                comment.setContent("my other comment");
+                createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
+
+                fail("");
+            }
+            catch (PublicApiException e)
+            {
+                assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+            }
+
+            // test PUT for a locked node
+            try
+            {
+                Comment updatedComment = new Comment();
+                updatedComment.setContent("my comment");
+                commentsProxy.updateNodeComment(nodeRef1.getId(), createdComment.getId(), updatedComment);
+
+                fail("");
+            }
+            catch (PublicApiException e)
+            {
+                assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+            }
+
+            // test DELETE for a locked node
+            try
+            {
+                commentsProxy.removeNodeComment(nodeRef1.getId(), createdComment.getId());
+
+                fail("");
+            }
+            catch (PublicApiException e)
+            {
+                assertEquals(HttpStatus.SC_CONFLICT, e.getHttpResponse().getStatusCode());
+            }
+
+			// change to lock owner
+			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person13.getId()));
+
+			// test GET for a locked node
+            commentsProxy.getNodeComments(nodeRef1.getId(), createParams(paging, null));
+
+			// test POST for a locked node
+			comment = new Comment();
+			comment.setContent("my other comment");
+			createdComment = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
+
+			// test PUT for a locked node
+			Comment updatedComment = new Comment();
+			updatedComment.setContent("my comment");
+			commentsProxy.updateNodeComment(nodeRef1.getId(), createdComment.getId(), updatedComment);
+
+			// test DELETE for a locked node
+			commentsProxy.removeNodeComment(nodeRef1.getId(), createdComment.getId());
 		}
 		finally
 		{
+		    // undo the lock
 			TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
 			{
 				@Override
@@ -796,7 +943,113 @@ public class TestNodeComments extends EnterpriseTestApi
 					repoService.unlockNode(nodeRef1);
 					return null;
 				}
-			}, person11.getId(), network1.getId());
+			}, person13.getId(), network1.getId());
+
+            // put the other members back to SiteCollaborator
+            TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
+            {
+                @Override
+                public Void doWork() throws Exception
+                {
+                    TestSite site = sites.get(0);
+                    site.updateMember(person13.getId(), SiteRole.SiteCollaborator);
+                    site.updateMember(person14.getId(), SiteRole.SiteCollaborator);
+
+                    return null;
+                }
+            }, person11.getId(), network1.getId());
 		}
 	}
+
+	// lock recursively (MNT-14945, MNT-16446, REPO-1150)
+	@Test
+	public void testNodeCommentsAndLockingIncludingChildren() throws Exception
+	{
+		Comments commentsProxy = publicApiClient.comments();
+
+		// TODO push-down to future CommentServiceImplTest (see ACE-5437) - since includeChildren is via LockService api only
+
+		try
+		{
+			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person11.getId()));
+
+			Comment comment = new Comment();
+			comment.setContent("my comment");
+			Comment createdComment = commentsProxy.createNodeComment(nodeRef5.getId(), comment);
+
+			// recursive lock (folderRef1, nodeRef5)
+			TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
+			{
+				@Override
+				public Void doWork() throws Exception
+				{
+					repoService.lockNode(folderNodeRef1, LockType.WRITE_LOCK, 0, true);
+					return null;
+				}
+			}, person11.getId(), network1.getId());
+
+		}
+		finally
+		{
+			TenantUtil.runAsSystemTenant(new TenantRunAsWork<Void>()
+			{
+				@Override
+				public Void doWork() throws Exception
+				{
+					repoService.unlockNode(folderNodeRef1, true);
+					return null;
+				}
+			}, network1.getId());
+		}
+	}
+
+	@Test
+	public void test_MNT_16446() throws Exception
+	{
+		Comments commentsProxy = publicApiClient.comments();
+
+		// in a site
+
+		publicApiClient.setRequestContext(new RequestContext(network1.getId(), person13.getId()));
+		Comment comment = new Comment("Test Comment 1", "Test Comment 1");
+		Comment resp = commentsProxy.createNodeComment(nodeRef1.getId(), comment);
+		String commentId = resp.getId();
+
+		// MNT-16446: another site collaborator should not be able to edit
+		try
+		{
+			publicApiClient.setRequestContext(new RequestContext(network1.getId(), person14.getId()));
+			Comment update = new Comment("Test Comment 4", "Test Comment 4");
+			commentsProxy.updateNodeComment(nodeRef1.getId(), commentId, update);
+			fail();
+		}
+		catch (PublicApiException e)
+		{
+			assertEquals(HttpStatus.SC_FORBIDDEN, e.getHttpResponse().getStatusCode());
+		}
+
+		publicApiClient.setRequestContext(new RequestContext(network1.getId(), person13.getId()));
+
+		Comment update = new Comment("Updated comment", "Updated comment");
+		commentsProxy.updateNodeComment(nodeRef1.getId(), commentId, update);
+
+		commentsProxy.removeNodeComment(nodeRef1.getId(), commentId);
+	}
+
+    // test for retrieving the list of comments with high value of skipCount(e.g. 10)
+    public void testSkipCountHighValue(List<Comment> expectedComments, Comments commentsProxy) throws PublicApiException
+    {
+        try
+        {
+            int skipCount = 10;
+            int maxItems = 2;
+            Paging paging = getPaging(skipCount, maxItems, expectedComments.size(), expectedComments.size());
+            commentsProxy.getNodeComments(nodeRef1.getId(), createParams(paging, null));
+
+        }
+        catch (IllegalStateException e)
+        {
+            fail();
+        }
+    }
 }

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.tagging;
 
@@ -52,7 +59,7 @@ public interface TaggingService
     /**
      * Get all the tags currently available
      * 
-     * @return List<String> list of tags
+     * @return list of tags
      */
     @NotAuditable
     List<String> getTags(StoreRef storeRef);
@@ -72,7 +79,7 @@ public interface TaggingService
      * 
      * @param storeRef      store reference
      * @param filter        tag filter
-     * @return List<String> list of tags
+     * @return list of tags
      */
     @NotAuditable
     List<String> getTags(StoreRef storeRef, String filter);
@@ -87,7 +94,7 @@ public interface TaggingService
     NodeRef createTag(StoreRef storeRef, String tag);
     
     /**
-     * Delete an existing tag
+     * Delete an existing tag and any references to it(cascade delete).
      * 
      * @param storeRef  store reference
      * @param tag       tag name
@@ -162,7 +169,7 @@ public interface TaggingService
      * Get all the tags on a node
      * 
      * @param nodeRef           node reference
-     * @return List<String>     list of tags on the node
+     * @return list of tags on the node
      */
     @NotAuditable
     List<String> getTags(NodeRef nodeRef);
@@ -171,7 +178,7 @@ public interface TaggingService
      * Get a paged list of all the tags on a node
      * 
      * @param nodeRef                    node reference
-     * @return PagingResults<String>     list of tags on the node
+     * @return list of tags on the node
      */
     @NotAuditable
     PagingResults<Pair<NodeRef, String>> getTags(NodeRef nodeRef, PagingRequest pagingRequest);
@@ -253,7 +260,7 @@ public interface TaggingService
      * If no tag scopes are found an empty list is returned.
      * 
      * @param nodeRef           node reference
-     * @return List<TagScope>   list of tag scopes
+     * @return list of tag scopes
      */
     @NotAuditable
     List<TagScope> findAllTagScopes(NodeRef nodeRef);
@@ -262,7 +269,7 @@ public interface TaggingService
      * Find all nodes that have been tagged with the specified tag.
      * 
      * @param  tag              tag name
-     * @return List<NodeRef>    list of nodes tagged with specified tag, empty of none found
+     * @return list of nodes tagged with specified tag, empty of none found
      */
     @NotAuditable
     List<NodeRef> findTaggedNodes(StoreRef storeRef, String tag);
@@ -273,7 +280,7 @@ public interface TaggingService
      * 
      * @param tag               tag name
      * @param nodeRef           node providing context for the search
-     * @return List<NodeRef>    list of nodes tagged in the context specified, empty if none found
+     * @return list of nodes tagged in the context specified, empty if none found
      */
     @NotAuditable
     List<NodeRef> findTaggedNodes(StoreRef storeRef, String tag, NodeRef nodeRef);

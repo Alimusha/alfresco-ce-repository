@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.audit;
 
@@ -256,6 +263,10 @@ public class AuditComponentImpl implements AuditComponent
 
     /**
      * {@inheritDoc}
+     * <p/>
+     * Note that if DEBUG is on for the the {@link #INBOUND_LOGGER}, then <tt>true</tt>
+     * will always be returned.
+     * 
      * @since 3.4
      */
     @Override
@@ -263,7 +274,7 @@ public class AuditComponentImpl implements AuditComponent
     {
         PathMapper pathMapper = auditModelRegistry.getAuditPathMapper();
         Set<String> mappedPaths = pathMapper.getMappedPathsWithPartialMatch(path);
-        return mappedPaths.size() > 0;
+        return loggerInbound.isDebugEnabled() || mappedPaths.size() > 0;
     }
 
     /**
@@ -491,135 +502,7 @@ public class AuditComponentImpl implements AuditComponent
     {
         return recordAuditValuesWithUserFilter(rootPath, values, true);
     }
-    
-    protected <T> T trimStringsIfNecessary (T values)
-    {
-        T processed;
-        
-        if (values instanceof MLText)
-        {
-            // need to treat MLText first because it is actually a HashMap
-            Map<Locale, String> localizedStrings = trimStringsIfNecessary((MLText)values);
-            if (localizedStrings != values)
-            {
-                // processed so far is only defensive copy of a Map, not a MLText
-                processed = (T)new MLText();
-                ((MLText)processed).putAll(localizedStrings);
-            }
-            else
-            {
-                // no changes
-                processed = values;
-            }
-        }
-        else if (values instanceof Map<?, ?>)
-        {
-            processed = (T)trimStringsIfNecessary((Map<?, ?>)values);
-        }
-        else if (values instanceof List<?>)
-        {
-            // need to treat list specially to preserve order
-            processed = (T)trimStringsIfNecessary((List<?>)values);
-        }
-        else if (values instanceof Collection<?>)
-        {
-            // any other collection treated as unordered with no guarantee processed data will be in same order
-            processed = (T)trimStringsIfNecessary((Collection<?>)values);
-        }
-        else if (values instanceof String)
-        {
-            processed = (T)SchemaBootstrap.trimStringForTextFields((String) values);
-        }
-        else 
-        {
-            // don't know how to process
-            processed = values;
-        }
-        
-        return processed;
-    }
-    
-    private <V> List<V> trimStringsIfNecessary (List<V> values)
-    {
-        List<V> processed = values;
-        
-        int idx = 0;
-        for (V auditValue : values)
-        {
-            if (auditValue != null )
-            {
-                V processedAuditValue = trimStringsIfNecessary(auditValue);
-                
-                if (processedAuditValue != auditValue && !auditValue.equals(processedAuditValue))
-                {
-                    if (processed == values)
-                    {
-                        // defensive copy
-                        processed = new ArrayList<V>(values);
-                    }
-                    processed.set(idx, processedAuditValue);
-                }
-            }
-            
-            idx++;
-        }
-        
-        return processed;
-    }
-    
-    private <V> Collection<V> trimStringsIfNecessary (Collection<V> values)
-    {
-        Collection<V> processed = values;
-        
-        for (V auditValue : values)
-        {
-            if (auditValue != null )
-            {
-                V processedAuditValue = trimStringsIfNecessary(auditValue);
-                
-                if (processedAuditValue != auditValue && !auditValue.equals(processedAuditValue))
-                {
-                    if (processed == values)
-                    {
-                        // defensive copy
-                        processed = new HashSet<V>(values);
-                    }
-                    processed.remove(auditValue);
-                    processed.add(processedAuditValue);
-                }
-            }
-        }
-        
-        return processed;
-    }
-    
-    private <K, V> Map<K, V> trimStringsIfNecessary (Map<K, V> values)
-    {
-        Map<K, V> processed = values;
-        
-        for (Map.Entry<K, V> entry : values.entrySet())
-        {
-            V auditValue = entry.getValue();
-            
-            if (auditValue != null )
-            {
-                V processedAuditValue = trimStringsIfNecessary(auditValue);
-                
-                if (processedAuditValue != auditValue && !auditValue.equals(processedAuditValue))
-                {
-                    if (processed == values)
-                    {
-                        // defensive copy
-                        processed = new HashMap<K, V>(values);
-                    }
-                    processed.put(entry.getKey(), processedAuditValue);
-                }
-            }
-        }
-        
-        return processed;
-    }
-    
+
     @Override
     public Map<String, Serializable> recordAuditValuesWithUserFilter(String rootPath, Map<String, Serializable> values, boolean useUserFilter)
     {
@@ -632,9 +515,6 @@ public class AuditComponentImpl implements AuditComponent
         {
             return Collections.emptyMap();
         }
-        
-        // MNT-12196
-        values = trimStringsIfNecessary(values);
         
         // Log inbound values
         if (loggerInbound.isDebugEnabled())

@@ -1,5 +1,32 @@
+/*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.repo.search.impl.solr;
 
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
@@ -7,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.domain.node.Node;
@@ -63,7 +91,7 @@ public class DbOrIndexSwitchingQueryLanguageTest
         when(indexQueryLang.executeQuery(argThat(isSearchParamsSinceTxId(null)), eq(admLuceneSearcher))).thenReturn(indexResults);
         when(indexResults.getLastIndexedTxId()).thenReturn(80L);
         when(dbQueryLang.executeQuery(argThat(isSearchParamsSinceTxId(80L)), eq(admLuceneSearcher))).thenReturn(dbResults);
-        when(solrDAO.getNodes(argThat(isNodeParamsFromTxnId(81L)))).thenReturn(changedNodes);
+        when(solrDAO.getNodes(argThat(isNodeParamsFromTxnId(81L)), eq(null))).thenReturn(changedNodes);
         
         searchParameters.setQueryConsistency(QueryConsistency.HYBRID);
         
@@ -139,7 +167,26 @@ public class DbOrIndexSwitchingQueryLanguageTest
         searchParameters.setQueryConsistency(QueryConsistency.HYBRID);
         queryLang.executeQuery(searchParameters, admLuceneSearcher);
     }
-    
+
+
+    @Test
+    public void findAfts() throws Exception
+    {
+        java.util.regex.Matcher matcher = LuceneQueryLanguageSPI.AFTS_QUERY.matcher("{!afts tag=desc1,desc2}description:xyz");
+        assertTrue(matcher.find());
+        assertEquals("description:xyz", matcher.group(2));
+
+        matcher = LuceneQueryLanguageSPI.AFTS_QUERY.matcher("{!afts tag=desc1}{http://www.alfresco.org/model/content/1.0}title:workflow");
+        assertTrue(matcher.find());
+        assertEquals("{http://www.alfresco.org/model/content/1.0}title:workflow", matcher.group(2));
+
+        matcher = LuceneQueryLanguageSPI.AFTS_QUERY.matcher("{http://www.alfresco.org/model/content/1.0}title:workflow");
+        assertFalse(matcher.find());
+
+        matcher = LuceneQueryLanguageSPI.AFTS_QUERY.matcher("description:xyz");
+        assertFalse(matcher.find());
+    }
+
     /**
      * Custom matcher for SearchParameters having a particular value
      * for the property sinceTxId.

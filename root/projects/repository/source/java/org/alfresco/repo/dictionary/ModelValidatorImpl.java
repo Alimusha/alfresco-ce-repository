@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.repo.dictionary;
 
 import java.util.Collection;
@@ -20,6 +45,7 @@ import org.alfresco.service.cmr.dictionary.AspectDefinition;
 import org.alfresco.service.cmr.dictionary.ClassDefinition;
 import org.alfresco.service.cmr.dictionary.ConstraintDefinition;
 import org.alfresco.service.cmr.dictionary.DictionaryException;
+import org.alfresco.service.cmr.dictionary.DictionaryService;
 import org.alfresco.service.cmr.dictionary.ModelDefinition;
 import org.alfresco.service.cmr.dictionary.NamespaceDefinition;
 import org.alfresco.service.cmr.dictionary.PropertyDefinition;
@@ -46,6 +72,7 @@ public class ModelValidatorImpl implements ModelValidator
     private static final Log logger = LogFactory.getLog(ModelValidatorImpl.class);
 
     private DictionaryDAO dictionaryDAO;
+    private DictionaryService dictionaryService;
     private QNameDAO qnameDAO;
     private NamespaceService namespaceService;
     private TransactionService transactionService;
@@ -92,6 +119,11 @@ public class ModelValidatorImpl implements ModelValidator
     public void setTenantAdminService(TenantAdminService tenantAdminService)
     {
         this.tenantAdminService = tenantAdminService;
+    }
+
+    public void setDictionaryService(DictionaryService dictionaryService)
+    {
+        this.dictionaryService = dictionaryService;
     }
 
     private void checkCustomModelNamespace(M2Model model, String tenantDomain)
@@ -444,7 +476,16 @@ public class ModelValidatorImpl implements ModelValidator
                 }
                 else
                 {
-                    throw new AlfrescoRuntimeException("Failed to validate model update - found deleted " + modelDiff.getElementType() + " '" + modelDiff.getElementName() + "'");
+                    /*
+                     * As the M2Model#compile method will detect and throw exception for any missing namespace which
+                     * is required to define any Type, Aspect or Property, we can safely add this extra check.
+                     * See APPSREPO-59 comment for details.
+                     */
+                    if (!modelDiff.getElementType().equals(M2ModelDiff.TYPE_NAMESPACE))
+                    {
+                        throw new AlfrescoRuntimeException("Failed to validate model update - found deleted " + modelDiff.getElementType() + " '" + modelDiff
+                                                .getElementName() + "'");
+                    }
                 }
             }
 
@@ -452,8 +493,37 @@ public class ModelValidatorImpl implements ModelValidator
             {
                 throw new AlfrescoRuntimeException("Failed to validate model update - found non-incrementally updated " + modelDiff.getElementType() + " '" + modelDiff.getElementName() + "'");
             }
+
+            if(modelDiff.getDiffType().equals(M2ModelDiff.DIFF_CREATED))
+            {
+                if (modelDiff.getElementType().equals(M2ModelDiff.TYPE_NAMESPACE))
+                {
+                    ModelDefinition importedModel = dictionaryService.getModelByNamespaceUri(modelDiff.getNamespaceDefinition().getUri());
+                    if(importedModel != null && !model.getNamespaces().isEmpty())
+                    {
+                        checkCircularDependency(importedModel, model, importedModel.getName().getLocalName());
+                    }
+                }
+            }
         }
         
         // TODO validate that any deleted constraints are not being referenced - else currently will become anon - or push down into model compilation (check backwards compatibility ...)
     }
+
+    private void checkCircularDependency(ModelDefinition model, M2Model existingModel, String parentPrefixedName) throws AlfrescoRuntimeException
+    {
+        for (NamespaceDefinition importedNamespace : model.getImportedNamespaces())
+        {
+            ModelDefinition md = null;
+            if ((md = dictionaryService.getModelByNamespaceUri(importedNamespace.getUri())) != null)
+            {
+                if (existingModel.getNamespace(importedNamespace.getUri()) != null)
+                {
+                    throw new AlfrescoRuntimeException("Failed to validate model update - found circular dependency. You can't set parent " + parentPrefixedName + " as it's model already depends on " + existingModel.getName());
+                }
+                checkCircularDependency(md, existingModel, parentPrefixedName);
+            }
+        }
+    }
+
 }

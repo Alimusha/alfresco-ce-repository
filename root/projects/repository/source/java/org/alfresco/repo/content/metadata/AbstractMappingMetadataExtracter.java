@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.metadata;
 
@@ -41,6 +48,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.activation.MimeType;
 
 import org.alfresco.api.AlfrescoPublicApi;     
 import org.alfresco.error.AlfrescoRuntimeException;
@@ -60,7 +70,6 @@ import org.alfresco.service.namespace.InvalidQNameException;
 import org.alfresco.service.namespace.QName;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.xmlbeans.impl.xb.xsdschema.All;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -118,6 +127,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     public static final String PROPERTY_PREFIX_METADATA = "metadata.";
     public static final String PROPERTY_COMPONENT_EXTRACT = ".extract.";
     public static final String PROPERTY_COMPONENT_EMBED = ".embed.";
+    public static final int MEGABYTE_SIZE = 1048576;
     
     protected static Log logger = LogFactory.getLog(AbstractMappingMetadataExtracter.class);
     
@@ -141,6 +151,9 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     private Properties properties;
     private Map<String, MetadataExtracterLimits> mimetypeLimits;
     private ExecutorService executorService;
+    protected MetadataExtracterConfig metadataExtracterConfig;
+    
+    private static final AtomicInteger CONCURRENT_EXTRACTIONS_COUNT = new AtomicInteger(0);
 
     /**
      * Default constructor.  If this is called, then {@link #isSupported(String)} should
@@ -225,7 +238,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * Set the mimetypes that are supported by the extracter.
      * 
-     * @param supportedMimetypes Collection<String>
      */
     public void setSupportedMimetypes(Collection<String> supportedMimetypes)
     {
@@ -236,7 +248,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * Set the mimetypes that are supported for embedding.
      *
-     * @param supportedEmbedMimetypes Collection<String>
      */
     public void setSupportedEmbedMimetypes(Collection<String> supportedEmbedMimetypes)
     {
@@ -249,6 +260,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
      * 
      * @see #setSupportedMimetypes(Collection)
      */
+    @Override
     public boolean isSupported(String sourceMimetype)
     {
         return supportedMimetypes.contains(sourceMimetype) && isEnabled(sourceMimetype);
@@ -259,6 +271,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
      *
      * @see #setSupportedEmbedMimetypes(Collection)
      */
+    @Override
     public boolean isEmbeddingSupported(String sourceMimetype)
     {
         if (supportedEmbedMimetypes == null)
@@ -290,17 +303,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     }
 
     /**
-     * TODO - This doesn't appear to be used, so should be removed / deprecated / replaced
-     * @return      Returns <code>1.0</code> if the mimetype is supported, otherwise <tt>0.0</tt>
-     * 
-     * @see #isSupported(String)
-     */
-    public double getReliability(String mimetype)
-    {
-        return isSupported(mimetype) ? 1.0D : 0.0D;
-    }
-
-    /**
      * Set the policy to use when existing values are encountered.  Depending on how the extractor
      * is called, this may not be relevant, i.e an empty map of existing properties may be passed
      * in by the client code, which may follow its own overwrite strategy.
@@ -313,22 +315,10 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     }
 
     /**
-     * Set the policy to use when existing values are encountered.  Depending on how the extractor
-     * is called, this may not be relevant, i.e an empty map of existing properties may be passed
-     * in by the client code, which may follow its own overwrite strategy.
-     * 
-     * @param overwritePolicyStr    the policy to apply when there are existing system properties
-     */
-    public void setOverwritePolicy(String overwritePolicyStr)
-    {
-        this.overwritePolicy = OverwritePolicy.valueOf(overwritePolicyStr);
-    }
-
-    /**
      * Set whether the extractor should discard metadata that fails to convert to the target type
      * defined in the data dictionary model.  This is <tt>true</tt> by default i.e. if the data
      * extracted is not compatible with the target model then the extraction will fail.  If this is
-     * <tt>false<tt> then any extracted data that fails to convert will be discarded.
+     * <tt>false</tt> then any extracted data that fails to convert will be discarded.
      * 
      * @param failOnTypeConversion      <tt>false</tt> to discard properties that can't get converted
      *                                  to the dictionary-defined type, or <tt>true</tt> (default)
@@ -410,7 +400,15 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     {
         this.properties = properties;
     }
-
+    
+    /**
+     * The metadata extracter config.
+     */
+    public void setMetadataExtracterConfig(MetadataExtracterConfig metadataExtracterConfig)
+    {
+        this.metadataExtracterConfig = metadataExtracterConfig;
+    }
+    
     /**
      * Whether or not to enable the pass through of simple strings to cm:taggable tags
      * 
@@ -446,7 +444,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * Sets the map of source mimetypes to metadata extracter limits.
      * 
-     * @param mimetypeLimits Map<String, MetadataExtracterLimits>
      */
     public void setMimetypeLimits(Map<String, MetadataExtracterLimits> mimetypeLimits)
     {
@@ -1102,12 +1099,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
         initialized = true;
     }
 
-    /** {@inheritDoc} */
-    public long getExtractionTime()
-    {
-        return 1000L;
-    }
-
     /**
      * Checks if the mimetype is supported.
      * 
@@ -1149,6 +1140,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * {@inheritDoc}
      */
+    @Override
     public final Map<QName, Serializable> extract(ContentReader reader, Map<QName, Serializable> destination)
     {
         return extract(reader, this.overwritePolicy, destination, this.mapping);
@@ -1157,6 +1149,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * {@inheritDoc}
      */
+    @Override
     public final Map<QName, Serializable> extract(
             ContentReader reader,
             OverwritePolicy overwritePolicy,
@@ -1168,6 +1161,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * {@inheritDoc}
      */
+    @Override
     public Map<QName, Serializable> extract(
             ContentReader reader,
             OverwritePolicy overwritePolicy,
@@ -1219,6 +1213,12 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
                logger.debug("Extracted Metadata from " + reader + "\n  Found: " +
                             rawMetadata + "\n  Mapped and Accepted: " + changedProperties);
             }
+        }
+        catch (LimitExceededException e)
+        {
+            logger.warn("Metadata extraction rejected: \n" + 
+                    "   Extracter: " + this + "\n" + 
+                    "   Reason:   " + e.getMessage());
         }
         catch (Throwable e)
         {
@@ -1291,6 +1291,7 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     /**
      * {@inheritDoc}
      */
+    @Override
     public final void embed(
             Map<QName, Serializable> properties,
             ContentReader reader,
@@ -1803,7 +1804,6 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
      * the class, then the {@link #readMappingProperties(String)} method can be used to quickly
      * generate the return value:
      * <pre><code>
-     *      protected Map<<String, Set<QName>> getDefaultMapping()
      *      {
      *          return readMappingProperties(DEFAULT_MAPPING);
      *      }
@@ -1968,16 +1968,17 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
      * Gets the metadata extracter limits for the given mimetype.
      * <p>
      * A specific match for the given mimetype is tried first and
-     * if none is found a wildcard of "*" is tried.
+     * if none is found a wildcard of "*" is tried, if still not found 
+     * defaults value will be used
      * 
      * @param mimetype String
-     * @return the found limits or null
+     * @return the found limits or default values
      */
     protected MetadataExtracterLimits getLimits(String mimetype)
     {
         if (mimetypeLimits == null)
         {
-            return null;
+            return new MetadataExtracterLimits();
         }
         MetadataExtracterLimits limits = null;
         limits = mimetypeLimits.get(mimetype);
@@ -1985,6 +1986,11 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
         {
             limits = mimetypeLimits.get("*");
         }
+        if (limits == null)
+        {
+            limits = new MetadataExtracterLimits();
+        }
+        
         return limits;
     }
     
@@ -2030,6 +2036,19 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     }
     
     /**
+     * Exception wrapper to handle exceeded limits imposed by {@link MetadataExtracterLimits}
+     * {@link AbstractMappingMetadataExtracter#extractRaw(ContentReader, MetadataExtracterLimits)}
+     */
+    private class LimitExceededException extends Exception
+    {
+        private static final long serialVersionUID = 702554119174770130L;
+        public LimitExceededException(String message)
+        {
+            super(message);
+        }
+    }
+    
+    /**
      * Calls the {@link AbstractMappingMetadataExtracter#extractRaw(ContentReader)} method
      * using the given limits.
      * <p>
@@ -2049,12 +2068,34 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
     private Map<String, Serializable> extractRaw(
             ContentReader reader, MetadataExtracterLimits limits) throws Throwable
     {
-        if (limits == null || limits.getTimeoutMs() == -1)
-        {
-            return extractRaw(reader);
-        }
         FutureTask<Map<String, Serializable>> task = null;
         StreamAwareContentReaderProxy proxiedReader = null;
+        
+        if (reader.getSize() > limits.getMaxDocumentSizeMB() * MEGABYTE_SIZE)
+        {
+            throw new LimitExceededException("Max doc size exceeded " + limits.getMaxDocumentSizeMB() + " MB");
+        }
+        
+        synchronized (CONCURRENT_EXTRACTIONS_COUNT)
+        {
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("Concurrent extractions : " + CONCURRENT_EXTRACTIONS_COUNT.get());
+            }
+            if (CONCURRENT_EXTRACTIONS_COUNT.get() < limits.getMaxConcurrentExtractionsCount())
+            {
+                int totalDocCount = CONCURRENT_EXTRACTIONS_COUNT.incrementAndGet();
+                if (logger.isDebugEnabled())
+                {
+                    logger.debug("New extraction accepted. Concurrent extractions : " + totalDocCount);
+                }
+            }
+            else
+            {
+                throw new LimitExceededException("Reached concurrent extractions limit - " + limits.getMaxConcurrentExtractionsCount());
+            }
+        }
+        
         try
         {
             proxiedReader = new StreamAwareContentReaderProxy(reader);
@@ -2086,6 +2127,14 @@ abstract public class AbstractMappingMetadataExtracter implements MetadataExtrac
                 cause = ((ExtractRawCallableException) cause).getCause();
             }
             throw cause;
+        }
+        finally
+        {
+            int totalDocCount = CONCURRENT_EXTRACTIONS_COUNT.decrementAndGet();
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("Extraction finalized. Remaining concurrent extraction : " + totalDocCount);
+            }
         }
     }
     

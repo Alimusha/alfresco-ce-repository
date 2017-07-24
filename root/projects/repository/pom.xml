@@ -5,13 +5,11 @@
     <parent>
         <artifactId>alfresco-parent</artifactId>
         <groupId>org.alfresco</groupId>
-        <version>5.1.g</version>
+        <version>5.2.g</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <properties>
-        <build-number>0</build-number>
-        <scm-revision>123456</scm-revision>
         <repositoryTestIncludes>**/org/alfresco/Repository*TestSuite.java</repositoryTestIncludes>
     </properties>
     
@@ -38,18 +36,22 @@
         </dependency>
         <dependency>
             <groupId>org.alfresco</groupId>
+            <artifactId>alfresco-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.alfresco</groupId>
             <artifactId>alfresco-text-gen</artifactId>
             <version>1.3</version>
         </dependency>
         <dependency>
             <groupId>org.alfresco.services</groupId>
             <artifactId>alfresco-events</artifactId>
-            <version>1.2.4</version>
+            <version>1.2.5</version>
         </dependency>
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>javax.mail</artifactId>
-            <version>1.5.2</version>
+            <version>1.5.5</version>
         </dependency>
         <dependency>
             <groupId>org.alfresco</groupId>
@@ -117,11 +119,6 @@
             <artifactId>json</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-jpdl</artifactId>
-            <version>3.3.1-patched</version>
-        </dependency>
-        <dependency>
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
             <version>3.6.1</version>
@@ -154,91 +151,6 @@
             <version>${dependency.spring.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springmodules</groupId>
-            <artifactId>spring-modules-jbpm31</artifactId>
-            <version>0.5</version>
-            <!-- This artifact is very old, and pulls a lot of stupid deps... -->
-            <!-- Vote for http://jira.codehaus.org/browse/MNG-2315 please! -->
-            <exclusions>
-                <exclusion>
-                    <groupId>antlr</groupId>
-                    <artifactId>antlr</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-beans</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-dao</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-support</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-orm</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-orm</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-hibernate</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-jdbc</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-aop</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-expression</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.hibernate</groupId>
-                    <artifactId>hibernate</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>geronimo-spec</groupId>
-                    <artifactId>geronimo-spec-jta</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>dom4j</groupId>
-                    <artifactId>dom4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ehcache</groupId>
-                    <artifactId>ehcache</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>hsqldb</groupId>
-                    <artifactId>hsqldb</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>bsh</groupId>
-                    <artifactId>bsh</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>cglib</groupId>
-                    <artifactId>cglib-nodep</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>jboss</groupId>
-                    <artifactId>jbpm</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.subethamail</groupId>
             <artifactId>subethasmtp</artifactId>
             <version>3.1.7</version>
@@ -269,7 +181,7 @@
         <dependency>
             <groupId>com.thoughtworks.xstream</groupId>
             <artifactId>xstream</artifactId>
-            <version>1.2.2</version>
+            <version>1.3.1</version>
         </dependency>
         <dependency>
             <groupId>com.sun.pdfview</groupId>
@@ -331,17 +243,12 @@
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-ws-metadata_2.0_spec</artifactId>
-            <version>1.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-identity</artifactId>
-            <version>3.3.1</version>
+            <version>1.1.3</version>
         </dependency>
         <dependency>
             <groupId>net.java.dev.stax-utils</groupId>
             <artifactId>stax-utils</artifactId>
-            <version>20060502</version>
+            <version>20070216</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.bea.xml</groupId>
@@ -356,10 +263,6 @@
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>jstl</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.myfaces.core</groupId>
@@ -392,17 +295,22 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15</artifactId>
-            <version>1.45</version>
+            <version>1.46</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcmail-jdk15</artifactId>
+            <version>1.46</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.mp4parser</groupId>
             <artifactId>isoparser</artifactId>
-            <version>1.0-RC-1</version>
+            <version>1.1.21</version>
         </dependency>
         <dependency>
             <groupId>com.drewnoakes</groupId>
             <artifactId>metadata-extractor</artifactId>
-            <version>2.6.2</version>
+            <version>2.7.2</version>
         </dependency>
         <dependency>
             <groupId>org.ccil.cowan.tagsoup</groupId>
@@ -432,7 +340,7 @@
         <dependency>
             <groupId>net.sf.jsr107cache</groupId>
             <artifactId>jsr107cache</artifactId>
-            <version>1.0</version>
+            <version>1.1</version>
         </dependency>
         <dependency>
             <groupId>javax.jws</groupId>
@@ -451,24 +359,24 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.apache.ws.commons.schema</groupId>
-            <artifactId>XmlSchema</artifactId>
-            <version>1.4.5</version>
+            <groupId>org.apache.ws.xmlschema</groupId>
+            <artifactId>xmlschema-core</artifactId>
+             <version>2.2.1</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.concurrentlinkedhashmap</groupId>
             <artifactId>concurrentlinkedhashmap-lru</artifactId>
-            <version>1.2</version>
+            <version>1.4.2</version>
         </dependency>
         <dependency>
             <groupId>com.sun.xml.fastinfoset</groupId>
             <artifactId>FastInfoset</artifactId>
-            <version>1.2.2</version>
+            <version>1.2.13</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-all</artifactId>
-            <version>2.4.4</version>
+            <version>2.4.7</version>
             <classifier>indy</classifier>
         </dependency>
         <!-- OpenOffice -->
@@ -501,7 +409,7 @@
         <dependency>
             <groupId>jmagick</groupId>
             <artifactId>jmagick</artifactId>
-            <version>6.2.4</version>
+            <version>6.6.9</version>
         </dependency>
         <dependency>
             <groupId>org.openoffice</groupId>
@@ -543,13 +451,24 @@
         <dependency>
             <groupId>org.livetribe</groupId>
             <artifactId>livetribe-jsr223</artifactId>
-            <version>2.0.6</version>
+            <version>2.0.7</version>
         </dependency>
         <dependency>
             <groupId>edu.ucar</groupId>
             <artifactId>netcdf</artifactId>
-            <version>4.2-min</version>
+            <version>4.2.20</version>
         </dependency>
+
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        
         <!-- Spring Surf -->
         <dependency>
             <groupId>org.alfresco.surf</groupId>
@@ -588,12 +507,22 @@
         <dependency>
             <groupId>org.springframework.social</groupId>
             <artifactId>spring-social-facebook</artifactId>
-            <version>1.0.0.RC1</version>
+            <version>1.1.1.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.social</groupId>
+            <artifactId>spring-social-facebook-web</artifactId>
+            <version>1.1.1.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.social</groupId>
+            <artifactId>spring-social-web</artifactId>
+            <version>1.1.4.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.social</groupId>
             <artifactId>spring-social-twitter</artifactId>
-            <version>1.0.5.RELEASE</version>
+            <version>1.1.2.RELEASE</version>
         </dependency>
 
         <!-- Chemistry -->
@@ -601,12 +530,6 @@
             <groupId>org.apache.chemistry.opencmis</groupId>
             <artifactId>chemistry-opencmis-commons-impl</artifactId>
             <version>${dependency.opencmis.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jvnet.staxex</groupId>
-                    <artifactId>stax-ex</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.chemistry.opencmis</groupId>
@@ -616,10 +539,6 @@
                 <exclusion>
                     <artifactId>antlr-runtime</artifactId>
                     <groupId>org.antlr</groupId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jvnet.staxex</groupId>
-                    <artifactId>stax-ex</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -668,23 +587,13 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-core</artifactId>
-            <version>3.1.3.RELEASE</version>
+            <version>3.1.7.RELEASE</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>
                     <artifactId>spring-expression</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.social</groupId>
-            <artifactId>spring-social-facebook-web</artifactId>
-            <version>1.0.0.RELEASE</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.social</groupId>
-            <artifactId>spring-social-web</artifactId>
-            <version>1.0.3.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -771,7 +680,6 @@
         <dependency>
             <groupId>org.alfresco</groupId>
             <artifactId>alfresco-data-model</artifactId>
-            <version>${project.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
@@ -816,10 +724,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-			<groupId>org.aspectj</groupId>
-			<artifactId>aspectjrt</artifactId>
-			<version>1.8.2</version>
-		</dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>1.8.7</version>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -891,6 +799,151 @@
             </build>
         </profile>
 
+	        <!-- Profiles to extract the alfresco-pdf-renderer -->
+		<profile>
+			<id>win-alfresco-pdf-renderer-test</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.alfresco</groupId>
+					<artifactId>alfresco-pdf-renderer</artifactId>
+					<version>${installer.alfresco-pdf-renderer.version}</version>
+					<classifier>win64</classifier>
+					<type>tgz</type>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<inherited>false</inherited>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>extract-alfresco-pdf-renderer-test</id>
+								<phase>generate-test-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<skip>${skipTests}</skip>
+									<target>
+										<echo message="Extracting alfresco-pdf-renderer (windows) for testing..." />
+										<mkdir dir="${project.build.directory}/test-binaries/alfresco-pdf-renderer" />
+										<untar compression="gzip"
+											   src="${settings.localRepository}/org/alfresco/alfresco-pdf-renderer/${installer.alfresco-pdf-renderer.version}/alfresco-pdf-renderer-${installer.alfresco-pdf-renderer.version}-win64.tgz"
+											   dest="${project.build.directory}/test-binaries/alfresco-pdf-renderer" />
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+			<properties>
+				<alfresco-pdf-renderer.exe>${project.build.directory}/test-binaries/alfresco-pdf-renderer/alfresco-pdf-renderer</alfresco-pdf-renderer.exe>
+			</properties>
+		</profile>
+		<profile>
+			<id>linux-alfresco-pdf-renderer-test</id>
+			<activation>
+				<os>
+					<family>linux</family>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.alfresco</groupId>
+					<artifactId>alfresco-pdf-renderer</artifactId>
+					<version>${installer.alfresco-pdf-renderer.version}</version>
+					<classifier>linux</classifier>
+					<type>tgz</type>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<inherited>false</inherited>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>extract-alfresco-pdf-renderer-test</id>
+								<phase>generate-test-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<skip>${skipTests}</skip>
+									<target>
+										<echo message="Extracting alfresco-pdf-renderer (linux) for testing..." />
+										<mkdir dir="${project.build.directory}/test-binaries/alfresco-pdf-renderer" />
+										<exec failonerror="true" executable="tar" dir="${project.build.directory}/test-binaries/alfresco-pdf-renderer">
+											<arg value="xf" />
+											<arg value="${settings.localRepository}/org/alfresco/alfresco-pdf-renderer/${installer.alfresco-pdf-renderer.version}/alfresco-pdf-renderer-${installer.alfresco-pdf-renderer.version}-linux.tgz" />
+										</exec>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+			<properties>
+				<alfresco-pdf-renderer.exe>${project.build.directory}/test-binaries/alfresco-pdf-renderer/alfresco-pdf-renderer</alfresco-pdf-renderer.exe>
+			</properties>
+		</profile>
+		<profile>
+			<id>osx-alfresco-pdf-renderer-test</id>
+			<activation>
+				<os>
+					<family>mac</family>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.alfresco</groupId>
+					<artifactId>alfresco-pdf-renderer</artifactId>
+					<version>${installer.alfresco-pdf-renderer.version}</version>
+					<classifier>osx</classifier>
+					<type>tgz</type>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<inherited>false</inherited>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>extract-alfresco-pdf-renderer-test</id>
+								<phase>generate-test-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<skip>${skipTests}</skip>
+									<target>
+										<echo message="Extracting alfresco-pdf-renderer (OS-X) for testing..." />
+										<mkdir dir="${project.build.directory}/test-binaries/alfresco-pdf-renderer" />
+										<exec failonerror="true" executable="tar" dir="${project.build.directory}/test-binaries/alfresco-pdf-renderer">
+											<arg value="xf" />
+											<arg value="${settings.localRepository}/org/alfresco/alfresco-pdf-renderer/${installer.alfresco-pdf-renderer.version}/alfresco-pdf-renderer-${installer.alfresco-pdf-renderer.version}-osx.tgz" />
+										</exec>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+			<properties>
+				<alfresco-pdf-renderer.exe>${project.build.directory}/test-binaries/alfresco-pdf-renderer/alfresco-pdf-renderer</alfresco-pdf-renderer.exe>
+			</properties>
+		</profile>
+
         <profile>
             <id>integration-tests</id>
             <activation>
@@ -909,6 +962,7 @@
                               <configuration>
                                   <systemPropertyVariables>
                                     <smart.folders.enabled>true</smart.folders.enabled>
+                                    <alfresco-pdf-renderer.exe>${alfresco-pdf-renderer.exe}</alfresco-pdf-renderer.exe>
                                   </systemPropertyVariables>
                                   <forkMode>always</forkMode>
                                   <includes combine.self="override">
@@ -984,6 +1038,9 @@
                   <id>default-test</id>
                   <!-- There's also surefire configuration in the integration-tests profile -->
                   <configuration>
+                       <systemPropertyVariables>
+                           <alfresco-pdf-renderer.exe>${alfresco-pdf-renderer.exe}</alfresco-pdf-renderer.exe>
+                       </systemPropertyVariables>
                        <includes>
                            <include>**/org/alfresco/AllUnitTestsSuite.java</include>
                        </includes>
@@ -1086,109 +1143,84 @@
                 </executions>
             </plugin>
             <plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>aspectj-maven-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<!-- phase>process-sources</phase -->
-						<goals>
-							<goal>compile</goal>
-							<goal>test-compile</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-			
-					<complianceLevel>1.7</complianceLevel>
-					<outxml>false</outxml>
-					<verbose>true</verbose>
-					<showWeaveInfo>true</showWeaveInfo>
-					<source>1.7</source>
-					<target>1.7</target>
-				</configuration>
-           </plugin>
-
-            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                 <executions>
-                    <!-- ACE-4563 Attach h2 dialect file to project -->
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
                     <execution>
-                        <id>attach-h2scripts</id>
-                        <phase>package</phase>
+                        <!-- phase>process-sources</phase -->
                         <goals>
-                            <goal>attach-artifact</goal>
+                            <goal>compile</goal>
+                            <goal>test-compile</goal>
                         </goals>
-                        <configuration>
-                            <artifacts>
-                                <artifact>
-                                    <file>${project.build.directory}/h2scripts.jar</file>
-                                    <type>jar</type>
-                                    <classifier>h2scripts</classifier>
-                                </artifact>
-                            </artifacts>
-                        </configuration>
                     </execution>
                 </executions>
-            </plugin>
+                <configuration>
+                    <complianceLevel>1.8</complianceLevel>
+                    <outxml>false</outxml>
+                    <verbose>true</verbose>
+                    <showWeaveInfo>true</showWeaveInfo>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+           </plugin>
         </plugins>
 
-    	<pluginManagement>
-    		<plugins>
-    			<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-    			<plugin>
-    				<groupId>org.eclipse.m2e</groupId>
-    				<artifactId>lifecycle-mapping</artifactId>
-    				<version>1.0.0</version>
-    				<configuration>
-    					<lifecycleMappingMetadata>
-    						<pluginExecutions>
-    							<pluginExecution>
-    								<pluginExecutionFilter>
-    									<groupId>
-    										org.apache.maven.plugins
-    									</groupId>
-    									<artifactId>
-    										maven-surefire-plugin
-    									</artifactId>
-    									<versionRange>
-    										[2.14,)
-    									</versionRange>
-    									<goals>
-    										<goal>test</goal>
-    									</goals>
-    								</pluginExecutionFilter>
-    								<action>
-    									<ignore />
-    								</action>
-    							</pluginExecution>
-        						<pluginExecution>
-        							<pluginExecutionFilter>
-        								<groupId>org.jibx</groupId>
-        								<artifactId>
-        									maven-jibx-plugin
-        								</artifactId>
-        								<versionRange>
-        									[1.2.5,)
-        								</versionRange>
-        								<goals>
-        									<goal>bind</goal>
-        								</goals>
-        							</pluginExecutionFilter>
-        							<action>
-        								<execute>
-        									<runOnConfiguration>true</runOnConfiguration>
-        									<runOnIncremental>true</runOnIncremental>
-        								</execute>
-        							</action>
-        						</pluginExecution>
-    						</pluginExecutions>
-    					</lifecycleMappingMetadata>
-    				</configuration>
-    			</plugin>
-    		</plugins>
-    	</pluginManagement>
+        <pluginManagement>
+            <plugins>
+                <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+                <plugin>
+                    <groupId>org.eclipse.m2e</groupId>
+                    <artifactId>lifecycle-mapping</artifactId>
+                    <version>1.0.0</version>
+                    <configuration>
+                        <lifecycleMappingMetadata>
+                            <pluginExecutions>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>
+                                            org.apache.maven.plugins
+                                        </groupId>
+                                        <artifactId>
+                                            maven-surefire-plugin
+                                        </artifactId>
+                                        <versionRange>
+                                            [2.14,)
+                                        </versionRange>
+                                        <goals>
+                                            <goal>test</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <ignore />
+                                    </action>
+                                </pluginExecution>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>org.jibx</groupId>
+                                        <artifactId>
+                                            maven-jibx-plugin
+                                        </artifactId>
+                                        <versionRange>
+                                            [1.2.5,)
+                                        </versionRange>
+                                        <goals>
+                                            <goal>bind</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <execute>
+                                            <runOnConfiguration>true</runOnConfiguration>
+                                            <runOnIncremental>true</runOnIncremental>
+                                        </execute>
+                                    </action>
+                                </pluginExecution>
+                            </pluginExecutions>
+                        </lifecycleMappingMetadata>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
     
 </project>

@@ -1,23 +1,34 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.node.integrity;
 import java.io.InputStream;
+import java.io.Serializable;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import javax.transaction.UserTransaction;
 
@@ -36,7 +47,6 @@ import org.alfresco.service.cmr.lock.LockType;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.StoreRef;
-import org.alfresco.service.cmr.security.AuthenticationService;
 import org.alfresco.service.cmr.security.MutableAuthenticationService;
 import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.namespace.QName;
@@ -232,5 +242,89 @@ public class IncompleteNodeTaggerTest extends TestCase
         
         // Tag
         checkTagging(nodeRef, true);
+    }
+
+    /**
+     * Test for MNT-17239: Unexpected changes of cm:modified and cm:modifier
+     */
+    public void testUnexpectedAuditUpdate() throws Exception
+    {
+        NodeRef nodeRef = createNode("abc", IntegrityTest.TEST_TYPE_WITH_PROPERTIES, null);
+
+        checkTagging(nodeRef, true);
+
+        // Now remove the aspect.
+        nodeService.removeAspect(nodeRef, ContentModel.ASPECT_INCOMPLETE);
+
+        // Assert the node is not auditable.
+        Set<QName> aspects = nodeService.getAspects(nodeRef);
+        assertFalse(aspects.contains(ContentModel.ASPECT_AUDITABLE));
+
+        // Add auditable capability.
+        nodeService.addAspect(nodeRef, ContentModel.ASPECT_AUDITABLE, null);
+
+        // Assert the node is now auditable.
+        aspects = nodeService.getAspects(nodeRef);
+        assertTrue(aspects.contains(ContentModel.ASPECT_AUDITABLE));
+
+        final Map<QName, Serializable> props = nodeService.getProperties(nodeRef);
+        assertNotNull(props.get(ContentModel.PROP_CREATED));
+        assertNotNull(props.get(ContentModel.PROP_MODIFIED));
+        assertNotNull(props.get(ContentModel.PROP_CREATOR));
+        assertNotNull(props.get(ContentModel.PROP_MODIFIER));
+
+        // Authenticate as someone else - someone not able to do anything
+        final String user = "user-" + UUID.randomUUID();
+        RunAsWork<Void> createUserWork = new RunAsWork<Void>()
+        {
+            public Void doWork() throws Exception
+            {
+                if (!authenticationService.authenticationExists(user))
+                {
+                    authenticationService.createAuthentication(user, user.toCharArray());
+                }
+                return null;
+            }
+        };
+        AuthenticationUtil.runAs(createUserWork, AuthenticationUtil.getSystemUserName());
+        authenticationComponent.setCurrentUser(user);
+
+        // Tag
+        checkTagging(nodeRef, true);
+
+        // Check that audit behavior wasn't triggered.
+        checkAuditableProperties(nodeRef, props);
+    }
+
+    private void assertAuditableProperties(NodeRef nodeRef, Map<QName, Serializable> checkProps)
+    {
+        assertTrue("Auditable aspect not present", nodeService.hasAspect(nodeRef, ContentModel.ASPECT_AUDITABLE));
+
+        Map<QName, Serializable> props = nodeService.getProperties(nodeRef);
+        assertNotNull(props.get(ContentModel.PROP_CREATED));
+        assertNotNull(props.get(ContentModel.PROP_MODIFIED));
+        assertNotNull(props.get(ContentModel.PROP_CREATOR));
+        assertNotNull(props.get(ContentModel.PROP_MODIFIER));
+        if (checkProps != null)
+        {
+            assertEquals("PROP_CREATED not correct", checkProps.get(ContentModel.PROP_CREATED), props.get(ContentModel.PROP_CREATED));
+            assertEquals("PROP_MODIFIED not correct", checkProps.get(ContentModel.PROP_MODIFIED), props.get(ContentModel.PROP_MODIFIED));
+            assertEquals("PROP_CREATOR not correct", checkProps.get(ContentModel.PROP_CREATOR), props.get(ContentModel.PROP_CREATOR));
+            assertEquals("PROP_MODIFIER not correct", checkProps.get(ContentModel.PROP_MODIFIER), props.get(ContentModel.PROP_MODIFIER));
+        }
+    }
+
+    private void checkAuditableProperties(NodeRef nodeRef, Map<QName, Serializable> checkProps)
+    {
+        tagger.beforeCommit(false);
+        RunAsWork<Void> checkWork = new RunAsWork<Void>()
+        {
+            public Void doWork() throws Exception
+            {
+                assertAuditableProperties(nodeRef, checkProps);
+                return null;
+            }
+        };
+        AuthenticationUtil.runAs(checkWork, AuthenticationUtil.getSystemUserName());
     }
 }

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts;
 
@@ -46,7 +53,7 @@ import org.alfresco.service.cmr.security.AuthorityService;
 import org.alfresco.service.descriptor.DescriptorService;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.TempFileProvider;
-import org.apache.chemistry.opencmis.server.shared.ThresholdOutputStreamFactory;
+import org.apache.chemistry.opencmis.server.shared.TempStoreOutputStreamFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationContext;
@@ -89,7 +96,7 @@ public class RepositoryContainer extends AbstractRuntimeContainer
     private String tempDirectoryName = null;
     private int memoryThreshold = 4 * 1024 * 1024; // 4mb
     private long maxContentSize = (long) 4 * 1024 * 1024 * 1024; // 4gb
-    private ThresholdOutputStreamFactory streamFactory = null;
+    private TempStoreOutputStreamFactory streamFactory = null;
 
     private Class<?>[] notPublicExceptions = new Class<?>[] {};
     private Class<?>[] publicExceptions = new Class<?>[] {};
@@ -100,7 +107,7 @@ public class RepositoryContainer extends AbstractRuntimeContainer
     public void setup()
     {
         File tempDirectory = TempFileProvider.getTempDir(tempDirectoryName);
-    	this.streamFactory = ThresholdOutputStreamFactory.newInstance(tempDirectory, memoryThreshold, maxContentSize, encryptTempFiles);
+    	this.streamFactory = TempStoreOutputStreamFactory.newInstance(tempDirectory, memoryThreshold, maxContentSize, encryptTempFiles);
     }
 
     public void setEncryptTempFiles(Boolean encryptTempFiles)

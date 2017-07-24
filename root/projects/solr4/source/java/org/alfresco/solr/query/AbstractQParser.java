@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr.query;
 
@@ -87,6 +94,8 @@ public abstract class AbstractQParser extends QParser implements QueryConstants
     private static char[] SEPARATORS = new char[] { ':', ',', '-', '!', '+', '=', ';', '~', '/' };
 
     protected final static Logger log = LoggerFactory.getLogger(AbstractQParser.class);
+
+    protected boolean authset;
 
     public static final String ALFRESCO_JSON = "ALFRESCO_JSON";
 
@@ -259,6 +268,7 @@ public abstract class AbstractQParser extends QParser implements QueryConstants
 
                         StringBuilder authQuery = new StringBuilder();
                         StringBuilder denyQuery = new StringBuilder();
+
                         for (String tenant : tenantList)
                         {
                             for (String authority : authorityList)
@@ -301,9 +311,11 @@ public abstract class AbstractQParser extends QParser implements QueryConstants
                                 {
                                     if(authQuery.length() == 0)
                                     {
+                                        authset = true;
                                         authQuery.append("|AUTHSET:\"");
                                         denyQuery.append("|DENYSET:\"");
                                     }
+
                                     switch (AuthorityType.getAuthorityType(authority))
                                     {
                                     case USER:
@@ -446,7 +458,7 @@ public abstract class AbstractQParser extends QParser implements QueryConstants
                 for (int i = 0; i < textAttributes.length(); i++)
                 {
                     String textAttribute = textAttributes.getString(i);
-                    searchParameters.addAllAttribute(textAttribute);
+                    searchParameters.addTextAttribute(textAttribute);
                 }
                 
                 

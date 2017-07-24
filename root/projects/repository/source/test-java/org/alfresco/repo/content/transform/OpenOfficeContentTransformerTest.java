@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -70,9 +77,10 @@ public class OpenOfficeContentTransformerTest extends AbstractContentTransformer
     
     public void testReliability() throws Exception
     {
-        if (!worker.isAvailable())
+        if (!isOpenOfficeWorkerAvailable())
         {
             // no connection
+            System.err.println("ooWorker not available - skipping testReliability !!");
             return;
         }
         boolean reliability = transformer.isTransformable(MIMETYPE_RUBBISH, -1, MimetypeMap.MIMETYPE_TEXT_PLAIN, new TransformationOptions());
@@ -92,9 +100,10 @@ public class OpenOfficeContentTransformerTest extends AbstractContentTransformer
      */
     public void testHtmlToPdf() throws Exception
     {
-        if (!worker.isAvailable())
+        if (!isOpenOfficeWorkerAvailable())
         {
             // no connection
+            System.err.println("ooWorker not available - skipping testHtmlToPdf !!");
             return;
         }
         File htmlSourceFile = loadQuickTestFile("html");
@@ -113,9 +122,10 @@ public class OpenOfficeContentTransformerTest extends AbstractContentTransformer
      */
     public void testEmptyHtmlToEmptyPdf() throws Exception
     {
-        if (!worker.isAvailable())
+        if (!isOpenOfficeWorkerAvailable())
         {
             // no connection
+            System.err.println("ooWorker not available - skipping testEmptyHtmlToEmptyPdf !!");
             return;
         }
         URL url = this.getClass().getClassLoader().getResource("misc/empty.html");
@@ -132,47 +142,6 @@ public class OpenOfficeContentTransformerTest extends AbstractContentTransformer
         writer.setMimetype(MimetypeMap.MIMETYPE_PDF);
         
         transformer.transform(reader, writer);
-    }
-    
-    /**
-     * MNT-11279. Transform docx document that contains head with value "documentName" to pdf.
-     * 
-     */
-    public void testDocxFieldToPdf()
-    {
-        if (!worker.isAvailable())
-        {
-            // no connection
-            return;
-        }
-        URL docxUrl = this.getClass().getClassLoader().getResource("misc/Test-Header-Office-2010.docx");
-        assertNotNull("URL was unexpectedly null", docxUrl);
-
-        File docxSourceFile = new File(docxUrl.getFile());
-        assertTrue("Test file does not exist.", docxSourceFile.exists());
-        
-        File pdfTargetFile = TempFileProvider.createTempFile(getName() + "-target-", ".pdf");
-        
-        ContentReader reader = new FileContentReader(docxSourceFile);
-        reader.setMimetype(MimetypeMap.MIMETYPE_WORD);
-        ContentWriter writer = new FileContentWriter(pdfTargetFile);
-        writer.setMimetype(MimetypeMap.MIMETYPE_PDF);
-        
-        transformer.transform(reader, writer);
-        
-        //Transform to txt for checking content
-        reader = new FileContentReader(pdfTargetFile);
-        reader.setMimetype(MimetypeMap.MIMETYPE_PDF);
-        
-        File txtTargetFile = TempFileProvider.createTempFile(getName() + "-target-", ".txt");
-        
-        writer = new FileContentWriter(txtTargetFile);
-        writer.setMimetype(MimetypeMap.MIMETYPE_TEXT_PLAIN);
-        
-        transformer.transform(reader, writer);
-        
-        String txtContent = writer.getReader().getContentString();
-        assertTrue("Transformed document must contains real document name", txtContent.contains("Document File Name: Test-Header-Office-2010Test-Header-Office-2010"));    
     }
     
     /**

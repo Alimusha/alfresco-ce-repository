@@ -1,27 +1,38 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.authentication;
 
-import net.sf.acegisecurity.Authentication;
-
+import net.sf.acegisecurity.providers.dao.UsernameNotFoundException;
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.repo.security.authentication.ntlm.NLTMAuthenticator;
+
+import net.sf.acegisecurity.Authentication;
+import net.sf.acegisecurity.UserDetails;
+import net.sf.acegisecurity.context.ContextHolder;
+import net.sf.acegisecurity.providers.dao.AuthenticationDao;
 
 
 /**
@@ -41,9 +52,16 @@ public class SimpleAcceptOrRejectAllAuthenticationComponentImpl extends Abstract
     private boolean accept = false;
     private boolean supportNtlm = false;
 
+    private AuthenticationDao authenticationDao;
+
     public SimpleAcceptOrRejectAllAuthenticationComponentImpl()
     {
         super();
+    }
+
+    public void setAuthenticationDao(AuthenticationDao authenticationDao)
+    {
+        this.authenticationDao = authenticationDao;
     }
 
     public void setAccept(boolean accept)
@@ -98,5 +116,52 @@ public class SimpleAcceptOrRejectAllAuthenticationComponentImpl extends Abstract
     public Authentication authenticate(Authentication token) throws AuthenticationException
     {
         throw new AlfrescoRuntimeException("Authentication via token not supported");
+    }
+
+    /**
+     * We actually have an acegi object so override the default method.
+     */
+    @Override
+    protected UserDetails getUserDetails(String userName)
+    {
+        UserDetails userDetails = null;
+        if (AuthenticationUtil.isMtEnabled())
+        {
+            // ALF-9403 - "manual" runAs to avoid clearing ticket, eg. when called via "validate" (->setCurrentUser->CheckCurrentUser)
+            Authentication originalFullAuthentication = AuthenticationUtil.getFullAuthentication();
+            try
+            {
+                if (originalFullAuthentication == null)
+                {
+                    AuthenticationUtil.setFullyAuthenticatedUser(getSystemUserName(getUserDomain(userName)));
+                }
+                userDetails = authenticationDao.loadUserByUsername(userName);
+            }
+            catch (UsernameNotFoundException unfe)
+            {
+                // the user was not created beforehand
+                userDetails = super.getUserDetails(userName);
+            }
+            finally
+            {
+                if (originalFullAuthentication == null)
+                {
+                    ContextHolder.setContext(null); // note: does not clear ticket (unlike AuthenticationUtil.clearCurrentSecurityContext())
+                }
+            }
+        }
+        else
+        {
+            try
+            {
+                userDetails = authenticationDao.loadUserByUsername(userName);
+            }
+            catch (UsernameNotFoundException unfe)
+            {
+                // the user was not created beforehand
+                userDetails = super.getUserDetails(userName);
+            }
+        }
+        return userDetails;
     }
 }

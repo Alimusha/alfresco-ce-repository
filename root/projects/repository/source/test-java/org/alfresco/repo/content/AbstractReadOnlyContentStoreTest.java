@@ -1,32 +1,36 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.transaction.UserTransaction;
 
-import org.alfresco.repo.content.ContentStore.ContentUrlHandler;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.transaction.TransactionService;
 import org.alfresco.util.ApplicationContextHelper;
@@ -125,49 +129,6 @@ public abstract class AbstractReadOnlyContentStoreTest
         return getStore().getReader(contentUrl);
     }
     
-    /**
-     * Fetch a valid URL from the store.  The default implementation will attempt to get
-     * all the available URLs from the store and pick the first one.  Writable store tests
-     * can create some content to be sure of its existence.
-     * 
-     * @return
-     *      Return any valid URL for the store, or <tt>null</tt> if the store is empty.
-     */
-    @SuppressWarnings("deprecation")
-    protected String getExistingContentUrl()
-    {
-        ContentStore store = getStore();
-        try
-        {
-            final Set<String> contentUrls = new HashSet<String>(5);
-            ContentUrlHandler handler = new ContentUrlHandler()
-            {
-                public void handle(String contentUrl)
-                {
-                    if (contentUrls.size() < 50)
-                    {
-                        contentUrls.add(contentUrl);
-                    }
-                }
-            };
-            store.getUrls(handler);
-            if (contentUrls.size() > 0)
-            {
-                return (String) contentUrls.toArray()[0];
-            }
-            else
-            {
-                // We can't do anything with this
-                return null;
-            }
-        }
-        catch (UnsupportedOperationException e)
-        {
-            // The store doesn't support this
-            return null;
-        }
-    }
-    
     @Test
     public void testSetUp() throws Exception
     {
@@ -203,6 +164,11 @@ public abstract class AbstractReadOnlyContentStoreTest
             // Expected
         }
     }
+    
+    /**
+     * Tests to implement this method in order to provide some content to play with
+     */
+    protected abstract String getExistingContentUrl();
     
     /**
      * Checks that the error handling for <i>inappropriate</i> content URLs

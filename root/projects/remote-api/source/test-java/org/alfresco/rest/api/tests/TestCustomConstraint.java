@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.rest.api.tests;
@@ -67,6 +74,8 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
     @Test
     public void testCreateConstraints() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         final Paging paging = getPaging(0, Integer.MAX_VALUE);
 
         String modelName = "testModelConstraint" + System.currentTimeMillis();
@@ -88,26 +97,32 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("requiresMatch", "false"));
             // Add the parameters into the constraint
             regExConstraint.setParameters(parameters);
-
+            
+            setRequestContext(nonAdminUserName);
+            
             // Try to create constraint as a non Admin user
-            post("cmm/" + modelName + "/constraints", nonAdminUserName, RestApiUtil.toJsonAsString(regExConstraint), 403);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 403);
+
+            setRequestContext(customModelAdmin);
 
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 201);
 
             // Retrieve the created RegEx constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, regExConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", regExConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
             compareCustomModelConstraints(regExConstraint, returnedConstraint, "prefixedName");
 
             // Try to create a duplicate constraint
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 409);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 409);
 
             // Retrieve all the model's constraints
-            response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(1, constraints.size());
         }
+
+        setRequestContext(customModelAdmin);
 
         // Try to create invalid RegEx constraint
         {
@@ -121,9 +136,9 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("requiresMatch", "false"));
             // Add the parameters into the constraint
             regExConstraint.setParameters(parameters);
-
+            
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 400);
         }
 
         // Create MINMAX constraint
@@ -139,9 +154,9 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("minValue", "0.0"));
             // Add the parameters into the constraint
             minMaxConstraint.setParameters(parameters);
-
+            
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(minMaxConstraint), 400); // constraint's type is mandatory
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(minMaxConstraint), 400); // constraint's type is mandatory
 
             minMaxConstraint.setType("MINMAX");
             parameters.clear();
@@ -150,7 +165,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             // Add the parameters into the constraint
             minMaxConstraint.setParameters(parameters);
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(minMaxConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(minMaxConstraint), 400);
 
             parameters.clear();
             parameters.add(buildNamedValue("maxValue", "100"));
@@ -158,7 +173,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             // Add the parameters into the constraint
             minMaxConstraint.setParameters(parameters);
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(minMaxConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(minMaxConstraint), 400);
 
             parameters.clear();
             parameters.add(buildNamedValue("maxValue", "100.0"));
@@ -166,15 +181,15 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             // Add the parameters into the constraint
             minMaxConstraint.setParameters(parameters);
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(minMaxConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(minMaxConstraint), 201);
 
             // Retrieve the created MINMAX constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, minMaxConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", minMaxConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
             compareCustomModelConstraints(minMaxConstraint, returnedConstraint, "prefixedName");
 
             // Retrieve all the model's constraints
-            response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(2, constraints.size());
         }
@@ -193,9 +208,9 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("minLength", "0"));
             // Add the parameters into the constraint
             lengthConstraint.setParameters(parameters);
-
+            
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(lengthConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(lengthConstraint), 400);
 
             parameters.clear();
             parameters.add(buildNamedValue("maxLength", "256"));
@@ -203,7 +218,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             // Add the parameters into the constraint
             lengthConstraint.setParameters(parameters);
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(lengthConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(lengthConstraint), 400);
 
             parameters.clear();
             parameters.add(buildNamedValue("maxLength", "256"));
@@ -211,15 +226,15 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             // Add the parameters into the constraint
             lengthConstraint.setParameters(parameters);
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(lengthConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(lengthConstraint), 201);
 
             // Retrieve the created LENGTH constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, lengthConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", lengthConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
             compareCustomModelConstraints(lengthConstraint, returnedConstraint, "prefixedName");
 
             // Retrieve all the model's constraints
-            response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(3, constraints.size());
         }
@@ -238,12 +253,12 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("sorted", "false"));
             // Add the parameters into the constraint
             listConstraint.setParameters(parameters);
-
+            
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(listConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(listConstraint), 201);
 
             // Retrieve the created List constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, listConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", listConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
             compareCustomModelConstraints(listConstraint, returnedConstraint, "prefixedName", "parameters");
             String sorted = getParameterSimpleValue(returnedConstraint.getParameters(), "sorted");
@@ -256,7 +271,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             assertEquals("Low", listValues.get(2));
 
             // Retrieve all the model's constraints
-            response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(4, constraints.size());
         }
@@ -267,16 +282,17 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             CustomModelConstraint authorityNameConstraint = new CustomModelConstraint();
             authorityNameConstraint.setName(authorityNameConstraintName);
             authorityNameConstraint.setType("org.alfresco.repo.dictionary.constraint.AuthorityNameConstraint");
+            
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(authorityNameConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(authorityNameConstraint), 201);
 
             // Retrieve the created authorityName constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, authorityNameConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", authorityNameConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
             compareCustomModelConstraints(authorityNameConstraint, returnedConstraint, "prefixedName");
 
             // Retrieve all the model's constraints
-            response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(5, constraints.size());
         }
@@ -295,33 +311,33 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             parameters.add(buildNamedValue("minValue", "0.0"));
             // Add the parameters into the constraint
             invalidConstraint.setParameters(parameters);
-
+            
             // Try to create an invalid constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(invalidConstraint), 400);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(invalidConstraint), 400);
 
             // Retrieve all the model's constraints
-            HttpResponse response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            HttpResponse response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals(5, constraints.size());
         }
-
+        
         // Activate the model
         CustomModel updatePayload = new CustomModel();
         updatePayload.setStatus(ModelStatus.ACTIVE);
-        put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
+        put("cmm", modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
 
         // Retrieve all the model's constraints
-        HttpResponse response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+        HttpResponse response = getAll("cmm/" + modelName + "/constraints", paging, 200);
         List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
         assertEquals(5, constraints.size());
 
         // Deactivate the model
         updatePayload = new CustomModel();
         updatePayload.setStatus(ModelStatus.DRAFT);
-        put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
+        put("cmm", modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
 
         // Retrieve all the model's constraints
-        response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+        response = getAll("cmm/" + modelName + "/constraints", paging, 200);
         constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
         assertEquals(5, constraints.size());
     }
@@ -329,6 +345,8 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
     @Test
     public void testCreateConstraintAndAddToProperty() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelConstraint" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
         // Create the model as a Model Administrator
@@ -347,17 +365,17 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
         parameters.add(buildNamedValue("requiresMatch", "false"));
         // Add the parameters into the constraint
         regExConstraint.setParameters(parameters);
-
+        
         // Create constraint as a Model Administrator
-        post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 201);
+        post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 201);
 
         // Retrieve the created constraint
-        HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, regExConstraintName, 200);
+        HttpResponse response = getSingle("cmm/" + modelName + "/constraints", regExConstraintName, 200);
         CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
 
         // Retrieve all the model's constraints
         Paging paging = getPaging(0, Integer.MAX_VALUE);
-        response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+        response = getAll("cmm/" + modelName + "/constraints", paging, 200);
         List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
         assertEquals(1, constraints.size());
 
@@ -379,16 +397,16 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
         payload.setProperties(props);
 
         // Create the property
-        put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(payload), SELECT_PROPS_QS, 200);
+        put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(payload), SELECT_PROPS_QS, 200);
 
         // Activate the model 
         CustomModel updatePayload = new CustomModel();
         updatePayload.setStatus(ModelStatus.ACTIVE);
-        put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
+        put("cmm", modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
 
         // Retrieve all the model's constraints
         // Test to see if the API took care of duplicate constraints when referencing a constraint within a property.
-        response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+        response = getAll("cmm/" + modelName + "/constraints", paging, 200);
         constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
         assertEquals(1, constraints.size());
 
@@ -434,17 +452,19 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             }, person.getId(), testNetwork.getId());
         }
 
+        setRequestContext(customModelAdmin);
+
         // Deactivate the model 
         updatePayload = new CustomModel();
         updatePayload.setStatus(ModelStatus.DRAFT);
-        put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
+        put("cmm", modelName, RestApiUtil.toJsonAsString(updatePayload), SELECT_STATUS_QS, 200);
 
         // Test update the namespace prefix (test to see if the API updates the constraints refs with this new prefix)
         CustomModel updateModelPayload = new CustomModel();
         String modifiedPrefix = namespacePair.getSecond() + "Modified";
         updateModelPayload.setNamespacePrefix(modifiedPrefix);
         updateModelPayload.setNamespaceUri(namespacePair.getFirst());
-        response = put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updateModelPayload), null, 200);
+        response = put("cmm", modelName, RestApiUtil.toJsonAsString(updateModelPayload), null, 200);
         CustomModel returnedModel = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModel.class);
         assertEquals(modifiedPrefix, returnedModel.getNamespacePrefix());
         assertEquals("The namespace URI shouldn't have changed.", namespacePair.getFirst(), returnedModel.getNamespaceUri());
@@ -454,7 +474,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
         updateModelPayload.setNamespacePrefix(modifiedPrefix);
         String modifiedURI = namespacePair.getFirst() + "Modified";
         updateModelPayload.setNamespaceUri(modifiedURI);
-        response = put("cmm", customModelAdmin, modelName, RestApiUtil.toJsonAsString(updateModelPayload), null, 200);
+        response = put("cmm", modelName, RestApiUtil.toJsonAsString(updateModelPayload), null, 200);
         returnedModel = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModel.class);
         assertEquals(modifiedURI, returnedModel.getNamespaceUri());
         assertEquals("The namespace prefix shouldn't have changed.", modifiedPrefix, returnedModel.getNamespacePrefix());
@@ -463,11 +483,13 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
     @Test
     public void testCreateInlineConstraint() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelInlineConstraint" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
         // Create the model as a Model Administrator
         createCustomModel(modelName, namespacePair, ModelStatus.DRAFT);
-
+        
         String regExConstraintName = "testInlineFileNameRegEx" + System.currentTimeMillis();
         {
             // Create RegEx constraint
@@ -499,16 +521,16 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             aspectPayload.setProperties(props);
 
             // Create the property
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 200);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 200);
 
             // Retrieve all the model's constraints
             Paging paging = getPaging(0, Integer.MAX_VALUE);
-            HttpResponse response = getAll("cmm/" + modelName + "/constraints", customModelAdmin, paging, 200);
+            HttpResponse response = getAll("cmm/" + modelName + "/constraints", paging, 200);
             List<CustomModelConstraint> constraints = RestApiUtil.parseRestApiEntries(response.getJsonResponse(), CustomModelConstraint.class);
             assertEquals("Inline constraints should not be included with the model defined constraints.", 0, constraints.size());
 
             // Retrieve the updated aspect
-            response = getSingle("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, 200);
+            response = getSingle("cmm/" + modelName + "/aspects", aspectName, 200);
             CustomAspect returnedAspect = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomAspect.class);
 
             // Check the aspect's added property
@@ -537,14 +559,14 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             regExConstraint.setParameters(parameters);
 
             // Try to create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 409); // duplicate name
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 409); // duplicate name
 
             String newRegExConstraintName = "testFileNameRegEx" + System.currentTimeMillis();
             regExConstraint.setName(newRegExConstraintName);
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(regExConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(regExConstraint), 201);
             // Retrieve the created RegEx constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, newRegExConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", newRegExConstraintName, 200);
             CustomModelConstraint returnedRegExConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
 
             // Create inline anonymous LENGTH constraint
@@ -577,17 +599,17 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             typePayload.setProperties(props);
 
             // Try to create the property - LENGTH constraint can only be used with textual data type
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 400);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 400);
 
             typeProp.setDataType("d:double");
             // CTry to create the property - LENGTH constraint can only be used with textual data type
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 400);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 400);
 
             typeProp.setDataType("d:text");
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 200);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 200);
 
             // Retrieve the updated type
-            response = getSingle("cmm/" + modelName + "/types", customModelAdmin, type.getName(), 200);
+            response = getSingle("cmm/" + modelName + "/types", type.getName(), 200);
             CustomType returnedType = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomType.class);
 
             // Check the type's added property
@@ -607,11 +629,13 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
     @Test
     public void testCreateListConstraintInvalid() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelConstraintInvalid" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
         // Create the model as a Model Administrator
         createCustomModel(modelName, namespacePair, ModelStatus.DRAFT);
-
+        
         // Create aspect
         String aspectName = "testAspect" + System.currentTimeMillis();
         createTypeAspect(CustomAspect.class, modelName, aspectName, "title", "desc", null);
@@ -644,7 +668,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
         aspectPayload.setProperties(props);
 
         // Try to create the property - Invalid LIST values
-        put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
+        put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
 
         // Test d:double LIST values with d:int property data type
         parameters = new ArrayList<>(3);
@@ -658,14 +682,17 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
         aspectPayload.setProperties(props);
 
         // Try to create the property - Invalid LIST values
-        put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
+        put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
     }
 
     @Test
     public void testCreateMinMaxConstraintInvalid() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelMinMaxInvalid" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
+        
         // Create the model as a Model Administrator
         createCustomModel(modelName, namespacePair, ModelStatus.DRAFT);
 
@@ -702,12 +729,12 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
 
         // Try to create constraint as a Model Administrator
         // MINMAX constraint can only be used with numeric data type.
-        put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
+        put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
 
         // Change type
         aspectProp.setDataType("d:datetime");
         // MINMAX constraint can only be used with numeric data type.
-        put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
+        put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
 
         // SHA-1126
         { 
@@ -724,15 +751,18 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             props.add(aspectProp);
             aspectPayload.setProperties(props);
             // Maximum value of the MINMAX constraint must be a positive nonzero value.
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 400);
         }
     }
 
     @Test
     public void testPropDefaultValueWithInlineConstraint() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelInlineConstraint" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
+        
         // Create the model as a Model Administrator
         createCustomModel(modelName, namespacePair, ModelStatus.DRAFT);
 
@@ -768,7 +798,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             aspectPayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
         }
 
         {
@@ -801,7 +831,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             typePayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
         }
 
         {
@@ -834,7 +864,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             typePayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
         }
 
         {
@@ -869,7 +899,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             aspectPayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
         }
 
         {
@@ -898,13 +928,15 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             aspectPayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
         }
     }
 
     @Test
     public void testPropDefaultValueWithConstraintRef() throws Exception
     {
+        setRequestContext(customModelAdmin);
+        
         String modelName = "testModelConstraintRef" + System.currentTimeMillis();
         final Pair<String, String> namespacePair = getTestNamespaceUriPrefixPair();
         // Create the model as a Model Administrator
@@ -924,9 +956,9 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             listConstraint.setParameters(parameters);
 
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(listConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(listConstraint), 201);
             // Retrieve the created List constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, listConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", listConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
 
             // Create aspect
@@ -948,7 +980,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             aspectPayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/aspects", customModelAdmin, aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/aspects", aspectName, RestApiUtil.toJsonAsString(aspectPayload), SELECT_PROPS_QS, 409);
         }
 
         {
@@ -965,9 +997,9 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             minMaxConstraint.setParameters(parameters);
 
             // Create constraint as a Model Administrator
-            post("cmm/" + modelName + "/constraints", customModelAdmin, RestApiUtil.toJsonAsString(minMaxConstraint), 201);
+            post("cmm/" + modelName + "/constraints", RestApiUtil.toJsonAsString(minMaxConstraint), 201);
             // Retrieve the created MinMax constraint
-            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", customModelAdmin, minMaxConstraintName, 200);
+            HttpResponse response = getSingle("cmm/" + modelName + "/constraints", minMaxConstraintName, 200);
             CustomModelConstraint returnedConstraint = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModelConstraint.class);
 
             // Create type
@@ -989,7 +1021,7 @@ public class TestCustomConstraint extends BaseCustomModelApiTest
             typePayload.setProperties(props);
 
             // Try to create the property - constraint violation
-            put("cmm/" + modelName + "/types", customModelAdmin, typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
+            put("cmm/" + modelName + "/types", typeName, RestApiUtil.toJsonAsString(typePayload), SELECT_PROPS_QS, 409);
         }
     }
 

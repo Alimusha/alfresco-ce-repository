@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.blog;
 
@@ -808,6 +815,60 @@ public class BlogServiceImplTest
                     return null;
                 }
             });
+    }
+    
+    /**
+     * Test that correct paging info is returned when searching for tagged blog posts.
+     */
+    @Test 
+    public void testGetBlogPostsByTagPaging() throws Exception{
+        final String tagToSearchBy = "testtag";
+        final int numberOfBlogPostsTagged = 2;
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<List<NodeRef>>()
+        {
+            @Override
+            public List<NodeRef> execute() throws Throwable
+            {
+                List<NodeRef> results = new ArrayList<NodeRef>();
+
+                do{
+                    final String blogTitle = "blogTitle" + GUID.generate();
+                    BlogPostInfo newBlogPost = BLOG_SERVICE.createBlogPost(BLOG_CONTAINER_NODE, blogTitle, "Hello world", false);
+                    TAGGING_SERVICE.addTags(newBlogPost.getNodeRef(), Arrays.asList(new String[] { tagToSearchBy }));
+                    testNodesToTidy.add(newBlogPost.getNodeRef());
+                    results.add(newBlogPost.getNodeRef());
+                }while(results.size() < numberOfBlogPostsTagged);
+
+                return results;
+            }
+        });
+        
+        TRANSACTION_HELPER.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>()
+        {
+            @Override
+            public Void execute() throws Throwable
+            {
+                PagingRequest pagingReq = new PagingRequest(0, 1, null);
+                RangedDateProperty dates = new RangedDateProperty(null, null, ContentModel.PROP_CREATED);
+                PagingResults<BlogPostInfo> pagedResults = BLOG_SERVICE.findBlogPosts(BLOG_CONTAINER_NODE, dates, tagToSearchBy, pagingReq);
+
+                assertEquals("Wrong number of blog posts on page 1 for " + tagToSearchBy, 1, pagedResults.getPage().size());
+             
+                assertEquals("Wrong total number of blog posts for " + tagToSearchBy, new Pair<Integer, Integer>(2, 2), pagedResults.getTotalResultCount());
+                
+                assertEquals("There should still be blog posts available to be retrieved for " + tagToSearchBy, true, pagedResults.hasMoreItems());
+                
+                pagingReq = new PagingRequest(1, 1, null);
+                pagedResults = BLOG_SERVICE.findBlogPosts(BLOG_CONTAINER_NODE, dates, tagToSearchBy, pagingReq);
+
+                assertEquals("Wrong number of blog posts on page 2 for " + tagToSearchBy, 1, pagedResults.getPage().size());
+             
+                assertEquals("Wrong total number of blog posts for " + tagToSearchBy, new Pair<Integer, Integer>(2, 2), pagedResults.getTotalResultCount());
+                
+                assertEquals("All blog posts should have been retrieved by now for " + tagToSearchBy, false, pagedResults.hasMoreItems());
+                return null;
+            }
+        });
     }
     
     private static void createUser(final String userName)

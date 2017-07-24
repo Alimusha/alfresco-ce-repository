@@ -1,20 +1,27 @@
-/* 
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+/*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
- * along with Alfresco. If not, see http://www.gnu.org/licenses/.
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.repo.virtual.ref;
@@ -67,7 +74,7 @@ public class Reference
         if (nodeRef != null)
         {
             String id = nodeRef.getId();
-            if (id != null)
+            if ((id != null) && (id.length() > 1))
             {
                 char zeroChar = id.charAt(0);
                 return VIRTUAL_TOKEN.equals(zeroChar);
@@ -110,7 +117,8 @@ public class Reference
                 ReferenceEncodingException
     {
         String id = nodeRef.getId();
-        if (id.startsWith("" + VIRTUAL_TOKEN))
+        if (id.startsWith("" + VIRTUAL_TOKEN)
+            && (id.length() > 1)) // belts-and-braces
         {
             char token = id.charAt(1);
             Encoding encoding = Encodings.fromToken(token);
@@ -316,7 +324,7 @@ public class Reference
      * @param mutatedNodeRef
      * @return a mutated version of this {@link Reference} corresponding to the
      *         given mutated node or
-     *         <code>this<code> Reference if no mutations are detected
+     *         <code>this</code> Reference if no mutations are detected
      */
     public Reference propagateNodeRefMutations(NodeRef mutatedNodeRef)
     {

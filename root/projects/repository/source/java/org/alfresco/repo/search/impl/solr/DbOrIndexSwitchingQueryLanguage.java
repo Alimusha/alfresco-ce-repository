@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.search.impl.solr;
 
@@ -22,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
 
 import org.alfresco.repo.domain.node.Node;
 import org.alfresco.repo.domain.solr.SOLRDAO;
@@ -174,7 +182,8 @@ public class DbOrIndexSwitchingQueryLanguage extends AbstractLuceneQueryLanguage
         case TRANSACTIONAL_IF_POSSIBLE:
         default:
             StopWatch stopWatch = new StopWatch("DB if possible");
-            if(dbQueryLanguage != null)
+            //SEARCH-347, exclude TMDQ calls if faceting present.
+            if(dbQueryLanguage != null && !searchParameters.hasFaceting())
             {
                 try
                 {
@@ -243,8 +252,6 @@ public class DbOrIndexSwitchingQueryLanguage extends AbstractLuceneQueryLanguage
             }
             throw new QueryModelException("No query language available");
         }
-        
-        
     }
 
     private SearchParameters flattenDBQuery(SearchParameters sp)
@@ -261,7 +268,15 @@ public class DbOrIndexSwitchingQueryLanguage extends AbstractLuceneQueryLanguage
             queryBuilder.append("( ").append(sp.getQuery()).append(" )");
             for(String filter : sp.getFilterQueries())
             {
-                queryBuilder.append("AND ( ").append(filter).append(" )");
+                Matcher matcher = LuceneQueryLanguageSPI.AFTS_QUERY.matcher(filter);
+                if (matcher.find())
+                {
+                    queryBuilder.append("AND ( ").append(matcher.group(2)).append(" )");
+                }
+                else
+                {
+                    queryBuilder.append("AND ( ").append(filter).append(" )");
+                }
             }
             flatten.setQuery(queryBuilder.toString());
             // the filter can be left and will be ignored by the DB query
@@ -324,7 +339,7 @@ public class DbOrIndexSwitchingQueryLanguage extends AbstractLuceneQueryLanguage
         // TODO: setToTxnId(null) when SolrDAO behaviour is fixed.
         nodeParameters.setToTxnId(Long.MAX_VALUE);
         stopWatch.start("get changed nodes");
-        List<Node> changedNodeList = solrDao.getNodes(nodeParameters);
+        List<Node> changedNodeList = solrDao.getNodes(nodeParameters, null);
         stopWatch.stop();
         if (logger.isDebugEnabled())
         {

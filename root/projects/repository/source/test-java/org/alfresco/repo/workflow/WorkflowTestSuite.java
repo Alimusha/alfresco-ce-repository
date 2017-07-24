@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.workflow;
 
@@ -26,6 +33,7 @@ import org.alfresco.repo.workflow.activiti.ActivitiMultitenantWorkflowTest;
 import org.alfresco.repo.workflow.activiti.ActivitiSpringTransactionTest;
 import org.alfresco.repo.workflow.activiti.ActivitiTimerExecutionTest;
 import org.alfresco.repo.workflow.activiti.ActivitiWorkflowServiceIntegrationTest;
+import org.alfresco.repo.workflow.activiti.WorklfowObjectFactoryTest;
 import org.alfresco.util.ApplicationContextHelper;
 
 /**
@@ -58,12 +66,14 @@ public class WorkflowTestSuite extends TestSuite
 
         // These tests use a different Spring config.
         suite.addTestSuite( ActivitiMultitenantWorkflowTest.class );
-                
+
+        // General workflows tests
+        suite.addTestSuite(WorklfowObjectFactoryTest.class);
+
         // Note the following workflow tests are not included in this sutie:
         // ActivitiTaskComponentTest
         // ActivitiWorkflowComponentTest
         // ActivitiWorkflowRestApiTest
-        // JbpmWorkflowRestApiTest
         return suite;
     }
 }

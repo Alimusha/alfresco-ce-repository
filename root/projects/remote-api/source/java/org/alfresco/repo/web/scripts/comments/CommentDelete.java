@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2016 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts.comments;
 
@@ -59,6 +66,24 @@ public class CommentDelete extends AbstractCommentsWebScript
         if (parentNodeRefStr != null)
         {
             parentNodeRef = new NodeRef((String) getOrNull(jsonPageParams, JSON_KEY_NODEREF));
+        }
+
+        if (parentNodeRef == null)
+        {
+            // find the parent content node for the comment
+            // Example would be a blog post which will have the following structure:
+            // blog post -> forum node -> topic node -> the actual comment node
+            NodeRef topicNodeRef = nodeService.getPrimaryParent(nodeRef).getParentRef();
+            if (topicNodeRef == null || !nodeService.getType(topicNodeRef).equals(ForumModel.TYPE_TOPIC))
+            {
+                throw new IllegalArgumentException("The NodeRef specified is not a child of the topic.");
+            }
+            NodeRef forumNodeRef = nodeService.getPrimaryParent(topicNodeRef).getParentRef();
+            if (forumNodeRef == null || !nodeService.getType(forumNodeRef).equals(ForumModel.TYPE_FORUM))
+            {
+                throw new IllegalArgumentException("The NodeRef specified doesn't belong to a correct structure of forums.");
+            }
+            parentNodeRef = nodeService.getPrimaryParent(forumNodeRef).getParentRef();
         }
 
         if (parentNodeRef != null)

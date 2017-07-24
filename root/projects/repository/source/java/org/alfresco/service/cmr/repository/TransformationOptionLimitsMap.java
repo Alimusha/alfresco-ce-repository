@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.repository;
 
@@ -34,21 +41,21 @@ import org.apache.commons.logging.LogFactory;
  * define transformation limits, without having to specify lots of spring XML. For example:
  * 
  * <pre>
- * &ltbean id="mimetypeLimits.OpenOffice" class="org.alfresco.service.cmr.repository.TransformationOptionLimitsMap"&gt;
- *    &ltconstructor-arg&gt;
- *       &ltvalue&gt;
+ * &lt;bean id="mimetypeLimits.OpenOffice" class="org.alfresco.service.cmr.repository.TransformationOptionLimitsMap"&gt;
+ *    &lt;constructor-arg&gt;
+ *       &lti;value&gt;
  *          *   txt maxSourceSizeKBytes ${content.transformer.OpenOffice.mimeTypeLimits.txt.pdf.maxSourceSizeKBytes} ;
  *          doc pdf maxSourceSizeKBytes ${content.transformer.OpenOffice.mimeTypeLimits.doc.pdf.maxSourceSizeKBytes}
- *       &lt/value&gt;
- *    &lt/constructor-arg&gt;
- *    &ltconstructor-arg&gt;
- *       &ltref bean="mimetypeService" /&gt;
- *    &lt/constructor-arg&gt;
- * &lt/bean&gt;
- * <pre>
+ *       &lt;/value&gt;
+ *    &lt;/constructor-arg&gt;
+ *    &lt;constructor-arg&gt;
+ *       &lt;ref bean="mimetypeService" /&gt;
+ *    &lt;/constructor-arg&gt;
+ * &lt;/bean&gt;
+ * </pre>
  * The first constructor argument is a space separated list of values:
  * <pre>
- * configuration ::= [ &ltsource extension&gt; &lttarget extension&gt; &ltproperty name&gt; &lt;value&gt; ]* ";" ]*
+ * configuration ::= [ &lt;source extension&gt; &lt;target extension&gt; &lt;property name&gt; &lt;value&gt; ]* ";" ]*
  * property name ::= "maxSourceSizeKBytes" | "readLimitKBytes" | "readLimitTimeMs" | "timeoutMs" | "maxPages" | "pageLimit"
  * </pre>
  * 

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.authority;
 
@@ -109,8 +116,11 @@ public class GetAuthoritiesCannedQueryFactory extends AbstractCannedQueryFactory
             qnameAuthDisplayNameId = qnameAuthDisplayNamePair.getFirst();
         }
         
+        // this can be null, in which case, there is no filtering on type, done at the database level
+        Long typeQNameId = getQNameIdForType(type);
         // specific query params
         GetAuthoritiesCannedQueryParams paramBean = new GetAuthoritiesCannedQueryParams(type,
+                                                                                        typeQNameId,
                                                                                         containerNodeId,
                                                                                         qnameAuthDisplayNameId,
                                                                                         displayNameFilter);
@@ -133,7 +143,29 @@ public class GetAuthoritiesCannedQueryFactory extends AbstractCannedQueryFactory
         // return canned query instance
         return getCannedQuery(params);
     }
-    
+
+    private Long getQNameIdForType(AuthorityType type)
+    {
+        if (type == null)
+        {
+            return null;
+        }
+        Pair<Long, QName> typeQNamePair = null;
+        switch (type)
+        {
+        case GROUP:
+        case ROLE:
+            typeQNamePair = qnameDAO.getQName(ContentModel.TYPE_AUTHORITY_CONTAINER);
+            break;
+        case USER:
+            typeQNamePair = qnameDAO.getQName(ContentModel.TYPE_PERSON);
+            break;
+        default:
+            break;
+        }
+        return typeQNamePair != null ? typeQNamePair.getFirst() : null;
+    }
+
     @Override
     public void afterPropertiesSet() throws Exception
     {

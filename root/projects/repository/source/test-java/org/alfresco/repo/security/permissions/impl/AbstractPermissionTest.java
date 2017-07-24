@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.permissions.impl;
 
@@ -30,6 +37,7 @@ import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.model.ContentModel;
 import org.alfresco.repo.domain.node.NodeDAO;
 import org.alfresco.repo.domain.permissions.AclDAO;
+import org.alfresco.repo.policy.PolicyComponent;
 import org.alfresco.repo.security.authentication.AuthenticationComponent;
 import org.alfresco.repo.security.authentication.AuthenticationUtil;
 import org.alfresco.repo.security.authentication.MutableAuthenticationDao;
@@ -37,8 +45,8 @@ import org.alfresco.repo.security.authority.AuthorityDAO;
 import org.alfresco.repo.security.permissions.PermissionReference;
 import org.alfresco.repo.security.permissions.PermissionServiceSPI;
 import org.alfresco.repo.transaction.AlfrescoTransactionSupport;
-import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.AlfrescoTransactionSupport.TxnReadState;
+import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.dictionary.DictionaryService;
 import org.alfresco.service.cmr.repository.NodeRef;
@@ -58,6 +66,10 @@ import org.springframework.orm.hibernate3.LocalSessionFactoryBean;
 
 public class AbstractPermissionTest extends TestCase
 {
+    protected static final String USER2_LEMUR = "lemur";
+
+    protected static final String USER1_ANDY = "andy";
+
     protected static ApplicationContext applicationContext = ApplicationContextHelper.getApplicationContext();
     
     protected static final String ROLE_AUTHENTICATED = "ROLE_AUTHENTICATED";
@@ -107,6 +119,8 @@ public class AbstractPermissionTest extends TestCase
     protected PermissionServiceImpl permissionServiceImpl;
 
     protected PublicServiceAccessService publicServiceAccessService;
+
+    protected PolicyComponent policyComponent;
     
     public AbstractPermissionTest()
     {
@@ -144,6 +158,7 @@ public class AbstractPermissionTest extends TestCase
         aclDaoComponent = (AclDAO) applicationContext.getBean("aclDAO");
         
         publicServiceAccessService = (PublicServiceAccessService) applicationContext.getBean("publicServiceAccessService");
+        policyComponent = (PolicyComponent) applicationContext.getBean("policyComponent");
         
         retryingTransactionHelper = (RetryingTransactionHelper) applicationContext.getBean("retryingTransactionHelper");
         
@@ -163,23 +178,23 @@ public class AbstractPermissionTest extends TestCase
 
         systemNodeRef = nodeService.createNode(rootNodeRef, children, system, container).getChildRef();
         NodeRef typesNodeRef = nodeService.createNode(systemNodeRef, children, types, container).getChildRef();
-        Map<QName, Serializable> props = createPersonProperties("andy");
+        Map<QName, Serializable> props = createPersonProperties(USER1_ANDY);
         nodeService.createNode(typesNodeRef, children, ContentModel.TYPE_PERSON, container, props).getChildRef();
-        props = createPersonProperties("lemur");
+        props = createPersonProperties(USER2_LEMUR);
         nodeService.createNode(typesNodeRef, children, ContentModel.TYPE_PERSON, container, props).getChildRef();
 
         // create an authentication object e.g. the user
-        if(authenticationDAO.userExists("andy"))
+        if(authenticationDAO.userExists(USER1_ANDY))
         {
-            authenticationService.deleteAuthentication("andy");
+            authenticationService.deleteAuthentication(USER1_ANDY);
         }
-        authenticationService.createAuthentication("andy", "andy".toCharArray());
+        authenticationService.createAuthentication(USER1_ANDY, USER1_ANDY.toCharArray());
 
-        if(authenticationDAO.userExists("lemur"))
+        if(authenticationDAO.userExists(USER2_LEMUR))
         {
-            authenticationService.deleteAuthentication("lemur");
+            authenticationService.deleteAuthentication(USER2_LEMUR);
         }
-        authenticationService.createAuthentication("lemur", "lemur".toCharArray());
+        authenticationService.createAuthentication(USER2_LEMUR, USER2_LEMUR.toCharArray());
         
         if(authenticationDAO.userExists(AuthenticationUtil.getAdminUserName()))
         {

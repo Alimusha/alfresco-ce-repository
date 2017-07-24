@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.workflow;
 
@@ -173,7 +180,6 @@ public class WorkflowDeployer extends AbstractLifecycleBean
     /**
      * Sets the Workflow Definitions
      * 
-     * @param workflowDefinitions List<Properties>
      */
     public void setWorkflowDefinitions(List<Properties> workflowDefinitions)
     {
@@ -437,7 +443,7 @@ public class WorkflowDeployer extends AbstractLifecycleBean
             String defName = (String)nodeService.getProperty(nodeRef, WorkflowModel.PROP_WORKFLOW_DEF_NAME);
             if (defName != null)
             {
-                // Undeploy the workflow definition - all versions in JBPM
+                // Undeploy the workflow definition
                 List<WorkflowDefinition> defs = workflowService.getAllDefinitionsByName(defName);
                 for (WorkflowDefinition def: defs)
                 {
@@ -466,7 +472,7 @@ public class WorkflowDeployer extends AbstractLifecycleBean
             String engineId = BPMEngineRegistry.getEngineId(workflowName);
             if (workflowAdminService.isEngineEnabled(engineId))
             {
-                // Undeploy the workflow definition - all versions in JBPM
+                // Undeploy the workflow definition
                 List<WorkflowDefinition> defs = workflowService.getAllDefinitionsByName(workflowName);
                 if(defs.size() > 0)
                 {
@@ -543,9 +549,9 @@ public class WorkflowDeployer extends AbstractLifecycleBean
                             {
                                 public Object doWork()
                                 {
-                                    // invalidate - to force lazy re-init
-                                    dictionaryDAO.destroy();
-                                    
+                                    // force refresh of the dictionary
+                                    dictionaryDAO.init();
+
                                     if (logger.isTraceEnabled())
                                     {
                                         logger.trace("Workflow deployer afterCommit: Dictionary destroyed ["+AlfrescoTransactionSupport.getTransactionId()+"]");

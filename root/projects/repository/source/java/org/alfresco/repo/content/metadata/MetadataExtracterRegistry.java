@@ -1,4 +1,29 @@
 /*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
+/*
  * Copyright (C) 2005-2012 Jesper Steen Møller
  *
  * This file is part of Alfresco
@@ -176,16 +201,20 @@ public class MetadataExtracterRegistry
         return liveExtractor;
     }
     
-    @SuppressWarnings("deprecation")
     private String getName(MetadataExtracter extractor)
     {
-        return extractor == null
-               ? null
-               : extractor instanceof AbstractMetadataExtracter
-               ? ((AbstractMetadataExtracter)extractor).getBeanName()
-               : extractor instanceof AbstractMappingMetadataExtracter
-               ? ((AbstractMappingMetadataExtracter)extractor).getBeanName()
-               : extractor.getClass().getSimpleName();
+        if (extractor == null)
+        {
+            return null;
+        }
+        else if (extractor instanceof AbstractMappingMetadataExtracter)
+        {
+            return ((AbstractMappingMetadataExtracter)extractor).getBeanName();
+        }
+        else
+        {
+            return extractor.getClass().getSimpleName();
+        }
     }
 
     /**
@@ -194,7 +223,10 @@ public class MetadataExtracterRegistry
      */
     private List<MetadataExtracter> findBestExtracters(String sourceMimetype)
     {
-        logger.debug("Finding extractors for " + sourceMimetype);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("Finding extractors for " + sourceMimetype);
+        }
 
         List<MetadataExtracter> extractors = new ArrayList<MetadataExtracter>(1);
 
@@ -203,13 +235,22 @@ public class MetadataExtracterRegistry
             if (!extractor.isSupported(sourceMimetype))
             {
                 // extraction not achievable
-                logger.debug("Find unsupported: "+getName(extractor));
+                if (logger.isDebugEnabled())
+                {
+                    logger.debug("Find unsupported: "+getName(extractor));
+                }
                 continue;
             }
-            logger.debug("Find supported:   "+getName(extractor));
+            if (logger.isDebugEnabled())
+            {
+                logger.debug("Find supported:   "+getName(extractor));
+            }
             extractors.add(extractor);
         }
-        logger.debug("Find returning:   "+extractors);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("Find returning:   "+extractors);
+        }
         return extractors;
     }
     

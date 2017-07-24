@@ -1,48 +1,29 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
- */
-/*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
- * Alfresco is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Alfresco is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.rest.api.impl;
-
-import java.io.Serializable;
-import java.util.AbstractList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.alfresco.model.ContentModel;
 import org.alfresco.query.PagingRequest;
@@ -50,22 +31,32 @@ import org.alfresco.query.PagingResults;
 import org.alfresco.repo.forum.CommentService;
 import org.alfresco.rest.api.Comments;
 import org.alfresco.rest.api.Nodes;
+import org.alfresco.rest.api.People;
 import org.alfresco.rest.api.model.Comment;
+import org.alfresco.rest.api.model.Person;
 import org.alfresco.rest.framework.core.exceptions.ConstraintViolatedException;
 import org.alfresco.rest.framework.core.exceptions.InvalidArgumentException;
 import org.alfresco.rest.framework.core.exceptions.UnsupportedResourceOperationException;
 import org.alfresco.rest.framework.resource.parameters.CollectionWithPagingInfo;
 import org.alfresco.rest.framework.resource.parameters.Paging;
-import org.alfresco.service.cmr.lock.LockService;
-import org.alfresco.service.cmr.lock.LockStatus;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentService;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
-import org.alfresco.service.cmr.security.AccessStatus;
-import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.util.TypeConstraint;
+
+import java.io.Serializable;
+import java.util.AbstractList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.alfresco.rest.api.People.PARAM_INCLUDE_ASPECTNAMES;
+import static org.alfresco.rest.api.People.PARAM_INCLUDE_PROPERTIES;
 
 /**
  * Centralises access to comment services and maps between representations.
@@ -75,13 +66,15 @@ import org.alfresco.util.TypeConstraint;
  */
 public class CommentsImpl implements Comments
 {
-    private Nodes nodes;
+	private static final List<String> INCLUDE_FULL_PERSON = Arrays.asList(
+			PARAM_INCLUDE_ASPECTNAMES,
+			PARAM_INCLUDE_PROPERTIES);;
+	private Nodes nodes;
     private NodeService nodeService;
     private CommentService commentService;
     private ContentService contentService;
-    private LockService lockService;
-    private PermissionService permissionService;
     private TypeConstraint typeConstraint;
+	private People people;
 
 	public void setTypeConstraint(TypeConstraint typeConstraint)
 	{
@@ -92,17 +85,7 @@ public class CommentsImpl implements Comments
 	{
 		this.nodes = nodes;
 	}
-	
-	public void setLockService(LockService lockService)
-	{
-		this.lockService = lockService;
-	}
-
-	public void setPermissionService(PermissionService permissionService)
-	{
-		this.permissionService = permissionService;
-	}
-
+    
 	public void setNodeService(NodeService nodeService)
     {
         this.nodeService = nodeService;
@@ -118,7 +101,12 @@ public class CommentsImpl implements Comments
 		this.contentService = contentService;
 	}
 
-	private Comment toComment(NodeRef nodeRef, NodeRef commentNodeRef)
+	public void setPeople(People people)
+	{
+		this.people = people;
+	}
+
+	private Comment toComment(NodeRef nodeRef, NodeRef commentNodeRef, List<String> include)
     {
         Map<QName, Serializable> nodeProps = nodeService.getProperties(commentNodeRef);
 
@@ -130,45 +118,21 @@ public class CommentsImpl implements Comments
 	        nodeProps.remove(ContentModel.PROP_CONTENT);
         }
 
-        boolean canEdit = true;
-        boolean canDelete = true;
 
-        boolean isNodeLocked = false;
-        boolean isWorkingCopy = false;
+        Map<String, Boolean> map = commentService.getCommentPermissions(nodeRef, commentNodeRef);
+        boolean canEdit = map.get(CommentService.CAN_EDIT);
+        boolean canDelete =  map.get(CommentService.CAN_DELETE);
 
-        if(nodeRef != null)
-        {
-	        Set<QName> aspects = nodeService.getAspects(nodeRef);
-
-	        isWorkingCopy = aspects.contains(ContentModel.ASPECT_WORKING_COPY);
-	        if(!isWorkingCopy)
-	        {
-		        if(aspects.contains(ContentModel.ASPECT_LOCKABLE))
-		        {
-		            LockStatus lockStatus = lockService.getLockStatus(nodeRef);
-		            if (lockStatus == LockStatus.LOCKED || lockStatus == LockStatus.LOCK_OWNER)
-		            {
-		            	isNodeLocked = true;
-		            }
-		        }
-	        }
-        }
-
-        if(isNodeLocked || isWorkingCopy)
-        {
-        	canEdit = false;
-        	canDelete = false;
-        }
-        else
-        {
-        	canEdit = permissionService.hasPermission(commentNodeRef, PermissionService.WRITE) == AccessStatus.ALLOWED;
-        	canDelete = permissionService.hasPermission(commentNodeRef, PermissionService.DELETE) == AccessStatus.ALLOWED;
-        }
-
+		Person createdBy = people.getPerson((String) nodeProps.get(ContentModel.PROP_CREATOR), include);
+		nodeProps.put(Comment.PROP_COMMENT_CREATED_BY, createdBy);
+		
+		Person modifiedBy = people.getPerson((String) nodeProps.get(ContentModel.PROP_MODIFIER), include);
+		nodeProps.put(Comment.PROP_COMMENT_MODIFIED_BY, modifiedBy);
+		
         Comment comment = new Comment(commentNodeRef.getId(), nodeProps, canEdit, canDelete);
         return comment;
     }
-
+    
     public Comment createComment(String nodeId, Comment comment)
     {
 		NodeRef nodeRef = nodes.validateNode(nodeId);
@@ -181,7 +145,7 @@ public class CommentsImpl implements Comments
 		try
 		{
 	        NodeRef commentNode = commentService.createComment(nodeRef, comment.getTitle(), comment.getContent(), false);
-	        return toComment(nodeRef, commentNode);
+	        return toComment(nodeRef, commentNode, INCLUDE_FULL_PERSON);
 	    }
 	    catch(IllegalArgumentException e)
 	    {
@@ -204,9 +168,9 @@ public class CommentsImpl implements Comments
 			{
 				throw new InvalidArgumentException();
 			}
-			
-	        commentService.updateComment(commentNodeRef, title, content);
-	        return toComment(nodeRef, commentNodeRef);
+            
+            commentService.updateComment(commentNodeRef, title, content);
+	        return toComment(nodeRef, commentNodeRef, INCLUDE_FULL_PERSON);
 		}
 		catch(IllegalArgumentException e)
 		{
@@ -214,7 +178,7 @@ public class CommentsImpl implements Comments
 		}
     }
 
-    public CollectionWithPagingInfo<Comment> getComments(String nodeId, Paging paging)
+    public CollectionWithPagingInfo<Comment> getComments(String nodeId, Paging paging, List<String> include)
     {
 		final NodeRef nodeRef = nodes.validateNode(nodeId);
         
@@ -235,7 +199,7 @@ public class CommentsImpl implements Comments
 			@Override
 			public Comment get(int index)
 			{
-				return toComment(nodeRef, page.get(index));
+				return toComment(nodeRef, page.get(index), include);
 			}
 
 			@Override
@@ -249,14 +213,19 @@ public class CommentsImpl implements Comments
     }
 
     @Override
-    // TODO validate that it is a comment of the node
     public void deleteComment(String nodeId, String commentNodeId)
     {
     	try
     	{
-	    	nodes.validateNode(nodeId);
+            NodeRef nodeRef = nodes.validateNode(nodeId);
 	        NodeRef commentNodeRef = nodes.validateNode(commentNodeId);
-	        commentService.deleteComment(commentNodeRef);
+            
+            if (! nodeRef.equals(commentService.getDiscussableAncestor(commentNodeRef)))
+            {
+                throw new InvalidArgumentException("Unexpected "+nodeId+","+commentNodeId);
+            }
+            
+            commentService.deleteComment(commentNodeRef);
 		}
 		catch(IllegalArgumentException e)
 		{

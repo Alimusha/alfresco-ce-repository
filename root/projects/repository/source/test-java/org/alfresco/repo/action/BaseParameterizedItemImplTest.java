@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.action;
 
@@ -73,7 +80,7 @@ public abstract class BaseParameterizedItemImplTest extends TestCase
         Map<String, Serializable> tempParamValues = temp.getParameterValues();
         assertNotNull(tempParamValues);
         assertEquals(2, tempParamValues.size());
-        for (Map.Entry entry : tempParamValues.entrySet())
+        for (Map.Entry<String, Serializable> entry : tempParamValues.entrySet())
         {
             if (entry.getKey() == PARAM_1)
             {
@@ -89,24 +96,24 @@ public abstract class BaseParameterizedItemImplTest extends TestCase
             }
         }
     }
-	
-	public void testGetParameterValue()
-	{
-		ParameterizedItemImpl temp = create();
-		assertNull(temp.getParameterValue("bobbins"));
-		assertEquals(VALUE_1, temp.getParameterValue(PARAM_1));
-	}
-	
-	public void testSetParameterValue()
-	{
-		ParameterizedItemImpl temp = create();
-		temp.setParameterValue("bobbins", "value");
-		assertEquals("value", temp.getParameterValue("bobbins"));
-	}
-	
-	public void testGetId()
-	{
-		ParameterizedItemImpl temp = create();
-		assertEquals(ID, temp.getId());
-	}
+    
+    public void testGetParameterValue()
+    {
+        ParameterizedItemImpl temp = create();
+        assertNull(temp.getParameterValue("bobbins"));
+        assertEquals(VALUE_1, temp.getParameterValue(PARAM_1));
+    }
+    
+    public void testSetParameterValue()
+    {
+        ParameterizedItemImpl temp = create();
+        temp.setParameterValue("bobbins", "value");
+        assertEquals("value", temp.getParameterValue("bobbins"));
+    }
+    
+    public void testGetId()
+    {
+        ParameterizedItemImpl temp = create();
+        assertEquals(ID, temp.getId());
+    }
 }

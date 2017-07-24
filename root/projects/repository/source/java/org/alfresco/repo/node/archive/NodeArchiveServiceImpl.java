@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.node.archive;
 
@@ -387,102 +394,6 @@ public class NodeArchiveServiceImpl implements NodeArchiveService
     }
 
     /**
-     * Uses batch processing and job locking to purge all archived nodes
-     * 
-     * @deprecated              In 3.4: to be removed
-     */
-    public List<RestoreNodeReport> restoreAllArchivedNodes(StoreRef originalStoreRef)
-    {
-        final String user = AuthenticationUtil.getFullyAuthenticatedUser();
-        if (user == null)
-        {
-            throw new IllegalStateException("Cannot restore as there is no authenticated user.");
-        }
-        
-        final List<RestoreNodeReport> results = Collections.synchronizedList(new ArrayList<RestoreNodeReport>(1000));
-        /**
-         * Worker that restores each node
-         */
-        BatchProcessWorker<NodeRef> worker = new BatchProcessor.BatchProcessWorkerAdaptor<NodeRef>()
-        {
-            @Override
-            public void beforeProcess() throws Throwable
-            {
-                AuthenticationUtil.pushAuthentication();
-            }
-            public void process(NodeRef entry) throws Throwable
-            {
-                AuthenticationUtil.setFullyAuthenticatedUser(user);
-                if (nodeService.exists(entry))
-                {
-                    RestoreNodeReport report = restoreArchivedNode(entry);
-                    // Append the results (it is synchronized)
-                    results.add(report);
-                }
-            }
-            @Override
-            public void afterProcess() throws Throwable
-            {
-                AuthenticationUtil.popAuthentication();
-            }
-        };
-        doBulkOperation(user, originalStoreRef, worker);
-        return results;
-    }
-
-    /**
-     * Finds the archive location for nodes that were deleted from the given store
-     * and attempt to restore each node.
-     * 
-     * @see NodeService#getStoreArchiveNode(StoreRef)
-     * @see #restoreArchivedNode(NodeRef, NodeRef, QName, QName)
-     * 
-     * @deprecated              In 3.4: to be removed
-     */
-    public List<RestoreNodeReport> restoreAllArchivedNodes(
-            final StoreRef originalStoreRef,
-            final NodeRef destinationNodeRef,
-            final QName assocTypeQName,
-            final QName assocQName)
-    {
-        final String user = AuthenticationUtil.getFullyAuthenticatedUser();
-        if (user == null)
-        {
-            throw new IllegalStateException("Cannot restore as there is no authenticated user.");
-        }
-        
-        final List<RestoreNodeReport> results = Collections.synchronizedList(new ArrayList<RestoreNodeReport>(1000));
-        /**
-         * Worker that restores each node
-         */
-        BatchProcessWorker<NodeRef> worker = new BatchProcessor.BatchProcessWorkerAdaptor<NodeRef>()
-        {
-            @Override
-            public void beforeProcess() throws Throwable
-            {
-                AuthenticationUtil.pushAuthentication();
-            }
-            public void process(NodeRef nodeRef) throws Throwable
-            {
-                AuthenticationUtil.setFullyAuthenticatedUser(user);
-                if (nodeService.exists(nodeRef))
-                {
-                    RestoreNodeReport report = restoreArchivedNode(nodeRef, destinationNodeRef, assocTypeQName, assocQName);
-                    // Append the results (it is synchronized)
-                    results.add(report);
-                }
-            }
-            @Override
-            public void afterProcess() throws Throwable
-            {
-                AuthenticationUtil.popAuthentication();
-            }
-        };
-        doBulkOperation(user, originalStoreRef, worker);
-        return results;
-    }
-
-    /**
      * This is the primary purge methd that all purge methods fall back on.  It isolates the delete
      * work in a new transaction.
      */
@@ -724,7 +635,7 @@ public class NodeArchiveServiceImpl implements NodeArchiveService
     
     private Pair<NodeRef, QName> getArchiveNodeRefAssocTypePair(final NodeRef archiveStoreRootNodeRef)
     {
-        String currentUser = getCurrentUser();
+        final String currentUser = getCurrentUser();
 
         if (archiveStoreRootNodeRef == null || !nodeService.exists(archiveStoreRootNodeRef))
         {
@@ -738,12 +649,19 @@ public class NodeArchiveServiceImpl implements NodeArchiveService
         }
         else
         {
-            List<ChildAssociationRef> list = nodeService.getChildrenByName(archiveStoreRootNodeRef,
-                        ContentModel.ASSOC_ARCHIVE_USER_LINK,
-                        Collections.singletonList(currentUser));
+            List<ChildAssociationRef> list = AuthenticationUtil.runAs(new RunAsWork<List<ChildAssociationRef>>()
+            {
+                @Override
+                public List<ChildAssociationRef> doWork() throws Exception
+                {
+                    return nodeService.getChildrenByName(archiveStoreRootNodeRef,
+                            ContentModel.ASSOC_ARCHIVE_USER_LINK,
+                            Collections.singletonList(currentUser));
+                }
+            }, AuthenticationUtil.getAdminUserName());
 
             // Empty list means that the current user hasn't deleted anything yet.
-            if (list.isEmpty())
+            if (list == null || list.isEmpty())
             {
                 return new Pair<NodeRef, QName>(null, null);
             }

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.content.transform;
 
@@ -27,12 +34,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.alfresco.api.AlfrescoPublicApi;   
+import org.alfresco.api.AlfrescoPublicApi;
 import org.alfresco.error.AlfrescoRuntimeException;
 import org.alfresco.repo.content.AbstractStreamAwareProxy;
 import org.alfresco.repo.content.StreamAwareContentReaderProxy;
 import org.alfresco.repo.content.StreamAwareContentWriterProxy;
 import org.alfresco.repo.content.metadata.AbstractMappingMetadataExtracter;
+import org.alfresco.repo.content.metadata.MetadataExtracterConfig;
 import org.alfresco.service.cmr.repository.ContentIOException;
 import org.alfresco.service.cmr.repository.ContentReader;
 import org.alfresco.service.cmr.repository.ContentServiceTransientException;
@@ -62,7 +70,8 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
     private ContentTransformerRegistry registry;
     private boolean registerTransformer;
     private boolean retryTransformOnDifferentMimeType;
-
+    private boolean strictMimeTypeCheck;
+    MetadataExtracterConfig metadataExtracterConfig;
     /**
      * A flag that indicates that the transformer should be started in it own Thread so
      * that it may be interrupted rather than using the timeout in the Reader.
@@ -103,8 +112,16 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
     public void setRegistry(ContentTransformerRegistry registry)
     {
         this.registry = registry;
-    }    
-
+    }
+    
+    /**
+     * The metadata extracter config.
+     */
+    public void setMetadataExtracterConfig(MetadataExtracterConfig metadataExtracterConfig)
+    {
+        this.metadataExtracterConfig = metadataExtracterConfig;
+    }
+    
     /**
      * @param registerTransformer as been available for selection.
      *        If {@code false} this indicates that the transformer may only be
@@ -232,6 +249,11 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
                             targetMimetype, reader.getSize(), options);
                 }
                 
+                // MNT-16381: check the mimetype of the file supplied by the user
+                // matches the sourceMimetype of the reader. Intermediate files are
+                // not checked.
+                strictMimetypeCheck(reader, options, sourceMimetype);
+
                 // Check the transformability
                 checkTransformable(reader, writer, options);
                 
@@ -322,10 +344,10 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
                 String differentType = getMimetypeService().getMimetypeIfNotMatches(reader.getReader());
         
                 // Report the error
-                if(differentType == null)
+                if (differentType == null)
                 {
-                transformerDebug.debug("          Failed", e);
-                    throw new ContentIOException("Content conversion failed: \n" +
+                    transformerDebug.debug("          Failed", e);
+                        throw new ContentIOException("Content conversion failed: \n" +
                            "   reader: " + reader + "\n" +
                            "   writer: " + writer + "\n" +
                            "   options: " + options.toString(false) + "\n" +
@@ -336,7 +358,7 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
                 {
                     transformerDebug.debug("          Failed: Mime type was '"+differentType+"'", e);
 
-                    if (this.retryTransformOnDifferentMimeType)
+                    if (retryTransformOnDifferentMimeType)
                     {
                         // MNT-11015 fix.
                         // Set a new reader to refresh the input stream.
@@ -413,6 +435,27 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
         finally
         {
             depth.set(depth.get()-1);
+        }
+    }
+
+    private void strictMimetypeCheck(ContentReader reader, TransformationOptions options, String sourceMimetype)
+        throws UnsupportedTransformationException
+    {
+        if (strictMimeTypeCheck && depth.get() == 1)
+        {
+            String differentType = getMimetypeService().getMimetypeIfNotMatches(reader.getReader());
+
+            if (!transformerConfig.strictMimetypeCheck(sourceMimetype, differentType))
+            {
+                String fileName = transformerDebug.getFileName(options, true, 0);
+                String readerSourceMimetype = reader.getMimetype();
+                String message = "Transformation of ("+fileName+
+                    ") has not taken place because the declared mimetype ("+
+                    readerSourceMimetype+") does not match the detected mimetype ("+
+                    differentType+").";
+                logger.warn(message);
+                throw new UnsupportedTransformationException(message);
+            }
         }
     }
 
@@ -610,8 +653,23 @@ public abstract class AbstractContentTransformer2 extends AbstractContentTransfo
         }
     }
 
+    public Object getRetryTransformOnDifferentMimeType()
+    {
+        return retryTransformOnDifferentMimeType;
+    }
+    
     public void setRetryTransformOnDifferentMimeType(boolean retryTransformOnDifferentMimeType)
     {
         this.retryTransformOnDifferentMimeType = retryTransformOnDifferentMimeType;
+    }
+    
+    public boolean getStrictMimeTypeCheck()
+    {
+        return strictMimeTypeCheck;
+    }
+    
+    public void setStrictMimeTypeCheck(boolean strictMimeTypeCheck)
+    {
+        this.strictMimeTypeCheck = strictMimeTypeCheck;
     }
 }

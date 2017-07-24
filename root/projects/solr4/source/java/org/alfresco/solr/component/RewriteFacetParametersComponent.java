@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr.component;
 
@@ -26,6 +33,7 @@ import java.util.Iterator;
 import org.alfresco.solr.AlfrescoSolrDataModel;
 import org.alfresco.solr.AlfrescoSolrDataModel.FieldUse;
 import org.alfresco.solr.query.MimetypeGroupingQParserPlugin;
+import org.apache.commons.lang.StringUtils;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
@@ -349,6 +357,23 @@ public class RewriteFacetParametersComponent extends SearchComponent
             }       
         }
     }
+    
+    /**
+     * Tokenizes a string based on comma's except for the ones in single or double
+     * qoutes.
+     * @param line
+     * @return 
+     */
+    public static String[] parseFacetField(String line)
+    {
+      if(StringUtils.isEmpty(line))
+      {
+          throw new RuntimeException("String input is requried");
+      }
+      String[] tokens = line.split(",(?=(?:[^'|\"]*\"[^'|\"]*\")*[^'|\"]*$)", -1);
+      return tokens;
+        
+    }
 
 
     /**
@@ -367,10 +392,13 @@ public class RewriteFacetParametersComponent extends SearchComponent
             for(String facetFields : facetFieldsOrig)
             {
                 StringBuilder commaSeparated = new StringBuilder();
-                String[] fields = facetFields.split(",");
+                StringBuilder mapping = new StringBuilder();
+                StringBuilder unmapped = new StringBuilder();
+                String[] fields = parseFacetField(facetFields);
                 
                 for(String field : fields)
                 {
+                	String prefix = "";
                     field = field.trim();
                     
                     if(field.endsWith("()"))
@@ -379,14 +407,27 @@ public class RewriteFacetParametersComponent extends SearchComponent
                         continue;
                     }
                     
+                    if(field.startsWith("{!"))
+                    {
+                    	int index = field.indexOf("}");
+                    	if((index > 0) && (index < (field.length() - 1)))
+                    	{
+                    		prefix = field.substring(0, index+1);
+                    		field = field.substring(index+1);
+                    	}
+                    }
                     
                     if(req.getSchema().getFieldOrNull(field) != null)
                     {
                         if(commaSeparated.length() > 0)
                         {
                             commaSeparated.append(",");
+                            mapping.append(",");
+                            unmapped.append(",");
                         }
-                        commaSeparated.append(field);
+                        commaSeparated.append(prefix).append(field);
+                        mapping.append(field);
+                        unmapped.append(field);
                     }
                     else
                     {
@@ -395,13 +436,17 @@ public class RewriteFacetParametersComponent extends SearchComponent
                         if(commaSeparated.length() > 0)
                         {
                             commaSeparated.append(",");
+                            mapping.append(",");
+                            unmapped.append(",");
                         }
-                        commaSeparated.append(mappedField);
+                        commaSeparated.append(prefix).append(mappedField);
+                        mapping.append(mappedField);
+                        unmapped.append(field);
                     }
                 }
                 if(!facetFields.equals(commaSeparated.toString()))
                 {
-                    fieldMappings.put(facetFields, commaSeparated.toString());
+                    fieldMappings.put(unmapped.toString(), mapping.toString());
                 }
                 if(commaSeparated.length() > 0)
                 {

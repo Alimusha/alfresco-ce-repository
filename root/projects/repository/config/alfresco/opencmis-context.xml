@@ -41,7 +41,7 @@
         <property name="cmisMapping"                  ref="OpenCMISMapping" />
         <property name="dictionaryService"            ref="dictionaryService" />
         <property name="dictionaryDAO"                ref="dictionaryDAO" />
-        <property name="singletonCache"               ref="immutableSingletonCache"/>
+        <property name="singletonCache"               ref="openCMISRegistryCache"/>
         <property name="propertyLuceneBuilderMapping" ref="OpenCMISPropertyLuceneBuilderMapping" />
         <property name="propertyAccessorMapping"      ref="OpenCMISPropertyAccessorMapping" />
         <property name="tenantService"                ref="tenantService" />
@@ -51,7 +51,7 @@
         <property name="cmisMapping"                  ref="OpenCMISMapping1.1" />
         <property name="dictionaryService"            ref="dictionaryService" />
         <property name="dictionaryDAO"                ref="dictionaryDAO" />
-        <property name="singletonCache"               ref="immutableSingletonCache"/>
+        <property name="singletonCache"               ref="openCMISRegistryCache"/>
         <property name="propertyLuceneBuilderMapping" ref="OpenCMISPropertyLuceneBuilderMapping1.1" />
         <property name="propertyAccessorMapping"      ref="OpenCMISPropertyAccessorMapping1.1" />
         <property name="tenantService"                ref="tenantService" />
@@ -97,10 +97,8 @@
             <props>
                 <prop key="get*">${server.transaction.mode.readOnly}</prop>
                 <prop key="query">${server.transaction.mode.readOnly}</prop>
-                <!-- 
-                <prop key="open">PROPAGATION_SUPPORTS, readOnly</prop>
-                <prop key="close">PROPAGATION_SUPPORTS, readOnly</prop>
-                 -->
+                <prop key="open">${server.transaction.mode.readOnly}</prop>
+                <prop key="close">${server.transaction.mode.readOnly}</prop>
                 <prop key="*">${server.transaction.mode.default}</prop>
             </props>
         </property>
@@ -134,6 +132,7 @@
         <property name="typesDefaultDepth"      value="${opencmis.connector.default.typesDefaultDepth}" />
         <property name="objectsDefaultMaxItems" value="${opencmis.connector.default.objectsDefaultMaxItems}" />
         <property name="objectsDefaultDepth"    value="${opencmis.connector.default.objectsDefaultDepth}" />
+        <property name="contentChangesDefaultMaxItems"    value="${opencmis.connector.default.contentChangesDefaultMaxItems}" />
         <property name="renditionKindMapping">
             <map>
                 <entry key="cmis:thumbnail">
@@ -191,32 +190,61 @@
         <property name="bulkWorkerThreads"      value="${opencmis.bulkUpdateProperties.workerThreads}" />
     </bean>
 
-    <bean id="OpenCMISQueryService" class="org.alfresco.repo.management.subsystems.SubsystemProxyFactory">
-      <property name="sourceApplicationContextFactory">
-         <ref bean="Search" />
-      </property>
-      <property name="sourceBeanName">
-         <value>search.OpenCMISQueryService</value>
-      </property>
-      <property name="interfaces">
-         <list>
+
+    <bean id="OpenCMISQueryService" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="proxyInterfaces">
             <value>org.alfresco.opencmis.search.CMISQueryService</value>
-         </list>
-      </property>
+        </property>
+        <property name="target">
+            <ref bean="subOpenCMISQueryService" />
+        </property>
+        <property name="interceptorNames">
+            <list>
+                <idref bean="AuditMethodInterceptor" />
+            </list>
+        </property>
     </bean>
 
-    <bean id="OpenCMISQueryService1.1" class="org.alfresco.repo.management.subsystems.SubsystemProxyFactory">
-      <property name="sourceApplicationContextFactory">
-         <ref bean="Search" />
-      </property>
-      <property name="sourceBeanName">
-         <value>search.OpenCMISQueryService1.1</value>
-      </property>
-      <property name="interfaces">
-         <list>
+    <bean id="subOpenCMISQueryService" class="org.alfresco.repo.management.subsystems.SubsystemProxyFactory">
+        <property name="sourceApplicationContextFactory">
+            <ref bean="Search" />
+        </property>
+        <property name="sourceBeanName">
+            <value>search.OpenCMISQueryService</value>
+        </property>
+        <property name="interfaces">
+            <list>
+                <value>org.alfresco.opencmis.search.CMISQueryService</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="OpenCMISQueryService1.1" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="proxyInterfaces">
             <value>org.alfresco.opencmis.search.CMISQueryService</value>
-         </list>
-      </property>
+        </property>
+        <property name="target">
+            <ref bean="subOpenCMISQueryService1.1" />
+        </property>
+        <property name="interceptorNames">
+            <list>
+                <idref bean="AuditMethodInterceptor" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="subOpenCMISQueryService1.1" class="org.alfresco.repo.management.subsystems.SubsystemProxyFactory">
+        <property name="sourceApplicationContextFactory">
+            <ref bean="Search" />
+        </property>
+        <property name="sourceBeanName">
+            <value>search.OpenCMISQueryService1.1</value>
+        </property>
+        <property name="interfaces">
+            <list>
+                <value>org.alfresco.opencmis.search.CMISQueryService</value>
+            </list>
+        </property>
     </bean>
         
     <bean id="CMISChangeLogDataExtractor" class="org.alfresco.opencmis.CMISChangeLogDataExtractor">

@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr Client
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.solr;
@@ -53,7 +60,7 @@ public class TrackerState
     private volatile boolean checkedLastTransactionTime = false;
 
     private volatile boolean check = false;
-
+    private volatile int trackerCycles;
     private long timeToStopIndexing;
 
     private long lastGoodChangeSetCommitTimeInIndex;
@@ -61,6 +68,7 @@ public class TrackerState
     private long lastGoodTxCommitTimeInIndex;
 
     private long timeBeforeWhichThereCanBeNoHoles;
+    private volatile long lastStartTime = 0;
 
     public long getLastChangeSetIdOnServer()
     {
@@ -221,7 +229,15 @@ public class TrackerState
     {
         this.lastGoodTxCommitTimeInIndex = lastGoodTxCommitTimeInIndex;
     }
+    
+    public int getTrackerCycles() {
+        return this.trackerCycles;
+    }
 
+    public void incrementTrackerCycles() {
+        this.trackerCycles++;
+    }
+    
     public long getTimeBeforeWhichThereCanBeNoHoles()
     {
         return timeBeforeWhichThereCanBeNoHoles;
@@ -290,5 +306,14 @@ public class TrackerState
     {
         this.checkedLastAclTransactionTime = checkedLastAclTransactionTime;
     }
+    
+    public long getLastStartTime()
+    {
+        return this.lastStartTime;
+    }
 
+    public void setLastStartTime(long lastStartTime)
+    {
+        this.lastStartTime = lastStartTime;
+    }
 }

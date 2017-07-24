@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.web.scripts;
 
@@ -38,6 +45,7 @@ import org.alfresco.repo.web.scripts.groups.GroupsTest;
 import org.alfresco.repo.web.scripts.invitation.InvitationWebScriptTest;
 import org.alfresco.repo.web.scripts.invite.InviteServiceTest;
 import org.alfresco.repo.web.scripts.links.LinksRestApiTest;
+import org.alfresco.repo.web.scripts.node.NodeWebScripTest;
 import org.alfresco.repo.web.scripts.person.PersonServiceTest;
 import org.alfresco.repo.web.scripts.preference.PreferenceServiceTest;
 import org.alfresco.repo.web.scripts.publishing.PublishingRestApiTest;
@@ -47,6 +55,7 @@ import org.alfresco.repo.web.scripts.replication.ReplicationRestApiTest;
 import org.alfresco.repo.web.scripts.rule.RuleServiceTest;
 import org.alfresco.repo.web.scripts.search.PersonSearchTest;
 import org.alfresco.repo.web.scripts.site.SiteServiceTest;
+import org.alfresco.repo.web.scripts.site.SurfConfigTest;
 import org.alfresco.repo.web.scripts.solr.SOLRWebScriptTest;
 import org.alfresco.repo.web.scripts.subscriptions.SubscriptionServiceRestApiTest;
 import org.alfresco.repo.web.scripts.tagging.TaggingServiceTest;
@@ -54,6 +63,7 @@ import org.alfresco.repo.web.scripts.thumbnail.ThumbnailServiceTest;
 import org.alfresco.repo.web.scripts.transfer.TransferWebScriptTest;
 import org.alfresco.repo.web.scripts.workflow.ActivitiWorkflowRestApiTest;
 import org.alfresco.repo.web.scripts.workflow.WorkflowModelBuilderTest;
+import org.alfresco.repo.web.scripts.content.ContentGetTest;
 
 /**
  * Web Scripts test suite
@@ -101,11 +111,14 @@ public class WebScriptTestSuite extends TestSuite
         suite.addTestSuite( FacetRestApiTest.class );
         suite.addTestSuite( CommentsApiTest.class );
         suite.addTestSuite( DeclarativeSpreadsheetWebScriptTest.class );
+        suite.addTestSuite( ContentGetTest.class);
         suite.addTestSuite( XssVulnerabilityTest.class );
         suite.addTestSuite( LinksRestApiTest.class );
         suite.addTestSuite( RemoteFileFolderLoaderTest.class );
         suite.addTestSuite( ReadOnlyTransactionInGetRestApiTest.class );
         suite.addTestSuite( CustomModelImportTest.class );
+        suite.addTestSuite( SurfConfigTest.class );
+        suite.addTestSuite( NodeWebScripTest.class );
         // This uses a slightly different context
         // As such, we can't run it in the same suite as the others,
         //  due to finalisers closing caches when we're not looking

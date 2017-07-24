@@ -1,3 +1,28 @@
+/*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2017 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.repo.lock.mem;
 
 import static org.junit.Assert.assertEquals;
@@ -7,6 +32,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.InputStream;
 import java.io.Serializable;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -262,17 +288,18 @@ public class LockableAspectInterceptorTest
                     properties.containsKey(ContentModel.PROP_LOCK_OWNER));
         assertTrue("Node should have created property",
                     properties.containsKey(ContentModel.PROP_CREATED));
-        
-        Date now = new Date();
+
         // Set a lock on the node and reload the properties
+        // Make sure the ephemeral lock won't expire before asserting cm:lockable properties (spoofed).
+        Date expire = makeExpiryDate(2);
         lockStore.set(nodeRef,
-                    LockState.createLock(nodeRef, LockType.WRITE_LOCK, lockOwner, now, Lifetime.EPHEMERAL, null));
+                      LockState.createLock(nodeRef, LockType.WRITE_LOCK, lockOwner, expire, Lifetime.EPHEMERAL, null));
         properties = nodeService.getProperties(nodeRef);
         
         // cm:lockable properties should be spoofed
         assertEquals(lockOwner, properties.get(ContentModel.PROP_LOCK_OWNER));
         assertEquals(LockType.WRITE_LOCK.toString(), properties.get(ContentModel.PROP_LOCK_TYPE));
-        assertEquals(now, properties.get(ContentModel.PROP_EXPIRY_DATE));
+        assertEquals(expire, properties.get(ContentModel.PROP_EXPIRY_DATE));
         // Spoofed - wasn't explicitly added.
         assertEquals(Lifetime.EPHEMERAL.toString(), properties.get(ContentModel.PROP_LOCK_LIFETIME));
         
@@ -295,15 +322,17 @@ public class LockableAspectInterceptorTest
       assertEquals(null, nodeService.getProperty(nodeRef, ContentModel.PROP_LOCK_TYPE));
       assertEquals(null, nodeService.getProperty(nodeRef, ContentModel.PROP_EXPIRY_DATE));
       assertEquals(null, nodeService.getProperty(nodeRef, ContentModel.PROP_LOCK_LIFETIME));
-      Date now = new Date();
+
       // Set a lock on the node
+      // Make sure the ephemeral lock won't expire before asserting cm:lockable properties (spoofed).
+      Date expire = makeExpiryDate(2);
       lockStore.set(nodeRef,
-                  LockState.createLock(nodeRef, LockType.WRITE_LOCK, lockOwner, now, Lifetime.EPHEMERAL, null));
+                    LockState.createLock(nodeRef, LockType.WRITE_LOCK, lockOwner, expire, Lifetime.EPHEMERAL, null));
       
       // cm:lockable properties should be spoofed
       assertEquals(lockOwner, nodeService.getProperty(nodeRef, ContentModel.PROP_LOCK_OWNER));
       assertEquals(LockType.WRITE_LOCK.toString(), nodeService.getProperty(nodeRef, ContentModel.PROP_LOCK_TYPE));
-      assertEquals(now, nodeService.getProperty(nodeRef, ContentModel.PROP_EXPIRY_DATE));
+      assertEquals(expire, nodeService.getProperty(nodeRef, ContentModel.PROP_EXPIRY_DATE));
       assertEquals(Lifetime.EPHEMERAL.toString(), nodeService.getProperty(nodeRef, ContentModel.PROP_LOCK_LIFETIME));
     }
     
@@ -558,5 +587,20 @@ public class LockableAspectInterceptorTest
            }
         });
         AuthenticationUtil.popAuthentication();
+    }
+
+    private Date makeExpiryDate(int timeToExpireInSeconds)
+    {
+        // Set the expiry date
+        Date expiryDate = null;
+        if (timeToExpireInSeconds > 0)
+        {
+            expiryDate = new Date();
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(expiryDate);
+            calendar.add(Calendar.SECOND, timeToExpireInSeconds);
+            expiryDate = calendar.getTime();
+        }
+        return expiryDate;
     }
 }

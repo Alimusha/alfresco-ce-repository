@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.service.cmr.publishing.channels;
@@ -120,7 +127,6 @@ public interface ChannelService
     /**
      * Returns a list of all the channels that are capable of publishing the specified NodeRef.
      * @param nodeToPublish NodeRef
-     * @return List<Channel>
      */
     @NotAuditable
     List<Channel> getRelevantPublishingChannels(NodeRef nodeToPublish);
@@ -129,7 +135,6 @@ public interface ChannelService
      * Returns a list of all the channels that are capable of publishing in the specified Share site.
      * @param filterByPublishPermission If true then the returned channels are filtered to include only those
      * to which the authenticated user can publish
-     * @return List<Channel>
      */
     @NotAuditable
     List<Channel> getPublishingChannels(boolean filterByPublishPermission);
@@ -138,7 +143,6 @@ public interface ChannelService
      * Returns all {@link Channel}s cpaable of performing a status update for the given Share Site.
      * @param filterByPublishPermission If true then the returned channels are filtered to include only those
      * to which the authenticated user can post status updates
-     * @return List<Channel>
      */
     @NotAuditable
     List<Channel> getStatusUpdateChannels(boolean filterByPublishPermission);

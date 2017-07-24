@@ -1,33 +1,45 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.security.authentication;
 
 import java.util.Collections;
 import java.util.Set;
 
+import org.alfresco.repo.cache.SimpleCache;
 import org.alfresco.repo.management.subsystems.ActivateableBean;
 import org.alfresco.repo.security.authentication.AuthenticationComponent.UserNameValidationMode;
 import org.alfresco.repo.tenant.TenantContextHolder;
+import org.alfresco.service.cmr.security.PersonService;
 import org.alfresco.util.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class AuthenticationServiceImpl extends AbstractAuthenticationService implements ActivateableBean
 {
+    private Log logger = LogFactory.getLog(AuthenticationServiceImpl.class);
     AuthenticationComponent authenticationComponent;
     TicketComponent ticketComponent;
     
@@ -35,7 +47,41 @@ public class AuthenticationServiceImpl extends AbstractAuthenticationService imp
     private boolean allowsUserCreation = true;
     private boolean allowsUserDeletion = true;
     private boolean allowsUserPasswordChange = true;
-    
+
+    private static final String AUTHENTICATION_UNSUCCESSFUL = "Authentication was not successful.";
+    private static final String BRUTE_FORCE_ATTACK_DETECTED = "Brute force attack was detected for user: %s";
+    private int protectionPeriodSeconds;
+    private boolean protectionEnabled;
+    private int protectionLimit;
+    private SimpleCache<String, ProtectedUser> protectedUsersCache;
+
+    private PersonService personService;
+
+    public void setProtectionPeriodSeconds(int protectionPeriodSeconds)
+    {
+        this.protectionPeriodSeconds = protectionPeriodSeconds;
+    }
+
+    public void setProtectionEnabled(boolean protectionEnabled)
+    {
+        this.protectionEnabled = protectionEnabled;
+    }
+
+    public void setProtectionLimit(int protectionLimit)
+    {
+        this.protectionLimit = protectionLimit;
+    }
+
+    public void setProtectedUsersCache(SimpleCache<String, ProtectedUser> protectedUsersCache)
+    {
+        this.protectedUsersCache = protectedUsersCache;
+    }
+
+    public void setPersonService(PersonService personService)
+    {
+        this.personService = personService;
+    }
+
     public AuthenticationServiceImpl()
     {
         super();
@@ -65,6 +111,10 @@ public class AuthenticationServiceImpl extends AbstractAuthenticationService imp
             // clear context - to avoid MT concurrency issue (causing domain mismatch) - see also 'validate' below
             clearCurrentSecurityContext();
             preAuthenticationCheck(userName);
+            if (isUserProtected(userName))
+            {
+                throw new AuthenticationException(AUTHENTICATION_UNSUCCESSFUL);
+            }
             authenticationComponent.authenticate(userName, password);
             if (tenant == null)
             {
@@ -72,16 +122,74 @@ public class AuthenticationServiceImpl extends AbstractAuthenticationService imp
                 tenant = userTenant.getSecond();
             }
             TenantContextHolder.setTenantDomain(tenant);
+            if (protectionEnabled)
+            {
+                if (protectedUsersCache.get(userName) != null)
+                {
+                     protectedUsersCache.remove(userName);
+                }
+            }
         }
         catch(AuthenticationException ae)
         {
             clearCurrentSecurityContext();
+            recordFailedAuthentication(userName);
             throw ae;
         }
         ticketComponent.clearCurrentTicket();
         getCurrentTicket();
     }
-    
+
+    /**
+     * @return <code>true</code> if user is 'protected' from brute force attack
+     */
+    public boolean isUserProtected(String userName)
+    {
+        boolean isProtected = false;
+        if (protectionEnabled)
+        {
+            ProtectedUser protectedUser = protectedUsersCache.get(userName);
+            if (protectedUser != null)
+            {
+                long currentTimeStamp = System.currentTimeMillis();
+                isProtected = protectedUser.getNumLogins() >= protectionLimit &&
+                        currentTimeStamp - protectedUser.getTimeStamp() < protectionPeriodSeconds * 1000;
+            }
+        }
+        return isProtected;
+    }
+
+    /**
+     * Method records a failed login attempt.
+     * If the number of recorded failures exceeds {@link AuthenticationServiceImpl#protectionLimit}
+     * the user will be considered 'protected'.
+     */
+    public void recordFailedAuthentication(String userName)
+    {
+        if (protectionEnabled)
+        {
+            ProtectedUser protectedUser = protectedUsersCache.get(userName);
+            if (protectedUser == null)
+            {
+                protectedUser = new ProtectedUser(userName);
+            }
+            else
+            {
+                protectedUser = new ProtectedUser(userName, protectedUser.getNumLogins() + 1);
+                if (protectedUser.getNumLogins() == protectionLimit && logger.isWarnEnabled())
+                {
+                    // Shows only first 2 symbols of the username and masks all other character with '*'
+                    if (userName.length() >= 2)
+                    {
+                        logger.warn(String.format(BRUTE_FORCE_ATTACK_DETECTED,
+                                userName.substring(0,2) + new String(new char[(userName.length() - 2)]).replace("\0", "*")));
+                    }
+                }
+            }
+            protectedUsersCache.put(userName, protectedUser);
+        }
+    }
+
     public String getCurrentUserName() throws AuthenticationException
     {
         return authenticationComponent.getCurrentUserName();
@@ -329,6 +437,11 @@ public class AuthenticationServiceImpl extends AbstractAuthenticationService imp
      */
     public boolean getAuthenticationEnabled(String userName) throws AuthenticationException
     {
+        if (personService != null && personService.personExists(userName))
+        {
+            return personService.isEnabled(userName);
+        }
+
         return true;
-    }        
+    }
 }

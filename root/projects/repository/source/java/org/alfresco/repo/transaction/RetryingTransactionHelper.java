@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.transaction;
 
@@ -400,7 +407,7 @@ public class RetryingTransactionHelper
 
         // If we are time limiting, set ourselves a time limit and maintain the count of concurrent transactions
         long startTime = 0;
-		Throwable stackTrace = null;
+        Throwable stackTrace = null;
         if (requiresNew && maxExecutionMs > 0)
         {
             startTime = System.currentTimeMillis();
@@ -416,21 +423,21 @@ public class RetryingTransactionHelper
                         throw new TooBusyException("Too busy: " + txnCount + " transactions. Oldest " + oldestDuration + " milliseconds", txnsInProgress.get(oldestStart).get(0));
                     }
                 }
-				// Record the start time and stack trace of the starting thread
+                // Record the start time and stack trace of the starting thread
                 List<Throwable> traces = txnsInProgress.get(startTime);
                 if (traces == null)
                 {
                     traces = new LinkedList<Throwable>();
                     txnsInProgress.put(startTime, traces);
                 }
-				stackTrace = new Exception("Stack trace");
+                stackTrace = new Exception("Stack trace");
                 traces.add(stackTrace);
                 ++txnCount;
             }
         }
 
         try
-        {        
+        {
             // Track the last exception caught, so that we
             // can throw it if we run out of retries.
             RuntimeException lastException = null;

@@ -1,26 +1,34 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.solr;
 
 import java.util.Collection;
 import java.util.Set;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.alfresco.solr.tracker.ModelTracker;
 import org.alfresco.solr.tracker.SolrTrackerScheduler;
 import org.alfresco.solr.tracker.Tracker;
@@ -60,6 +68,7 @@ public class AlfrescoSolrCloseHook extends CloseHook
     public void preClose(SolrCore core)
     {
         // Sets the shutdown flag on the trackers to stop them from doing any more work
+
         String coreName = core.getName();
         boolean thisIsTheLastCoreRegistered = thisIsTheLastCoreRegistered(coreName);
         ModelTracker modelTracker = trackerRegistry.getModelTracker();
@@ -67,6 +76,13 @@ public class AlfrescoSolrCloseHook extends CloseHook
         {
             modelTracker.setShutdown(true);
         }
+
+        boolean testcase = Boolean.parseBoolean(System.getProperty("alfresco.test", "false"));
+        if(testcase) {
+            //other trackers not present in test case.
+            return;
+        }
+
         Collection<Tracker> coreTrackers = trackerRegistry.getTrackersForCore(coreName);
         for(Tracker tracker : coreTrackers)
         {

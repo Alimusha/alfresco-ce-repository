@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2016 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.opencmis;
 
@@ -70,6 +77,8 @@ import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.search.ResultSet;
 import org.alfresco.service.cmr.search.SearchParameters;
 import org.alfresco.service.cmr.search.SearchService;
+import org.alfresco.service.cmr.security.AccessStatus;
+import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.cmr.version.Version;
 import org.alfresco.service.cmr.version.VersionHistory;
 import org.alfresco.service.cmr.version.VersionType;
@@ -110,6 +119,7 @@ import org.apache.chemistry.opencmis.commons.exceptions.CmisConstraintException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisContentAlreadyExistsException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisInvalidArgumentException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisObjectNotFoundException;
+import org.apache.chemistry.opencmis.commons.exceptions.CmisPermissionDeniedException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisRuntimeException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisStorageException;
 import org.apache.chemistry.opencmis.commons.exceptions.CmisStreamNotSupportedException;
@@ -1100,6 +1110,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         switch (type.getBaseTypeId())
         {
         case CMIS_DOCUMENT:
+            versioningState = getDocumentDefaultVersioningState(versioningState, type);
             newId = createDocument(repositoryId, properties, folderId, contentStream, versioningState, policies, null,
                     null, extension);
             break;
@@ -1110,8 +1121,11 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
             newId = createPolicy(repositoryId, properties, folderId, policies, null, null, extension);
             break;
         case CMIS_ITEM:
-        	newId = createItem(repositoryId, properties, folderId, policies, null, null, extension);
-            
+            newId = createItem(repositoryId, properties, folderId, policies, null, null, extension);
+            break;
+        default:
+            break;
+
         }
 
         // check new object id
@@ -1240,7 +1254,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
     @Override
     public String createDocument(
             String repositoryId, final Properties properties, String folderId,
-            final ContentStream contentStream, final VersioningState versioningState, final List<String> policies,
+            final ContentStream contentStream, VersioningState versioningState, final List<String> policies,
             final Acl addAces, final Acl removeAces, ExtensionsData extension)
     {
         checkRepositoryId(repositoryId);
@@ -1252,7 +1266,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         final String name = connector.getNameProperty(properties, null);
         final String objectTypeId = connector.getObjectTypeIdProperty(properties);
         final TypeDefinitionWrapper type = connector.getTypeForCreate(objectTypeId, BaseTypeId.CMIS_DOCUMENT);
-
+        
         connector.checkChildObjectType(parentInfo, type.getTypeId());
 
         DocumentTypeDefinition docType = (DocumentTypeDefinition) type.getTypeDefinition(false);
@@ -1276,6 +1290,8 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         {
             throw new CmisConstraintException("This document type is not versionable!");
         }
+        
+        versioningState = getDocumentDefaultVersioningState(versioningState, type);
 
         FileInfo fileInfo = connector.getFileFolderService().create(
                 parentInfo.getNodeRef(), name, type.getAlfrescoClass());
@@ -1296,11 +1312,11 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
 	            // copy stream to temp file
 	            // OpenCMIS does this for us ....
 	            tempFile = copyToTempFile(contentStream);
-	            final Charset encoding = (tempFile == null ? null : getEncoding(tempFile, contentStream.getMimeType()));
+	            String encoding = getEncoding(tempFile, mimeType);
 	                
 	            ContentWriter writer = connector.getFileFolderService().getWriter(nodeRef);
 	            writer.setMimetype(mimeType);
-	            writer.setEncoding(encoding.name());
+	            writer.setEncoding(encoding);
 	            writer.putContent(tempFile);
 	        }
         }
@@ -1327,11 +1343,32 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
 
         return objectId;
     }
+    
+
+
+    /**
+     * Gets default value of <code>VersioningState</code> based on whether document is versionable or not.
+     * 
+     * @param versioningState
+     * @param type
+     * @return <code>VersioningState.MAJOR</code> if versioningState is {@code null} and object is versionable
+     *         <code>VersioningState.NONE</code> if versioningState is {@code null} and object is not versionable
+     *         versioningState if it's value is not {@code null}
+     */
+    private VersioningState getDocumentDefaultVersioningState(VersioningState versioningState, TypeDefinitionWrapper type)
+    {
+        if (versioningState == null)
+        {
+            DocumentTypeDefinition docType = (DocumentTypeDefinition) type.getTypeDefinition(false);
+            versioningState = docType.isVersionable() ? VersioningState.MAJOR : VersioningState.NONE;
+        }
+        return versioningState;
+    }
 
     @Override
     public String createDocumentFromSource(
             String repositoryId, String sourceId, final Properties properties,
-            String folderId, final VersioningState versioningState, final List<String> policies, final Acl addAces,
+            String folderId, VersioningState versioningState, final List<String> policies, final Acl addAces,
             final Acl removeAces, ExtensionsData extension)
     {
         checkRepositoryId(repositoryId);
@@ -1353,12 +1390,14 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         {
             throw new CmisConstraintException("Source object is not a document!");
         }
-
+        
         // get name and type
         final String name = connector.getNameProperty(properties, info.getName());
 
         final TypeDefinitionWrapper type = info.getType();
         connector.checkChildObjectType(parentInfo, type.getTypeId());
+        
+        versioningState = getDocumentDefaultVersioningState(versioningState, type);
 
         try
         {
@@ -1512,7 +1551,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
 
         if (!info.isVariant(CMISObjectVariant.CURRENT_VERSION) && !info.isVariant(CMISObjectVariant.PWC))
         {
-            throw new CmisStreamNotSupportedException("Content can only be set ondocuments!");
+            throw new CmisStreamNotSupportedException("Content can only be set on private working copies or current versions.");
         }
 
         final NodeRef nodeRef = info.getNodeRef();
@@ -1533,16 +1572,15 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
             throw new CmisInvalidArgumentException("No content!");
         }
 
-        // copy stream to temp file
+        String mimeType = parseMimeType(contentStream);
         final File tempFile = copyToTempFile(contentStream);
-        final Charset encoding = getEncoding(tempFile, contentStream.getMimeType());
+        String encoding = getEncoding(tempFile, mimeType);
 
         try
         {
             ContentWriter writer = connector.getFileFolderService().getWriter(nodeRef);
-            String mimeType = parseMimeType(contentStream);
             writer.setMimetype(mimeType);
-            writer.setEncoding(encoding.name());
+            writer.setEncoding(encoding);
             writer.putContent(tempFile);
         }
         finally
@@ -1731,6 +1769,11 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
             }
 
             // handle versions
+            if (info.isVariant(CMISObjectVariant.VERSION))
+            {
+                nodeRef = info.getCurrentNodeNodeRef();
+            }
+
             if (allVersions)
             {
                 NodeRef workingCopy = connector.getCheckOutCheckInService().getWorkingCopy(nodeRef);
@@ -1741,14 +1784,15 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
             }
             else if (info.isVariant(CMISObjectVariant.VERSION))
             {
+                // Check the DELETE permission since the version service has no restrictions.
+                AccessStatus perm = connector.getServiceRegistry().getPermissionService().hasPermission(nodeRef, PermissionService.DELETE);
+                if (AccessStatus.ALLOWED != perm)
+                {
+                    throw new CmisPermissionDeniedException("Cannot delete the node version.");
+                }
                 Version version = ((CMISNodeInfoImpl) info).getVersion();
                 connector.getVersionService().deleteVersion(nodeRef, version);
                 break;      // Reason for do-while
-            }
-
-            if (info.isVariant(CMISObjectVariant.VERSION))
-            {
-                nodeRef = info.getCurrentNodeNodeRef();
             }
 
             // attempt to delete the node
@@ -1758,7 +1802,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
             }
             else
             {
-                CMISNodeInfoImpl infoImpl = ((CMISNodeInfoImpl) info);
+                CMISNodeInfoImpl infoImpl = (CMISNodeInfoImpl) info;
                 Version version = infoImpl.getVersion();
 
                 if (infoImpl.getVersionHistory().getPredecessor(version) == null)
@@ -1767,6 +1811,11 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
                 }
                 else
                 {
+                    AccessStatus perm = connector.getServiceRegistry().getPermissionService().hasPermission(nodeRef, PermissionService.DELETE);
+                    if (AccessStatus.ALLOWED != perm)
+                    {
+                        throw new CmisPermissionDeniedException("Cannot delete the node version.");
+                    }
                     connector.getVersionService().deleteVersion(nodeRef, version);
                     // MNT-10032 revert node version to predecessor
                     connector.getVersionService().revert(nodeRef);
@@ -1851,6 +1900,10 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         {
             throw new CmisConstraintException("Bulk update not supported for more than " + connector.getBulkMaxItems() + " objects.");
         }
+        // MNT-16376 We need the CMIS call context from this thread to set 
+        // to the working threads below, in order to correctly identify 
+        // the CMIS version protocol used for this CMIS call
+        final CallContext cmisCallContext = AlfrescoCmisServiceCall.get();
 
         // WorkProvider
         class WorkProvider implements BatchProcessWorkProvider<BulkEntry>
@@ -1910,6 +1963,7 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
                 // Authentication
                 AuthenticationUtil.pushAuthentication();
                 AuthenticationUtil.setFullyAuthenticatedUser(runAsUser);
+                AlfrescoCmisServiceCall.set(cmisCallContext);
             }
 
             @Override
@@ -2252,7 +2306,6 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
 
         // copy stream to temp file
         final File tempFile = copyToTempFile(contentStream);
-        final Charset encoding = (tempFile == null ? null : getEncoding(tempFile, contentStream.getMimeType()));
 
         // check in
         // update PWC
@@ -2264,10 +2317,12 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         // handle content
         if (contentStream != null)
         {
+            String mimeType = parseMimeType(contentStream);
+            String encoding =  getEncoding(tempFile, mimeType);
             // write content
             ContentWriter writer = connector.getFileFolderService().getWriter(nodeRef);
-            writer.setMimetype(parseMimeType(contentStream));
-            writer.setEncoding(encoding.name());
+            writer.setMimetype(mimeType);
+            writer.setEncoding(encoding);
             writer.putContent(tempFile);
         }
 
@@ -3026,22 +3081,51 @@ public class AlfrescoCmisServiceImpl extends AbstractCmisService implements Alfr
         }
     }
 
-    private Charset getEncoding(File tempFile, String mimeType)
+    /**
+     * Inspired from NodesImpl.guessEncoding method.
+     * 
+     * @param tempFile can be null;
+     * @param mimeType can be null;
+     * @return the encoding detected. never null;
+     */
+    private String getEncoding(File tempFile, String mimeType)
     {
-        Charset encoding = null;
+        String defaultEncoding = "UTF-8";
+        if (tempFile == null)
+        {
+            return defaultEncoding;
+        }
 
+        InputStream tfis = null;
         try
         {
-            InputStream tfis = new BufferedInputStream(new FileInputStream(tempFile));
+            tfis = new BufferedInputStream(new FileInputStream(tempFile));
             ContentCharsetFinder charsetFinder = connector.getMimetypeService().getContentCharsetFinder();
-            encoding = charsetFinder.getCharset(tfis, mimeType);
-            tfis.close();
-        } catch (Exception e)
+            return charsetFinder.getCharset(tfis, mimeType).name();
+        }
+        catch (Exception e)
         {
             throw new CmisStorageException("Unable to read content: " + e.getMessage(), e);
         }
+        finally
+        {
+            closeInputStream(tfis);
+        }
+    }
 
-        return encoding;
+    private void closeInputStream(InputStream tfis)
+    {
+        if (tfis != null)
+        {
+            try
+            {
+                tfis.close();
+            }
+            catch (Exception e)
+            {
+                // nothing
+            }
+        }
     }
 
     private File copyToTempFile(ContentStream contentStream)

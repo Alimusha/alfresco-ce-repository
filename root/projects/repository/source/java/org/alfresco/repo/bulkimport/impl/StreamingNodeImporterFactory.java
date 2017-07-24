@@ -1,36 +1,41 @@
 /*
- * Copyright (C) 2005-2011 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have received a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing"
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.bulkimport.impl;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 import org.alfresco.error.AlfrescoRuntimeException;
+import org.alfresco.repo.bulkimport.BulkImportParameters;
 import org.alfresco.repo.bulkimport.ImportableItem;
 import org.alfresco.repo.bulkimport.MetadataLoader;
 import org.alfresco.repo.bulkimport.NodeImporter;
 import org.alfresco.repo.bulkimport.impl.BulkImportStatusImpl.NodeState;
+import org.alfresco.service.cmr.repository.ContentIOException;
 import org.alfresco.service.cmr.repository.ContentWriter;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.util.Triple;
@@ -84,7 +89,17 @@ public class StreamingNodeImporterFactory extends AbstractNodeImporterFactory
 				}
 
 	    		ContentWriter writer = fileFolderService.getWriter(nodeRef);
-	    		writer.putContent(contentAndMetadata.getContentFile());
+	    		try
+	    		{
+	    		    writer.putContent(Files.newInputStream(contentAndMetadata.getContentFile()));
+	    		}
+	    		catch (IOException e)
+	    		{
+	    		    throw new ContentIOException("Failed to copy content from file: \n" +
+	    		            "   writer: " + writer + "\n" +
+	    		            "   file: " + contentAndMetadata.getContentFile(),
+	    		            e);
+	    		}
 	    	}
 	    	else
 	    	{
@@ -95,7 +110,7 @@ public class StreamingNodeImporterFactory extends AbstractNodeImporterFactory
 	    	importImportableItemMetadata(nodeRef, contentAndMetadata.getContentFile(), metadata);
 	    }
 
-	    protected NodeRef importImportableItemImpl(ImportableItem importableItem, boolean replaceExisting)
+	    protected NodeRef importImportableItemImpl(ImportableItem importableItem, BulkImportParameters.ExistingFileMode existingFileMode)
 	    {
 	        NodeRef target = importableItem.getParent().getNodeRef();
 	        if(target == null)
@@ -106,7 +121,16 @@ public class StreamingNodeImporterFactory extends AbstractNodeImporterFactory
 	        NodeRef result = null;
 	        MetadataLoader.Metadata metadata = loadMetadata(importableItem.getHeadRevision());
 
-	        Triple<NodeRef, Boolean, NodeState> node = createOrFindNode(target, importableItem, replaceExisting, metadata);
+	        // TODO: we'll get NodeState.REPLACED back from this method (i.e. the node WILL be replaced)
+			// even if we're using ExistingFileMode.ADD_VERSION - we need to do this currently, otherwise
+			// the file would be SKIPPED and various other checks that are only computed if replace is being used,
+			// wouldn't happen.
+			// TODO: sort this out.
+			Triple<NodeRef, Boolean, NodeState> node = createOrFindNode(
+					target,
+					importableItem,
+					existingFileMode,
+					metadata);
 	        boolean isDirectory = node.getSecond() == null ? false : node.getSecond();  // Watch out for NPEs during unboxing!
 	        NodeState nodeState = node.getThird();
 	        
@@ -125,7 +149,7 @@ public class StreamingNodeImporterFactory extends AbstractNodeImporterFactory
 	            }
 	            else
 	            {
-	                numVersionProperties = importImportableItemFile(result, importableItem, metadata, nodeState);
+	                numVersionProperties = importImportableItemFile(result, importableItem, metadata, nodeState, existingFileMode);
 	            }
 	            
 	            importStatus.incrementNodesWritten(importableItem, isDirectory, nodeState, metadata.getProperties().size() + 4, numVersionProperties);

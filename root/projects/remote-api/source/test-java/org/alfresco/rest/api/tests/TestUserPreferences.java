@@ -1,13 +1,35 @@
+/*
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
 package org.alfresco.rest.api.tests;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import org.alfresco.repo.tenant.TenantUtil;
 import org.alfresco.repo.tenant.TenantUtil.TenantRunAsWork;
@@ -70,6 +92,8 @@ public class TestUserPreferences extends EnterpriseTestApi
         expectedPreferences.add(new Preference("org.alfresco.share.documentList.testPreference1", String.valueOf(true)));
         expectedPreferences.add(new Preference("org.alfresco.share.documentList.sortAscending", String.valueOf(true)));
         expectedPreferences.add(new Preference("org.alfresco.share.documentList.testPreference3", String.valueOf(true)));
+		// new preference name for issue REPO-855
+		expectedPreferences.add(new Preference("org.alfresco.ext.folders.favourites.workspace://SpacesStore/4e3d0779-388a-4b94-91e1-eab588a7da3d.createdAt", String.valueOf(true)));
 
 		TenantUtil.runAsUserTenant(new TenantRunAsWork<Void>()
 		{
@@ -297,5 +321,96 @@ public class TestUserPreferences extends EnterpriseTestApi
         {
         	assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, e.getHttpResponse().getStatusCode());
         }
+
+		{
+			// REPO-1061, REPO-890
+			try
+			{
+				String skipCount = "a";
+				String maxItems = "hi";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("skipCount", skipCount);
+				params.put("maxItems", maxItems);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+				peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+
+			try
+			{
+				String skipCount = "a";
+				String maxItems = "null";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("skipCount", skipCount);
+				params.put("maxItems", maxItems);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+				peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+
+			try
+			{
+				String maxItems = "Red";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("maxItems", maxItems);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+                peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+
+			try
+			{
+				String skipCount = "yuck";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("skipCount", skipCount);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+				peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+
+			try
+			{
+				String skipCount = "-1";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("skipCount", skipCount);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+				peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+
+			try
+			{
+				String maxItems = "0";
+				HashMap<String, String> params = new HashMap<String, String>();
+				params.put("maxItems", maxItems);
+				publicApiClient.setRequestContext(new RequestContext(network1.getId(), person1.getId()));
+				peopleProxy.getPreferences(person1.getId(), params);
+				fail();
+			}
+			catch (PublicApiException e)
+			{
+				assertEquals(HttpStatus.SC_BAD_REQUEST, e.getHttpResponse().getStatusCode());
+			}
+		}
 	}
 }

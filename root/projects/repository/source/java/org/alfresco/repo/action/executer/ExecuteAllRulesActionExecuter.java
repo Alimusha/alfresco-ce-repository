@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.action.executer;
 
@@ -44,14 +51,14 @@ public class ExecuteAllRulesActionExecuter extends ActionExecuterAbstractBase
     /**
      * Action constants
      */
-	public static final String NAME = "execute-all-rules";
+    public static final String NAME = "execute-all-rules";
     public static final String PARAM_EXECUTE_INHERITED_RULES = "execute-inherited-rules";
     public static final String PARAM_RUN_ALL_RULES_ON_CHILDREN = "run-all-rules-on-children";
-	
-	/**
-	 * The node service
-	 */
-	private NodeService nodeService;
+    
+    /**
+     * The node service
+     */
+    private NodeService nodeService;
     
     /**
      * The rule service
@@ -65,16 +72,16 @@ public class ExecuteAllRulesActionExecuter extends ActionExecuterAbstractBase
     
     /** The dictionary Service */
     private DictionaryService dictionaryService;
-	
+    
     /**
      * Set the node service
      * 
      * @param nodeService  the node service
      */
-	public void setNodeService(NodeService nodeService) 
-	{
-		this.nodeService = nodeService;
-	}
+    public void setNodeService(NodeService nodeService) 
+    {
+        this.nodeService = nodeService;
+    }
     
     /**
      * Set the rule service
@@ -111,8 +118,8 @@ public class ExecuteAllRulesActionExecuter extends ActionExecuterAbstractBase
      */
     public void executeImpl(Action ruleAction, NodeRef actionedUponNodeRef)
     {
-		if (this.nodeService.exists(actionedUponNodeRef) == true)
-		{
+        if (this.nodeService.exists(actionedUponNodeRef) == true)
+        {
             // Get the parameter value
             boolean includeInherited = false;
             Boolean includeInheritedValue = (Boolean)ruleAction.getParameterValue(PARAM_EXECUTE_INHERITED_RULES);
@@ -128,7 +135,7 @@ public class ExecuteAllRulesActionExecuter extends ActionExecuterAbstractBase
                 runAllChildren = runAllChildrenValue.booleanValue();
             }
             
-		    // Get the rules
+            // Get the rules
             List<Rule> rules = ruleService.getRules(actionedUponNodeRef, includeInherited);
             if (rules != null && rules.isEmpty() == false)
             {
@@ -166,7 +173,7 @@ public class ExecuteAllRulesActionExecuter extends ActionExecuterAbstractBase
                     }                    
                 }
             }
-		}
+        }
     }
 
     /**

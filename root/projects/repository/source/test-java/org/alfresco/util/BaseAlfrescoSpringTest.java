@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2010 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.util;
 
@@ -31,6 +38,7 @@ import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.security.MutableAuthenticationService;
+import org.alfresco.service.cmr.security.PersonService;
 import org.alfresco.service.namespace.NamespaceService;
 import org.alfresco.service.namespace.QName;
 import org.alfresco.service.transaction.TransactionService;
@@ -115,4 +123,31 @@ public abstract class BaseAlfrescoSpringTest extends BaseSpringTest
         return childAssoc.getChildRef();
     }
 
+    protected void createUser(String userName)
+    {
+        createUser(userName, userName);
+    }
+
+    protected void createUser(String userName, String nameSuffix)
+    {
+        createUser(userName, userName, "PWD");
+    }
+
+    protected void createUser(String userName, String nameSuffix, String password)
+    {
+        if (this.authenticationService.authenticationExists(userName) == false)
+        {
+            this.authenticationService.createAuthentication(userName, password.toCharArray());
+
+            PropertyMap ppOne = new PropertyMap(4);
+            ppOne.put(ContentModel.PROP_USERNAME, userName);
+            ppOne.put(ContentModel.PROP_FIRSTNAME, "firstName"+nameSuffix);
+            ppOne.put(ContentModel.PROP_LASTNAME, "lastName"+nameSuffix);
+            ppOne.put(ContentModel.PROP_EMAIL, "email"+nameSuffix+"@email.com");
+            ppOne.put(ContentModel.PROP_JOBTITLE, "jobTitle");
+
+            PersonService personService = (PersonService)applicationContext.getBean("personService");
+            personService.createPerson(ppOne);
+        }
+    }
 }

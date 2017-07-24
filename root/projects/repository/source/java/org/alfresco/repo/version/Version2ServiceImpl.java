@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2013 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.version;
 
@@ -106,8 +113,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         return new StoreRef(StoreRef.PROTOCOL_WORKSPACE, Version2Model.STORE_ID);
@@ -122,8 +129,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         long startTime = System.currentTimeMillis();
@@ -150,8 +157,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         /* 
@@ -188,8 +195,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         long startTime = System.currentTimeMillis();
@@ -389,8 +396,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         VersionHistory versionHistory = null;
@@ -410,8 +417,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         Version version = null;
@@ -480,8 +487,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
             int versionNumber,
             PolicyScope nodeDetails)
     {
-		ChildAssociationRef childAssocRef = null;
-		
+        ChildAssociationRef childAssocRef = null;
+        
         // Disable auto-version behaviour
         this.policyBehaviourFilter.disableBehaviour(ContentModel.ASPECT_VERSIONABLE);
         
@@ -492,10 +499,10 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
         
         try
         {
-    		// "copy" type and properties
+            // "copy" type and properties
             childAssocRef = this.dbNodeService.createNode(
-            		versionHistoryRef, 
-            		Version2Model.CHILD_QNAME_VERSIONS,
+                    versionHistoryRef, 
+                    Version2Model.CHILD_QNAME_VERSIONS,
                     QName.createQName(Version2Model.NAMESPACE_URI, Version2Model.CHILD_VERSIONS+"-"+versionNumber), // TODO - testing - note: all children (of a versioned node) will have the same version number, maybe replace with a version sequence of some sort 001-...00n
                     sourceTypeRef, 
                     nodeDetails.getProperties());
@@ -558,9 +565,9 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
      */
     private void storeVersionMetaData(NodeRef versionNodeRef, Map<String, Serializable> versionProperties)
     {
-    	// TODO - these are stored as "residual" properties (ie. without property type) - see also NodeBrowser
-    	//      - need to review, eg. how can we store arbitrary map of metadata properties, that could be indexed/searched (if configured against versionStore)	
-    	for (Map.Entry<String, Serializable> entry : versionProperties.entrySet())
+        // TODO - these are stored as "residual" properties (ie. without property type) - see also NodeBrowser
+        //      - need to review, eg. how can we store arbitrary map of metadata properties, that could be indexed/searched (if configured against versionStore)    
+        for (Map.Entry<String, Serializable> entry : versionProperties.entrySet())
         {
             dbNodeService.setProperty(versionNodeRef, QName.createQName(Version2Model.NAMESPACE_URI, Version2Model.PROP_METADATA_PREFIX+entry.getKey()), entry.getValue());
         }
@@ -582,46 +589,46 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                 logger.trace("freezeAspect: " + versionNodeRef + " " + aspect);
             }
             
-        	if (aspect.equals(ContentModel.ASPECT_AUDITABLE))
-        	{
-        	    // freeze auditable aspect properties (eg. created, creator, modifed, modifier, accessed)
-        		for (Map.Entry<QName, Serializable> entry : nodeDetails.getProperties(aspect).entrySet())
-        		{
-        		    if (entry.getKey().equals(ContentModel.PROP_CREATOR))
-        		    {
-        		        dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_CREATOR, entry.getValue());
-        		    }
-        		    else if (entry.getKey().equals(ContentModel.PROP_CREATED))
+            if (aspect.equals(ContentModel.ASPECT_AUDITABLE))
+            {
+                // freeze auditable aspect properties (eg. created, creator, modifed, modifier, accessed)
+                for (Map.Entry<QName, Serializable> entry : nodeDetails.getProperties(aspect).entrySet())
+                {
+                    if (entry.getKey().equals(ContentModel.PROP_CREATOR))
+                    {
+                        dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_CREATOR, entry.getValue());
+                    }
+                    else if (entry.getKey().equals(ContentModel.PROP_CREATED))
                     {
                         dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_CREATED, entry.getValue());
                     }
-        		    else if (entry.getKey().equals(ContentModel.PROP_MODIFIER))
+                    else if (entry.getKey().equals(ContentModel.PROP_MODIFIER))
                     {
                         dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_MODIFIER, entry.getValue());
                     }
-        		    else if (entry.getKey().equals(ContentModel.PROP_MODIFIED))
+                    else if (entry.getKey().equals(ContentModel.PROP_MODIFIED))
                     {
                         dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_MODIFIED, entry.getValue());
                     }
-        		    else if (entry.getKey().equals(ContentModel.PROP_ACCESSED))
+                    else if (entry.getKey().equals(ContentModel.PROP_ACCESSED))
                     {
                         dbNodeService.setProperty(versionNodeRef, Version2Model.PROP_QNAME_FROZEN_ACCESSED, entry.getValue());
                     }
-        		    else
-        		    {
-        		        throw new AlfrescoRuntimeException("Unexpected auditable property: " + entry.getKey());
-        		    }
-        		}
-        	}
-        	else
-        	{
-        		// Freeze the details of the aspect
-        		dbNodeService.addAspect(versionNodeRef, aspect, nodeDetails.getProperties(aspect));
-        	}
+                    else
+                    {
+                        throw new AlfrescoRuntimeException("Unexpected auditable property: " + entry.getKey());
+                    }
+                }
+            }
+            else
+            {
+                // Freeze the details of the aspect
+                dbNodeService.addAspect(versionNodeRef, aspect, nodeDetails.getProperties(aspect));
+            }
 
-        	// ALF-9638: Freeze the aspect specific associations
-        	freezeChildAssociations(versionNodeRef, nodeDetails.getChildAssociations(aspect));
-            freezeAssociations(versionNodeRef, nodeDetails.getAssociations(aspect));        	
+            // ALF-9638: Freeze the aspect specific associations
+            freezeChildAssociations(versionNodeRef, nodeDetails.getChildAssociations(aspect));
+            freezeAssociations(versionNodeRef, nodeDetails.getAssociations(aspect));            
         }
     }
     
@@ -789,7 +796,7 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
             if (idx == 0)
             {
                 // versioned metadata property - additional (optional) metadata, set during versioning
-            	versionProperties.put(keyName.substring(Version2Model.PROP_METADATA_PREFIX.length()), value);
+                versionProperties.put(keyName.substring(Version2Model.PROP_METADATA_PREFIX.length()), value);
             }
             else
             {
@@ -845,9 +852,9 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
         // DEPRECATED: for backwards compatibility, in case of a version node (eg. via getCurrentVersion) can lookup 'live' node via UUID
         if (vhNodeRef == null)
         {
-        	if (nodeService.exists(nodeRef))
+            if (nodeService.exists(nodeRef))
             {
-        		vhNodeRef = this.dbNodeService.getChildByName(getRootNode(), Version2Model.CHILD_QNAME_VERSION_HISTORIES, (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NODE_UUID));
+                vhNodeRef = this.dbNodeService.getChildByName(getRootNode(), Version2Model.CHILD_QNAME_VERSION_HISTORIES, (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NODE_UUID));
             }
         }
 
@@ -855,33 +862,39 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     }
 
     /**
-     * Gets current version of the passed node ref
+     * Gets current version of the passed node reference. The node reference is expected to be the 'live' node.
      *
      * This uses the version label as a mechanism for looking up the version node.
      */
     private Pair<Boolean, Version> getCurrentVersionImpl(NodeRef versionHistoryRef, NodeRef nodeRef)
     {
+        // The noderef should not be a version type node. 
+        if (nodeRef.getStoreRef().getIdentifier().contains(Version2Model.STORE_ID))
+        {
+             throw new IllegalArgumentException("The node reference " + nodeRef + " is pointing to a version node, when a reference to a live node is expected.");
+        }
+        
         Pair<Boolean, Version> result = null;
         
         String versionLabel = (String)this.nodeService.getProperty(nodeRef, ContentModel.PROP_VERSION_LABEL);
         
-        // note: resultant list is ordered by (a) explicit index and (b) association creation time
+        // Note: resultant list is ordered by (a) explicit index and (b) association creation time
         List<ChildAssociationRef> versionAssocs = getVersionAssocs(versionHistoryRef, false);
         
         // Current version should be head version (since no branching)
-        int cnt = versionAssocs.size();
-        for (int i = cnt; i > 0; i--)
+        int versionCount = versionAssocs.size();
+        for (int i = versionCount; i > 0; i--)
         {
             ChildAssociationRef versionAssoc = versionAssocs.get(i-1);
             
             String tempLabel = (String)this.dbNodeService.getProperty(versionAssoc.getChildRef(), Version2Model.PROP_QNAME_VERSION_LABEL);
             if (tempLabel != null && tempLabel.equals(versionLabel) == true)
             {
-                boolean headVersion = (i == cnt);
+                boolean headVersion = (i == versionCount);
                 
-                if (! headVersion)
+                if (!headVersion)
                 {
-                    throw new ConcurrencyFailureException("Unexpected: current version does not appear to be 1st version in the list  ["+versionHistoryRef+", "+nodeRef+"]");
+                    throw new ConcurrencyFailureException("Unexpected: current version does not appear to be 1st version in the list ["+versionHistoryRef+", "+nodeRef+"]");
                 }
                 
                 result = new Pair<Boolean, Version>(headVersion, getVersion(versionAssoc.getChildRef()));
@@ -895,7 +908,7 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     /**
      * Check if versions are marked with invalid version label, if true > apply default serial version label (e.g. "1.0", "1.1") 
      * 
-     * @param versionHistory a version histore node reference
+     * @param versionHistory a version history node reference
      * @param nodeRef a node reference
      */
     private void checkForCorruptedVersions(NodeRef versionHistory, NodeRef nodeRef)
@@ -970,8 +983,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         revert(nodeRef, getCurrentVersion(nodeRef), true);
@@ -983,8 +996,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         revert(nodeRef, getCurrentVersion(nodeRef), deep);
@@ -996,8 +1009,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         revert(nodeRef, version, true);
@@ -1009,15 +1022,15 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
-    	if(logger.isDebugEnabled())
-    	{
-    	     logger.debug("revert nodeRef:" + nodeRef);
-    	}
-    	
+        if(logger.isDebugEnabled())
+        {
+             logger.debug("revert nodeRef:" + nodeRef);
+        }
+        
         // Check the mandatory parameters
         ParameterCheck.mandatory("nodeRef", nodeRef);
         ParameterCheck.mandatory("version", version);
@@ -1093,32 +1106,32 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                     }
                 }
             
-        	for (QName aspect : oldAspectQNames)
-        	{
-        		AspectDefinition aspectDef = dictionaryService.getAspect(aspect);
-        		if(aspectDef != null)
-        		{
-        		    if (getRevertAspectAction(aspect, revertDetails) == RevertAspectAction.IGNORE)
-        		    {
-        			     propsToLeaveAlone.addAll(aspectDef.getProperties().keySet());
-        			}
-        		    for(QName assocName : aspectDef.getAssociations().keySet())
-        		    {
-        		    	if(getRevertAssocAction(aspect, assocName, revertDetails) == RevertAssocAction.IGNORE)
-        		    	{
-        		            assocsToLeaveAlone.addAll(aspectDef.getAssociations().keySet());
-        		    	}
-        		    }
-        		}
-        	}
-        	
-		    for(QName prop : propsToLeaveAlone)
-		    {
-			    if(oldProps.containsKey(prop))
-			    {
-			        newProps.put(prop, oldProps.get(prop));
-			    }
-		    }
+            for (QName aspect : oldAspectQNames)
+            {
+                AspectDefinition aspectDef = dictionaryService.getAspect(aspect);
+                if(aspectDef != null)
+                {
+                    if (getRevertAspectAction(aspect, revertDetails) == RevertAspectAction.IGNORE)
+                    {
+                         propsToLeaveAlone.addAll(aspectDef.getProperties().keySet());
+                    }
+                    for(QName assocName : aspectDef.getAssociations().keySet())
+                    {
+                        if(getRevertAssocAction(aspect, assocName, revertDetails) == RevertAssocAction.IGNORE)
+                        {
+                            assocsToLeaveAlone.addAll(aspectDef.getAssociations().keySet());
+                        }
+                    }
+                }
+            }
+            
+            for(QName prop : propsToLeaveAlone)
+            {
+                if(oldProps.containsKey(prop))
+                {
+                    newProps.put(prop, oldProps.get(prop));
+                }
+            }
             
             this.nodeService.setProperties(nodeRef, newProps);
                 
@@ -1129,18 +1142,18 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                 this.nodeService.setType(nodeRef, newNodeTypeQName);
 
             Set<QName> aspectsToRemove = new HashSet<QName>(oldAspectQNames);
-        	aspectsToRemove.removeAll(newAspectQNames);
-        	
-        	Set<QName> aspectsToAdd = new HashSet<QName>(newAspectQNames);
-        	aspectsToAdd.removeAll(oldAspectQNames);
-        	
-        	// add aspects that are not on the current node
-        	for (QName aspect : aspectsToAdd)
-        	{
-        		if (getRevertAspectAction(aspect, revertDetails) != RevertAspectAction.IGNORE)
-        		{
-        	        this.nodeService.addAspect(nodeRef, aspect, null);
-        		}
+            aspectsToRemove.removeAll(newAspectQNames);
+            
+            Set<QName> aspectsToAdd = new HashSet<QName>(newAspectQNames);
+            aspectsToAdd.removeAll(oldAspectQNames);
+            
+            // add aspects that are not on the current node
+            for (QName aspect : aspectsToAdd)
+            {
+                if (getRevertAspectAction(aspect, revertDetails) != RevertAspectAction.IGNORE)
+                {
+                    this.nodeService.addAspect(nodeRef, aspect, null);
+                }
                 }
                 // Don't remove forum aspects
                 if (needToRestoreDiscussion)
@@ -1154,17 +1167,17 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                         }
                     }
                     aspectsToRemove.removeAll(ignoredAspects);
-        	}
-        	
+            }
+            
             // remove aspects that are not on the frozen node
             for (QName aspect : aspectsToRemove)
             {
-            	if (getRevertAspectAction(aspect, revertDetails) != RevertAspectAction.IGNORE)
-            	{
-            		this.nodeService.removeAspect(nodeRef, aspect);
-            	}
+                if (getRevertAspectAction(aspect, revertDetails) != RevertAspectAction.IGNORE)
+                {
+                    this.nodeService.removeAspect(nodeRef, aspect);
+                }
             }
-        	  
+              
             // Re-add the versionable aspect to the reverted node
             if (this.nodeService.hasAspect(nodeRef, ContentModel.ASPECT_VERSIONABLE) == false)
             {
@@ -1189,7 +1202,7 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                         // the node still exits so this means it has been moved.
                         // The best thing to do in this situation will be to re-add the node as a child, but it will not
                         // be a primary child
-                    	String childRefName = (String) this.nodeService.getProperty(versionedChild.getChildRef(), ContentModel.PROP_NAME);
+                        String childRefName = (String) this.nodeService.getProperty(versionedChild.getChildRef(), ContentModel.PROP_NAME);
                         childRef = this.nodeService.getChildByName(nodeRef, versionedChild.getTypeQName(), childRefName);
                         // we can faced with association that allow duplicate names
                         if (childRef == null)
@@ -1265,30 +1278,30 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                 }
             for (ChildAssociationRef ref : children)
             {
-            	if (!assocsToLeaveAlone.contains(ref.getTypeQName()))
-            	{
+                if (!assocsToLeaveAlone.contains(ref.getTypeQName()))
+                {
                     this.nodeService.removeChild(nodeRef, ref.getChildRef());
-            	}
+                }
             }
             
             // Add/remove the target associations
             for (AssociationRef assocRef : this.nodeService.getTargetAssocs(nodeRef, RegexQNamePattern.MATCH_ALL))
             {
-            	if (!assocsToLeaveAlone.contains(assocRef.getTypeQName()))
-            	{
-            		this.nodeService.removeAssociation(assocRef.getSourceRef(), assocRef.getTargetRef(), assocRef.getTypeQName());
-            	}
+                if (!assocsToLeaveAlone.contains(assocRef.getTypeQName()))
+                {
+                    this.nodeService.removeAssociation(assocRef.getSourceRef(), assocRef.getTargetRef(), assocRef.getTypeQName());
+                }
             }
             for (AssociationRef versionedAssoc : this.nodeService.getTargetAssocs(versionNodeRef, RegexQNamePattern.MATCH_ALL))
             {
-            	if (!assocsToLeaveAlone.contains(versionedAssoc.getTypeQName()))
-            	{
+                if (!assocsToLeaveAlone.contains(versionedAssoc.getTypeQName()))
+                {
 
                     if (this.nodeService.exists(versionedAssoc.getTargetRef()) == true)
                     {
                         this.nodeService.createAssociation(nodeRef, versionedAssoc.getTargetRef(), versionedAssoc.getTypeQName());
                     }
-            	}
+                }
                 
                 // else
                 // Since the target of the assoc no longer exists we can't recreate the assoc
@@ -1325,8 +1338,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         NodeRef restoredNodeRef = null;
@@ -1407,8 +1420,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         // Get the version history node for the node is question and delete it
@@ -1445,8 +1458,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
         
         // Check the mandatory parameters
@@ -1457,7 +1470,8 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
         
         // Delete the version node
         this.dbNodeService.deleteNode(VersionUtil.convertNodeRef(version.getFrozenStateNodeRef()));
-        
+
+        // If we try to delete the last version
         if (currentVersion.getVersionLabel().equals(version.getVersionLabel()))
         {
             Version headVersion = getHeadVersion(nodeRef);
@@ -1467,7 +1481,16 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
                 // Disable the VersionableAspect for this change though, we don't want
                 //  to have this create a new version for the property change!
                 policyBehaviourFilter.disableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
-                this.nodeService.setProperty(nodeRef, ContentModel.PROP_VERSION_LABEL, headVersion.getVersionLabel());
+                try
+                {
+                    this.nodeService.setProperty(nodeRef, ContentModel.PROP_VERSION_LABEL, headVersion.getVersionLabel());
+                    // MNT-13097 Content will be reverted as well
+                    revert(nodeRef, headVersion);
+                }
+                finally
+                {
+                    policyBehaviourFilter.enableBehaviour(nodeRef, ContentModel.ASPECT_VERSIONABLE);
+                }
             }
             else
             {
@@ -1482,37 +1505,38 @@ public class Version2ServiceImpl extends VersionServiceImpl implements VersionSe
     {
         if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
-	    
-		NodeRef realNodeRef = nodeRef;
+        
+        NodeRef realNodeRef = nodeRef;
         if(nodeRef.getStoreRef().getProtocol().equals(VersionBaseModel.STORE_PROTOCOL))
         {
-        	realNodeRef = VersionUtil.convertNodeRef(nodeRef);        	
+            realNodeRef = VersionUtil.convertNodeRef(nodeRef);            
         }
         return this.dbNodeService.hasAspect(realNodeRef, Version2Model.ASPECT_VERSION);
     }
-	
-	@Override
+    
+    @Override
     @Extend(extensionAPI=VersionServiceExtension.class,traitAPI=VersionServiceTrait.class)
     public boolean isVersioned(NodeRef nodeRef)
     {
-	    if (logger.isDebugEnabled())
+        if (logger.isDebugEnabled())
         {
-        	logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
-        	logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
+            logger.debug("Run as user " + AuthenticationUtil.getRunAsUser());
+            logger.debug("Fully authenticated " + AuthenticationUtil.getFullyAuthenticatedUser());
         }
-	    
-		NodeRef realNodeRef = nodeRef;
+        
+        NodeRef realNodeRef = nodeRef;
         if(nodeRef.getStoreRef().getProtocol().equals(VersionBaseModel.STORE_PROTOCOL))
         {
-        	realNodeRef = VersionUtil.convertNodeRef(nodeRef);        	
+            realNodeRef = VersionUtil.convertNodeRef(nodeRef);            
         }
         return this.dbNodeService.hasAspect(realNodeRef, ContentModel.ASPECT_VERSIONABLE);
     }
 
-	@Override
+    @SuppressWarnings("unchecked")
+    @Override
     public <T extends Trait> ExtendedTrait<T> getTrait(Class<? extends T> traitAPI)
     {
         return (ExtendedTrait<T>) versionServiceTrait;

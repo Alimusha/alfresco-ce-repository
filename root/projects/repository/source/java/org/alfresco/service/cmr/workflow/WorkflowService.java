@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2012 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.service.cmr.workflow;
 
@@ -149,7 +156,7 @@ public interface WorkflowService
     /**
      * Gets the latest Workflow Definition by unique name
      * 
-     * @param workflowName  workflow name e.g. jbpm$wf:review
+     * @param workflowName  workflow name e.g. activiti$activitiReview
      * @return  the deployed workflow definition (or null if not found)
      */
     @Auditable(parameters = {"workflowName"})
@@ -158,7 +165,7 @@ public interface WorkflowService
     /**
      * Gets all (including previous) Workflow Definitions for the given unique name
      * 
-     * @param workflowName  workflow name e.g. jbpm$wf:review
+     * @param workflowName  workflow name e.g. activiti$activitiReview
      * @return  the deployed workflow definition (or null if not found)
      */
     @Auditable(parameters = {"workflowName"})
@@ -241,7 +248,6 @@ public interface WorkflowService
      * Gets all "in-flight" workflow instances according to the specified workflowInstanceQuery parameter
      * 
      * @param workflowInstanceQuery WorkflowInstanceQuery
-     * @return List<WorkflowInstance>
      */
     public List<WorkflowInstance> getWorkflows(WorkflowInstanceQuery workflowInstanceQuery);
     
@@ -389,11 +395,9 @@ public interface WorkflowService
     /**
      * Gets the start task instances for the given workflow instances.
      * 
-     * @param workflowInstanceIds List<String>
      * @param sameSession indicates that the returned {@link WorkflowTask} elements will be used in
      *        the same session. If {@code true}, the returned List will be a lazy loaded list
      *        providing greater performance.
-     * @return List<WorkflowTask>
      */
     @Auditable(parameters = {"pathIds"})
     public List<WorkflowTask> getStartTasks(List<String> workflowInstanceIds, boolean sameSession);

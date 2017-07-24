@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Remote API
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.rest.api.tests;
@@ -33,7 +40,6 @@ import org.alfresco.rest.api.model.CustomModelConstraint;
 import org.alfresco.rest.api.model.CustomModelNamedValue;
 import org.alfresco.rest.api.model.CustomModelProperty;
 import org.alfresco.rest.api.model.CustomType;
-import org.alfresco.rest.api.tests.RepoService.TestPerson;
 import org.alfresco.rest.api.tests.client.HttpResponse;
 import org.alfresco.rest.api.tests.util.RestApiUtil;
 import org.alfresco.service.cmr.dictionary.CustomModelDefinition;
@@ -84,10 +90,11 @@ public class BaseCustomModelApiTest extends AbstractBaseApiTest
 
         final AuthorityService authorityService = applicationContext.getBean("authorityService", AuthorityService.class);
 
-        this.nonAdminUserName = createUser("nonAdminUser" + System.currentTimeMillis());
-        this.customModelAdmin = createUser("customModelAdmin" + System.currentTimeMillis());
+        this.nonAdminUserName = createUser("nonAdminUser" + System.currentTimeMillis(), "password", null);
+        this.customModelAdmin = createUser("customModelAdmin" + System.currentTimeMillis(), "password", null);
         users.add(nonAdminUserName);
         users.add(customModelAdmin);
+        
         // Add 'customModelAdmin' user into 'ALFRESCO_MODEL_ADMINISTRATORS' group
         transactionHelper.doInTransaction(new RetryingTransactionCallback<Void>()
         {
@@ -111,8 +118,7 @@ public class BaseCustomModelApiTest extends AbstractBaseApiTest
                 @Override
                 public Void execute() throws Throwable
                 {
-                    authenticationService.deleteAuthentication(user);
-                    personService.deletePerson(user);
+                    deleteUser(user, null);
                     return null;
                 }
             });
@@ -136,9 +142,9 @@ public class BaseCustomModelApiTest extends AbstractBaseApiTest
         customModel.setDescription(desc);
         customModel.setStatus(status);
         customModel.setAuthor(author);
-
+        
         // Create the model as a Model Administrator
-        HttpResponse response = post("cmm", customModelAdmin, RestApiUtil.toJsonAsString(customModel), 201);
+        HttpResponse response = post("cmm", RestApiUtil.toJsonAsString(customModel), 201);
         CustomModel returnedModel = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), CustomModel.class);
         if (author == null)
         {
@@ -175,7 +181,7 @@ public class BaseCustomModelApiTest extends AbstractBaseApiTest
         classModel.setParentName(parent);
 
         // Create type as a Model Administrator
-        HttpResponse response = post(uri, customModelAdmin, RestApiUtil.toJsonAsString(classModel), 201);
+        HttpResponse response = post(uri, RestApiUtil.toJsonAsString(classModel), 201);
         T returnedClassModel = RestApiUtil.parseRestApiEntry(response.getJsonResponse(), glazz);
 
         compareCustomTypesAspects(classModel, returnedClassModel, "prefixedName");
@@ -230,6 +236,15 @@ public class BaseCustomModelApiTest extends AbstractBaseApiTest
 
     protected void compareCustomModelConstraints(CustomModelConstraint expectedConstraint, CustomModelConstraint actualConstraint, String... excludeFields)
     {
+        if (expectedConstraint.getParameters() != null)
+        {
+            Collections.sort(expectedConstraint.getParameters());
+        }
+        if (actualConstraint.getParameters() != null)
+        {
+            Collections.sort(actualConstraint.getParameters());
+        }
+
         boolean result = EqualsBuilder.reflectionEquals(expectedConstraint, actualConstraint, excludeFields);
         assertTrue("Two constraints are not equal. Expected:<" + expectedConstraint.toString() + "> but was:<" + actualConstraint.toString() + ">", result);
     }

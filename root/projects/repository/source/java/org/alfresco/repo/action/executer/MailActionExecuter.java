@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 package org.alfresco.repo.action.executer;
 
@@ -51,7 +58,6 @@ import org.alfresco.repo.tenant.TenantUtil.TenantRunAsWork;
 import org.alfresco.repo.transaction.AlfrescoTransactionSupport;
 import org.alfresco.repo.transaction.RetryingTransactionHelper;
 import org.alfresco.repo.transaction.RetryingTransactionHelper.RetryingTransactionCallback;
-import org.alfresco.repo.transaction.TransactionListenerAdapter;
 import org.alfresco.service.ServiceRegistry;
 import org.alfresco.service.cmr.action.Action;
 import org.alfresco.service.cmr.action.ParameterDefinition;
@@ -67,6 +73,7 @@ import org.alfresco.service.cmr.security.AuthorityType;
 import org.alfresco.service.cmr.security.PersonService;
 import org.alfresco.util.Pair;
 import org.alfresco.util.UrlUtil;
+import org.alfresco.util.transaction.TransactionListenerAdapter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.validator.routines.EmailValidator;
@@ -620,44 +627,44 @@ public class MailActionExecuter extends ActionExecuterAbstractBase
                     {
                         if (ccValue instanceof String)
                         {
-                        	String cc = (String)ccValue;
-                        	if(cc.length() > 0)
-                        	{
-                        		messageRef[0].setCc(cc);
-                        	}
+                            String cc = (String)ccValue;
+                            if(cc.length() > 0)
+                            {
+                                messageRef[0].setCc(cc);
+                            }
 
                         }
                         else if (ccValue instanceof List<?>)
                         {
-                        	List<String>s = (List<String>)ccValue;
-                        	messageRef[0].setCc((String[])s.toArray());
+                            List<String>s = (List<String>)ccValue;
+                            messageRef[0].setCc((String[])s.toArray());
                         }
                         else if (ccValue.getClass().isArray())
                         {
-                        	messageRef[0].setCc((String[])ccValue);
+                            messageRef[0].setCc((String[])ccValue);
                         }
-                    	
+                        
                     }
                     Serializable bccValue = (String)ruleAction.getParameterValue(PARAM_BCC);
                     if(bccValue != null)
                     {
                         if (bccValue instanceof String)
                         {
-                        	String bcc = (String)bccValue;
-                        	if(bcc.length() > 0)
-                        	{
-                        		messageRef[0].setBcc(bcc);
-                        	}
+                            String bcc = (String)bccValue;
+                            if(bcc.length() > 0)
+                            {
+                                messageRef[0].setBcc(bcc);
+                            }
 
                         }
                         else if (bccValue instanceof List<?>)
                         {
-                        	List<String>s = (List<String>)bccValue;
-                        	messageRef[0].setBcc((String[])s.toArray());
+                            List<String>s = (List<String>)bccValue;
+                            messageRef[0].setBcc((String[])s.toArray());
                         }
                         else if (bccValue.getClass().isArray())
                         {
-                        	messageRef[0].setCc((String[])bccValue);
+                            messageRef[0].setCc((String[])bccValue);
                         }
                     }
                     

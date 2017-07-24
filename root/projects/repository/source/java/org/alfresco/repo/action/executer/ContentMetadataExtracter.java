@@ -1,4 +1,29 @@
 /*
+ * #%L
+ * Alfresco Repository
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
+ * Alfresco is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Alfresco is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
+ */
+/*
  * Copyright (C) 2005 Jesper Steen Møller
  *
  * This file is part of Alfresco
@@ -20,6 +45,7 @@ package org.alfresco.repo.action.executer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,7 +95,12 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
     private TaggingService taggingService;
     private MetadataExtracterRegistry metadataExtracterRegistry;
     private boolean carryAspectProperties = true;
+    
+    
     private boolean enableStringTagging = false;
+    
+    // Default list of separators (when enableStringTagging is enabled)
+    protected List<String> stringTaggingSeparators = Arrays.asList(",", ";", "\\|");
     
     public ContentMetadataExtracter()
     {
@@ -140,6 +171,16 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
     }
 
     /**
+     * List of string separators - note: all will be applied to a given string
+     * 
+     * @param stringTaggingSeparators
+     */
+    public void setStringTaggingSeparators(List<String> stringTaggingSeparators)
+    {
+        this.stringTaggingSeparators = stringTaggingSeparators;
+    }
+
+    /**
      * Iterates the values of the taggable property which the metadata
      * extractor should have already attempted to convert values to {@link NodeRef}s.
      * <p>
@@ -154,15 +195,20 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
      * @param propertyDef the PropertyDefinition of the taggable property
      * @param rawValue the raw value from the metadata extracter
      */
-    @SuppressWarnings("unchecked")
     protected void addTags(NodeRef actionedUponNodeRef, PropertyDefinition propertyDef, Serializable rawValue)
     {
+        if (rawValue == null)
+        {
+            return;
+        }
+
         List<String> tags = new ArrayList<String>();
+
         if (logger.isDebugEnabled())
         {
-            logger.debug("converting " + rawValue.toString() + " of type " + 
-                    rawValue.getClass().getCanonicalName() + " to tags");
+            logger.debug("converting " + rawValue + " of type " + rawValue.getClass().getCanonicalName() + " to tags");
         }
+
         if (rawValue instanceof Collection<?>)
         {
             for (Object singleValue : (Collection<?>) rawValue)
@@ -175,17 +221,17 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
                         Serializable convertedPropertyValue = (Serializable) DefaultTypeConverter.INSTANCE.convert(
                                 propertyDef.getDataType(),
                                 (String) singleValue);
-                        try {
-                            String tagName = (String) nodeService.getProperty((NodeRef) convertedPropertyValue, ContentModel.PROP_NAME);
+                        try
+                        {
+                            NodeRef nodeRef = (NodeRef) convertedPropertyValue;
+                            String tagName = (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
+
                             if (logger.isTraceEnabled())
                             {
-                                logger.trace("found tag '" + tagName + "' from tag nodeRef '" + (String) singleValue + "', " +
-                                		"adding to " + actionedUponNodeRef.toString());
+                                logger.trace("adding string tag name'" + tagName + "' (from tag nodeRef "+nodeRef+") to " + actionedUponNodeRef);
                             }
-                            if (tagName != null && !tagName.equals(""))
-                            {
-                                tags.add(tagName);
-                            }
+
+                            tags.addAll(splitTag(tagName));
                         }
                         catch (InvalidNodeRefException e)
                         {
@@ -198,17 +244,26 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
                     else
                     {
                         // Must be a simple string
+
                         if (logger.isTraceEnabled())
                         {
-                            logger.trace("adding string tag '" + (String) singleValue + "' to " + actionedUponNodeRef.toString());
+                            logger.trace("adding string tag name'" + singleValue + "' to " + actionedUponNodeRef);
                         }
-                        tags.add((String) singleValue);
+
+                        tags.addAll(splitTag((String)singleValue));
                     }
                 }
                 else if (singleValue instanceof NodeRef)
                 {
-                    String tagName = (String) nodeService.getProperty((NodeRef) singleValue, ContentModel.PROP_NAME);
-                    tags.add(tagName);
+                    NodeRef nodeRef = (NodeRef)singleValue;
+                    String tagName = (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
+
+                    if (logger.isTraceEnabled())
+                    {
+                        logger.trace("adding string tag name'" + tagName + "' (for nodeRef "+nodeRef+") to " + actionedUponNodeRef);
+                    }
+
+                    tags.addAll(splitTag(tagName));
                 }
             }
         }
@@ -216,11 +271,57 @@ public class ContentMetadataExtracter extends ActionExecuterAbstractBase
         {
             if (logger.isTraceEnabled())
             {
-                logger.trace("adding tag '" + (String) rawValue + "' to " + actionedUponNodeRef.toString());
+                logger.trace("adding string tag name'" + (String)rawValue + "' to " + actionedUponNodeRef);
             }
-            tags.add((String) rawValue);
+            
+            tags.addAll(splitTag((String)rawValue));
         }
-        taggingService.addTags(actionedUponNodeRef, tags);
+
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("adding tags '" + tags + "' to " + actionedUponNodeRef);
+        }
+
+        try
+        {
+            taggingService.addTags(actionedUponNodeRef, tags);
+        }
+        catch (IllegalArgumentException iae)
+        {
+            // defensive catch-all - do not prevent uploads due to unexpected failure in "addTags"
+            if (logger.isWarnEnabled())
+            {
+                logger.warn("Cannot add tags '"+tags+"' - "+iae.getMessage());
+            }
+        }
+    }
+
+    protected List<String> splitTag(String str)
+    {
+        List<String> result = new ArrayList<>();
+        if ((str != null) && (!str.equals("")))
+        {
+            result.add(str.trim());
+
+            if (stringTaggingSeparators != null)
+            {
+                for (String sep : stringTaggingSeparators)
+                {
+                    List<String> splitTags = new ArrayList<>(result.size());
+                    for (String tag : result)
+                    {
+                        String[] parts = tag.split(sep);
+                        for (String part : parts)
+                        {
+                            splitTags.add(part.trim());
+                        }
+                    }
+                    result = splitTags;
+                }
+            }
+        }
+
+        return result;
     }
     
     /**

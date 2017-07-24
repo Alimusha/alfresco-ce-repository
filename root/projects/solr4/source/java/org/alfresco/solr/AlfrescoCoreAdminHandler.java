@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2015 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.solr;
@@ -42,6 +49,7 @@ import org.alfresco.service.cmr.repository.StoreRef;
 import org.alfresco.service.cmr.repository.datatype.Duration;
 import org.alfresco.solr.adapters.IOpenBitSet;
 import org.alfresco.solr.client.Node;
+import org.alfresco.solr.client.SOLRAPIClientFactory;
 import org.alfresco.solr.tracker.AclTracker;
 import org.alfresco.solr.tracker.ContentTracker;
 import org.alfresco.solr.tracker.IndexHealthReport;
@@ -53,15 +61,22 @@ import org.alfresco.solr.tracker.TrackerRegistry;
 import org.alfresco.util.CachingDateFormat;
 import org.alfresco.util.shard.ExplicitShardingPolicy;
 import org.apache.commons.codec.EncoderException;
+import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
+import org.apache.log4j.Level;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
+import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.handler.admin.CoreAdminHandler;
+import org.apache.solr.logging.ListenerConfig;
+import org.apache.solr.logging.LogWatcher;
+import org.apache.solr.logging.log4j.EventAppender;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.json.JSONException;
@@ -94,14 +109,29 @@ public class AlfrescoCoreAdminHandler extends CoreAdminHandler
     public AlfrescoCoreAdminHandler(CoreContainer coreContainer)
     {
         super(coreContainer);
-
         this.scheduler = new SolrTrackerScheduler(this);
 
-        initResourceBasedLogging("log4j.properties");
-        initResourceBasedLogging("log4j-solr.properties");
+        initResourceBasedLogging(coreContainer, "log4j-solr.properties");
     }
 
-    private void initResourceBasedLogging(String resource)
+    public void shutdown() {
+        super.shutdown();
+        try {
+            AlfrescoSolrDataModel.getInstance().close();
+            SOLRAPIClientFactory.close();
+            MultiThreadedHttpConnectionManager.shutdownAll();
+            boolean testcase = Boolean.parseBoolean(System.getProperty("alfresco.test", "false"));
+            if(testcase) {
+            if (!scheduler.isShutdown()) {
+                scheduler.pauseAll();
+                scheduler.shutdown();
+            }
+            }
+        } catch(Exception e) {
+            log.info("", e);
+        }
+    }
+    private void initResourceBasedLogging(CoreContainer coreContainer, String resource)
     {
         try
         {
@@ -114,12 +144,23 @@ public class AlfrescoCoreAdminHandler extends CoreAdminHandler
         }
         catch (ClassNotFoundException e)
         {
-            return;
+            log.info("ClassNotFoundException  ", e);
         }
         catch (Exception e)
         {
-            log.info("Failed to load " + resource, e);
+            log.info("Failed to load logging resource " + resource, e);
         }
+
+        ListenerConfig cfg = coreContainer.getConfig().getLogWatcherConfig().asListenerConfig();
+        EventAppender appender = new EventAppender(coreContainer.getLogging());
+        if(cfg.threshold != null) {
+            appender.setThreshold(Level.toLevel(cfg.threshold));
+        }
+        else {
+            appender.setThreshold(Level.WARN);
+        }
+        org.apache.log4j.Logger rootLogger = org.apache.log4j.LogManager.getRootLogger();
+        rootLogger.addAppender(appender);
     }
 
     private InputStream openResource(CoreContainer coreContainer, String resource)
@@ -305,7 +346,7 @@ public class AlfrescoCoreAdminHandler extends CoreAdminHandler
                 {
                     resource = params.get("resource");
                 }
-                initResourceBasedLogging(resource);
+                initResourceBasedLogging(coreContainer, resource);
             }
             else
             {

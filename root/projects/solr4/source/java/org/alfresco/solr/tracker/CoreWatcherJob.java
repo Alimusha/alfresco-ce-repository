@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2005-2014 Alfresco Software Limited.
- *
- * This file is part of Alfresco
- *
+ * #%L
+ * Alfresco Solr 4
+ * %%
+ * Copyright (C) 2005 - 2016 Alfresco Software Limited
+ * %%
+ * This file is part of the Alfresco software. 
+ * If the software was purchased under a paid Alfresco license, the terms of 
+ * the paid license agreement will prevail.  Otherwise, the software is 
+ * provided under the following open source license terms:
+ * 
  * Alfresco is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * Alfresco is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public License
  * along with Alfresco. If not, see <http://www.gnu.org/licenses/>.
+ * #L%
  */
 
 package org.alfresco.solr.tracker;
@@ -56,6 +63,7 @@ public class CoreWatcherJob implements Job
     @Override
     public void execute(JobExecutionContext jec) throws JobExecutionException
     {
+
         AlfrescoCoreAdminHandler adminHandler = (AlfrescoCoreAdminHandler) jec.getJobDetail().getJobDataMap()
                     .get(JOBDATA_ADMIN_HANDLER_KEY);
         CoreContainer coreContainer = adminHandler.getCoreContainer();
@@ -94,6 +102,7 @@ public class CoreWatcherJob implements Job
                 String coreName, TrackerRegistry trackerRegistry) throws JobExecutionException
     {
         Properties props = new CoreDescriptorDecorator(core.getCoreDescriptor()).getCoreProperties();
+        boolean testcase = Boolean.parseBoolean(System.getProperty("alfresco.test", "false"));
         if (Boolean.parseBoolean(props.getProperty("enable.alfresco.tracking", "false")))
         {
             core.addCloseHook(new AlfrescoSolrCloseHook(adminHandler));
@@ -122,7 +131,12 @@ public class CoreWatcherJob implements Job
                     logIfDebugEnabled("Creating ModelTracker when registering trackers for core " + coreName);
                     mTracker = new ModelTracker(coreContainer.getSolrHome(), props, repositoryClient,
                             coreName, srv);
+                    if(testcase) {
+                        // We don't want the trackers scheduled if we are running a test.
+                        return;
+                    }
                     trackerRegistry.setModelTracker(mTracker);
+
                     scheduler.schedule(mTracker, coreName, props);
                 }
             }
