@@ -35,6 +35,7 @@ import org.springframework.context.ApplicationContext;
 public class TenantRoutingFileContentStore extends AbstractTenantRoutingContentStore
 {
     private ContentLimitProvider contentLimitProvider = new NoLimitProvider();
+    private boolean deleteEmptyDirs = true;
     
     /**
      * Sets a new {@link ContentLimitProvider} which will provide a maximum filesize for content.
@@ -44,6 +45,10 @@ public class TenantRoutingFileContentStore extends AbstractTenantRoutingContentS
         this.contentLimitProvider = contentLimitProvider;
     }
     
+    public void setDeleteEmptyDirs(boolean deleteEmptyDirs) {
+        this.deleteEmptyDirs = deleteEmptyDirs;
+    }
+
     protected ContentStore initContentStore(ApplicationContext ctx, String contentRoot)
     {
     	Map<String, Serializable> extendedEventParams = new HashMap<String, Serializable>();
@@ -53,6 +58,7 @@ public class TenantRoutingFileContentStore extends AbstractTenantRoutingContentS
     	}
 
         FileContentStore fileContentStore = new FileContentStore(ctx, new File(contentRoot), extendedEventParams);
+        fileContentStore.setDeleteEmptyDirs(deleteEmptyDirs);
         
         // Set the content filesize limiter if there is one.
         if (this.contentLimitProvider != null)
