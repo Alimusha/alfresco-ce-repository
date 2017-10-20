@@ -4,12 +4,24 @@ Cloned from https://svn.alfresco.com/repos/alfresco-open-mirror/alfresco/COMMUNI
 
 This is a patched version of Alfresco 5.2.g. The following changes have been made.
 
+* [#3] make `deleteEmptyDirs` configurable
 * Use patched version of `alfresco-data-model` which supports a switch to disable MLText behaviour.
 * ~~Don't build the module `legacy-lucene`.~~
 * ~~Patched `QuickShareServiceImpl.java` to work correctly in a multi-tenant setup.~~
 * ALF-21521: Disable the Global Authentication Filter.
 * ALF-21757: Disable Authentication Filter for mobile apps on webdav to force basic auth
 * ALF-21749: Catch missing name parts of site manager in admin FTL.
+
+## [#3] make `deleteEmptyDirs` configurable
+
+implements [#3](https://github.com/ecm4u/alfresco-ce-repository/issues/3)
+
+### Configuration
+
+````properties
+# set to false to disable the default behaviour
+dir.contentstore.deleteEmpytDirs=true
+````
 
 ## Switch to disable MLText behaviour
 
