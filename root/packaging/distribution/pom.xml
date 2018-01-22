@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.alfresco</groupId>
         <artifactId>alfresco-packaging</artifactId>
-        <version>5.2.g.ecm4u.2</version>
+        <version>5.2.g.ecm4u.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>alfresco-platform-community-distributionzip</artifactId>
